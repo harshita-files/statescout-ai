@@ -1,0 +1,9 @@
+{
+  "name": "statescout-ai",
+  "scripts": {
+    "lint": "echo 'lint not ready'",
+    "test": "bun test",
+    "build": "echo 'build not ready'",
+    "e2e": "echo 'e2e not ready'"
+  }
+}
