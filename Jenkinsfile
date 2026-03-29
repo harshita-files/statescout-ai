@@ -33,13 +33,17 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'bun run build || true'
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    sh 'bun run build'
+                }
             }
         }
 
         stage('E2E (stub)') {
             steps {
-                sh 'bun run e2e || true'
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    sh 'bun run e2e'
+                }
             }
         }
     }
