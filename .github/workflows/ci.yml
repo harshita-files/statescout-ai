@@ -13,10 +13,9 @@ jobs:
     steps:
       - name: Validate branch name
         run: |
-          BRANCH="${GITHUB_REF#refs/heads/}"
+          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
           echo "Branch: $BRANCH"
 
-          # allow main and staging explicitly
           if [[ "$BRANCH" == "main" || "$BRANCH" == "staging" ]]; then
             exit 0
           fi
