@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, staging ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      CI: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install
+        run: bun install
+
+      - name: Lint (non-blocking)
+        run: bun run lint
+        continue-on-error: true
+
+      - name: Unit Tests
+        run: bun test
+
+      - name: Build (non-blocking)
+        run: bun run build
+        continue-on-error: true
+
+      - name: E2E (non-blocking)
+        run: bun run e2e
+        continue-on-error: true
+
+      - name: Done
+        if: always()
+        run: echo "Done :)"
+
+      - name: On failure
+        if: failure()
+        run: echo "Pipeline failed :("
