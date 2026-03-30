@@ -2,11 +2,33 @@ name: CI
 
 on:
   push:
-    branches: [ main, staging ]
+    branches:
+      - '**'
+  pull_request:
 
 jobs:
+  validate-branch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate branch name
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "Branch: $BRANCH"
+
+          # allow main and staging explicitly
+          if [[ "$BRANCH" == "main" || "$BRANCH" == "staging" ]]; then
+            exit 0
+          fi
+
+          if [[ ! "$BRANCH" =~ ^(feature|fix|hotfix|release|chore)/[a-z0-9-]+$ ]]; then
+            echo "Invalid branch name!"
+            exit 1
+          fi
+
   build:
     runs-on: ubuntu-latest
+    needs: validate-branch
 
     env:
       CI: "true"
