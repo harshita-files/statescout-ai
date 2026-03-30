@@ -25,9 +25,24 @@ jobs:
             exit 1
           fi
 
+  enforce-flow:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Enforce staging → main only
+        run: |
+          echo "Base branch: $GITHUB_BASE_REF"
+          echo "Source branch: $GITHUB_HEAD_REF"
+
+          if [[ "$GITHUB_BASE_REF" == "main" && "$GITHUB_HEAD_REF" != "staging" ]]; then
+            echo "Only staging can merge into main"
+            exit 1
+          fi
+
   build:
     runs-on: ubuntu-latest
-    needs: validate-branch
+    needs: [validate-branch, enforce-flow]
 
     env:
       CI: "true"
