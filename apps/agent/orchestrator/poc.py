@@ -1,4 +1,9 @@
-"""LangGraph proof of concept (M1-P4).
+"""LangGraph proof of concept (M1-P4). **Superseded by `graph_runner.py`.**
+
+Kept as the record of the M1-P4 deliverable and as the smallest readable example
+of the compiled shape. Nothing depends on it. Its state schema lives here rather
+than in `state.py` because `state.py` now belongs to the real runner, and one
+frozen scaffold must not constrain the schema the product actually uses.
 
 A compiled `StateGraph` with the four nodes the real orchestrator will keep —
 Scan, Reason, Act, Observe — one conditional edge, and an in-memory checkpointer.
@@ -36,17 +41,82 @@ not make. See `explore.py`.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, TypedDict
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from apps.agent.contracts import ActionError, ExpectationSet, StateEdge, StateNode
+from apps.agent.contracts import (
+    Action,
+    ActionError,
+    CaptureBundle,
+    ExpectationSet,
+    Role,
+    StateEdge,
+    StateNode,
+    TerminationReason,
+    Verdict,
+    Violation,
+)
 from apps.agent.orchestrator.deps import Ports
-from apps.agent.orchestrator.state import ExplorationState, PendingAction
+from apps.agent.orchestrator.state import PendingAction
 
-__all__ = ["Route", "build_graph"]
+__all__ = ["PocState", "Route", "build_graph", "initial_poc_state"]
+
+
+class PocState(TypedDict):
+    """The scaffold's own schema. Frozen with the scaffold."""
+
+    run_id: str
+    role: Role
+    seed_url: str
+    current_bundle: CaptureBundle | None
+    current_state_id: str | None
+    previous_state_id: str | None
+    last_action: Action | None
+    next_bundle: CaptureBundle | None
+    frontier: list[PendingAction]
+    visited: list[str]
+    violations: list[Violation]
+    skipped: list[str]
+    depth: int
+    depth_limit: int
+    iterations: int
+    max_iterations: int
+    verdict: Verdict | None
+    termination_reason: TerminationReason | None
+
+
+def initial_poc_state(
+    run_id: str,
+    seed_url: str,
+    *,
+    role: Role = "guest",
+    depth_limit: int = 5,
+    max_iterations: int = 25,
+) -> PocState:
+    return PocState(
+        run_id=run_id,
+        role=role,
+        seed_url=seed_url,
+        current_bundle=None,
+        current_state_id=None,
+        previous_state_id=None,
+        last_action=None,
+        next_bundle=None,
+        frontier=[],
+        visited=[],
+        violations=[],
+        skipped=[],
+        depth=0,
+        depth_limit=depth_limit,
+        iterations=0,
+        max_iterations=max_iterations,
+        verdict=None,
+        termination_reason=None,
+    )
+
 
 Route = Literal["clean", "violated", "terminal"]
 
@@ -55,7 +125,7 @@ def build_graph(
     ports: Ports,
     policy: ExpectationSet,
     checkpointer: InMemorySaver | None = None,
-) -> CompiledStateGraph[ExplorationState, None, ExplorationState, ExplorationState]:
+) -> CompiledStateGraph[PocState, None, PocState, PocState]:
     """Compile the loop.
 
     Ports and policy are closed over rather than imported, which is the whole
@@ -64,7 +134,7 @@ def build_graph(
     a constant here would become an import the policy pipeline has to fight.
     """
 
-    def scan(state: ExplorationState) -> dict[str, object]:
+    def scan(state: PocState) -> dict[str, object]:
         bundle = state["current_bundle"] or ports.crawler.open(state["seed_url"])
         state_id = ports.graph.fingerprint(bundle)
 
@@ -115,7 +185,7 @@ def build_graph(
             "last_action": None,
         }
 
-    def reason(state: ExplorationState) -> dict[str, object]:
+    def reason(state: PocState) -> dict[str, object]:
         bundle = state["current_bundle"]
         assert bundle is not None  # scan always sets it
         ui_map = ports.perception.analyze(bundle, state["role"])
@@ -128,7 +198,7 @@ def build_graph(
             "verdict": "violated" if found else "clean",
         }
 
-    def route(state: ExplorationState) -> Route:
+    def route(state: PocState) -> Route:
         """The one conditional edge. Terminal wins over any verdict."""
         if state["iterations"] >= state["max_iterations"]:
             return "terminal"
@@ -136,7 +206,7 @@ def build_graph(
             return "terminal"
         return "violated" if state["verdict"] == "violated" else "clean"
 
-    def act(state: ExplorationState) -> dict[str, object]:
+    def act(state: PocState) -> dict[str, object]:
         index = _next_index(state)
         assert index is not None  # route() checked
         frontier = list(state["frontier"])
@@ -164,12 +234,10 @@ def build_graph(
             "depth": item.depth,
         }
 
-    def observe(state: ExplorationState) -> dict[str, object]:
+    def observe(state: PocState) -> dict[str, object]:
         return {"current_bundle": state["next_bundle"], "next_bundle": None}
 
-    graph: StateGraph[ExplorationState, None, ExplorationState, ExplorationState] = StateGraph(
-        ExplorationState
-    )
+    graph: StateGraph[PocState, None, PocState, PocState] = StateGraph(PocState)
     graph.add_node("scan", scan)
     graph.add_node("reason", reason)
     graph.add_node("act", act)
@@ -190,7 +258,7 @@ def build_graph(
     return graph.compile(checkpointer=checkpointer or InMemorySaver())
 
 
-def _next_index(state: ExplorationState) -> int | None:
+def _next_index(state: PocState) -> int | None:
     """Index of the most recent frontier entry valid from the current state.
 
     An index rather than the entry itself, so removal survives a checkpoint round

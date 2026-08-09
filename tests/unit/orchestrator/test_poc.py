@@ -21,7 +21,7 @@ from apps.agent.contracts import ActionError, ExpectationSet
 from apps.agent.orchestrator.deps import Ports, fake_ports
 from apps.agent.orchestrator.fakes import FakeCrawler, FakeGraph, FakeLink, FakePage, FakePerception
 from apps.agent.orchestrator.poc import build_graph
-from apps.agent.orchestrator.state import initial_state
+from apps.agent.orchestrator.poc import initial_poc_state as initial_state
 from apps.agent.skeleton import SKELETON_POLICY
 
 LOGIN = "http://fake.test/login"

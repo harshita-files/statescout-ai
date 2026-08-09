@@ -1,20 +1,34 @@
-"""The plain-Python BFS exploration loop (M2-P1).
+"""The exploration loop (M2-P1), run against every implementation of it.
 
 The three definition-of-done tests come first and are marked as such. Everything
 after them is the termination reasoning made executable: the loop's job is to
 finish, and every way it could fail to finish deserves a test that would catch it.
 
 Written before `explore.py` existed, and watched fail.
+
+Parity (M2-P2)
+--------------
+The `run` fixture is parameterised over both implementations, so every assertion
+below executes twice — once against the plain-Python reference and once against
+the compiled LangGraph port. That is what makes "behaviour must be test-identical"
+a fact rather than a claim: there is no separate LangGraph suite that could drift,
+and a divergence fails the test that describes the behaviour, naming the
+implementation that broke it.
+
+Add a test here and both implementations must satisfy it. That is the point.
 """
 
 from __future__ import annotations
 
+from typing import Protocol
+
 import pytest
 
 from apps.agent.contracts import ActionError, ExpectationSet, NavigationError
+from apps.agent.orchestrator import explore as reference
+from apps.agent.orchestrator import graph_runner
 from apps.agent.orchestrator.config import OrchestratorConfig
 from apps.agent.orchestrator.deps import Ports
-from apps.agent.orchestrator.explore import ExplorationResult, explore
 from apps.agent.orchestrator.fakes import (
     DEFAULT_POLICY,
     FakeCrawler,
@@ -23,9 +37,16 @@ from apps.agent.orchestrator.fakes import (
     FakePage,
     FakePerception,
 )
+from apps.agent.orchestrator.state import ExplorationResult
 from apps.agent.skeleton import SKELETON_POLICY
 
 LOGIN = "http://fake.test/login"
+
+#: Every implementation of the same loop. Both must satisfy every test below.
+IMPLEMENTATIONS = {
+    "reference": reference.explore,
+    "langgraph": graph_runner.explore,
+}
 
 
 def config(**overrides: object) -> OrchestratorConfig:
@@ -38,14 +59,32 @@ def ports_for(app: dict[str, FakePage] | None = None, *, role: str = "guest") ->
     return Ports(crawler=crawler, perception=FakePerception(), graph=FakeGraph())
 
 
-def run(
-    ports: Ports,
-    *,
-    seed: str = LOGIN,
-    policy: ExpectationSet = SKELETON_POLICY,
-    **settings: object,
-) -> ExplorationResult:
-    return explore(ports, seed, policy, config(**settings), run_id="test-run")
+class Run(Protocol):
+    def __call__(
+        self,
+        ports: Ports,
+        *,
+        seed: str = ...,
+        policy: ExpectationSet = ...,
+        **settings: object,
+    ) -> ExplorationResult: ...
+
+
+@pytest.fixture(params=list(IMPLEMENTATIONS), ids=list(IMPLEMENTATIONS))
+def run(request: pytest.FixtureRequest) -> Run:
+    """One of the two loops, behind the identical call signature."""
+    implementation = IMPLEMENTATIONS[request.param]
+
+    def _run(
+        ports: Ports,
+        *,
+        seed: str = LOGIN,
+        policy: ExpectationSet = SKELETON_POLICY,
+        **settings: object,
+    ) -> ExplorationResult:
+        return implementation(ports, seed, policy, config(**settings), run_id="test-run")
+
+    return _run
 
 
 # ===========================================================================
@@ -53,7 +92,7 @@ def run(
 # ===========================================================================
 
 
-def test_dod_a_the_loop_terminates_on_an_app_with_cycles() -> None:
+def test_dod_a_the_loop_terminates_on_an_app_with_cycles(run: Run) -> None:
     """(a) It stops.
 
     `DEFAULT_APP` has two cycles. With no iteration cap and no depth cap in play,
@@ -64,7 +103,7 @@ def test_dod_a_the_loop_terminates_on_an_app_with_cycles() -> None:
     assert result.termination_reason == "frontier_exhausted"
 
 
-def test_dod_b_every_state_action_pair_executes_exactly_once() -> None:
+def test_dod_b_every_state_action_pair_executes_exactly_once(run: Run) -> None:
     """(b) Coverage without repetition.
 
     Four states with 2 + 1 + 2 + 2 = 7 outgoing actions. Every pair runs once:
@@ -89,7 +128,7 @@ def test_dod_b_every_state_action_pair_executes_exactly_once() -> None:
     assert len(crawler.acted) == 7 + result.replay_steps
 
 
-def test_dod_c_the_login_register_cycle_records_its_back_edge() -> None:
+def test_dod_c_the_login_register_cycle_records_its_back_edge(run: Run) -> None:
     """(c) The cycle is in the graph, not pruned out of it."""
     ports = ports_for()
     run(ports, depth_limit=99, max_states=99)
@@ -111,7 +150,7 @@ def test_dod_c_the_login_register_cycle_records_its_back_edge() -> None:
 # ===========================================================================
 
 
-def test_a_self_loop_terminates() -> None:
+def test_a_self_loop_terminates(run: Run) -> None:
     """One page linking to itself. The pair check is the only thing stopping this."""
     app = {"/one": FakePage(title="One", transitions=(FakeLink(name="Refresh", to="/one"),))}
     result = run(ports_for(app), seed="/one", depth_limit=99, max_states=99)
@@ -119,7 +158,7 @@ def test_a_self_loop_terminates() -> None:
     assert result.visited_pairs == 1
 
 
-def test_two_interleaved_cycles_terminate() -> None:
+def test_two_interleaved_cycles_terminate(run: Run) -> None:
     """A diamond with both diagonals — every state reaches every other."""
     app = {
         "/a": FakePage(title="A", transitions=(FakeLink("to B", "/b"), FakeLink("to C", "/c"))),
@@ -133,7 +172,7 @@ def test_two_interleaved_cycles_terminate() -> None:
     assert result.visited_pairs == 8
 
 
-def test_depth_limit_terminates_a_deep_chain() -> None:
+def test_depth_limit_terminates_a_deep_chain(run: Run) -> None:
     """FR-10. A hundred-page chain, explored three deep."""
     app = {
         f"/p{i}": FakePage(title=f"P{i}", transitions=(FakeLink("next", f"/p{i + 1}"),))
@@ -146,13 +185,13 @@ def test_depth_limit_terminates_a_deep_chain() -> None:
     assert result.states == 4  # depths 0, 1, 2, 3
 
 
-def test_depth_zero_audits_only_the_seed() -> None:
+def test_depth_zero_audits_only_the_seed(run: Run) -> None:
     result = run(ports_for(), depth_limit=0, max_states=99)
     assert result.states == 1
     assert result.visited_pairs == 0
 
 
-def test_max_states_stops_a_fan_out_explosion() -> None:
+def test_max_states_stops_a_fan_out_explosion(run: Run) -> None:
     """Fifty distinct children at depth 1. `depth_limit` alone would not stop this,
     which is why both limits exist."""
     app: dict[str, FakePage] = {
@@ -168,7 +207,7 @@ def test_max_states_stops_a_fan_out_explosion() -> None:
     assert result.states <= 10
 
 
-def test_an_unstable_fingerprint_is_caught_by_max_states() -> None:
+def test_an_unstable_fingerprint_is_caught_by_max_states(run: Run) -> None:
     """The failure mode ADR-001 decision 2 is about.
 
     A self-loop plus a fingerprint that never repeats is the worst case: the loop
@@ -187,7 +226,7 @@ def test_an_unstable_fingerprint_is_caught_by_max_states() -> None:
     assert result.states == 8
 
 
-def test_an_unstable_fingerprint_shows_up_as_replay_divergence() -> None:
+def test_an_unstable_fingerprint_shows_up_as_replay_divergence(run: Run) -> None:
     """When a replay *is* needed, instability is caught directly and named.
 
     Landing somewhere other than the state a path is supposed to reach means the
@@ -210,7 +249,7 @@ def test_an_unstable_fingerprint_shows_up_as_replay_divergence() -> None:
 # ===========================================================================
 
 
-def test_states_are_discovered_in_breadth_first_order() -> None:
+def test_states_are_discovered_in_breadth_first_order(run: Run) -> None:
     """A chain of depth 3 hanging off a hub with a shallow sibling: breadth-first
     reaches the sibling before the bottom of the chain, depth-first does not."""
     app = {
@@ -233,7 +272,7 @@ def test_states_are_discovered_in_breadth_first_order() -> None:
     assert titles.index("W") < titles.index("D2")
 
 
-def test_reaching_a_state_replays_the_path_from_the_seed() -> None:
+def test_reaching_a_state_replays_the_path_from_the_seed(run: Run) -> None:
     """One browser cannot act on a page it is not looking at. Breadth therefore
     costs re-navigation, and that cost should be visible rather than mysterious."""
     ports = ports_for()
@@ -244,7 +283,7 @@ def test_reaching_a_state_replays_the_path_from_the_seed() -> None:
     assert result.replays > 0
 
 
-def test_no_replay_when_already_in_the_right_state() -> None:
+def test_no_replay_when_already_in_the_right_state(run: Run) -> None:
     """A chain explored front to back never needs to re-navigate."""
     app = {
         "/a": FakePage(title="A", transitions=(FakeLink("next", "/b"),)),
@@ -255,7 +294,7 @@ def test_no_replay_when_already_in_the_right_state() -> None:
     assert result.replays == 0
 
 
-def test_a_side_effecting_action_is_never_replayed() -> None:
+def test_a_side_effecting_action_is_never_replayed(run: Run) -> None:
     """ADR-001 decision 3 says at-most-once against a non-idempotent app. Replay
     re-fires the actions on a path, so a path containing a submit cannot be
     replayed — the subtree behind it is reported as skipped, not silently lost."""
@@ -296,7 +335,7 @@ def test_a_side_effecting_action_is_never_replayed() -> None:
 # ===========================================================================
 
 
-def test_nodes_are_deduplicated_and_edges_are_not() -> None:
+def test_nodes_are_deduplicated_and_edges_are_not(run: Run) -> None:
     ports = ports_for()
     result = run(ports, depth_limit=99, max_states=99)
     graph: FakeGraph = ports.graph  # type: ignore[assignment]
@@ -306,7 +345,7 @@ def test_nodes_are_deduplicated_and_edges_are_not() -> None:
     assert len(result.order) > len(graph.states)  # states were revisited
 
 
-def test_depth_is_the_depth_of_first_discovery() -> None:
+def test_depth_is_the_depth_of_first_discovery(run: Run) -> None:
     """A cycle reaches a state again at greater depth. If the later write won,
     `depth_limit` would stop meaning anything."""
     ports = ports_for()
@@ -316,14 +355,14 @@ def test_depth_is_the_depth_of_first_discovery() -> None:
     assert graph.states[login].depth == 0
 
 
-def test_a_pair_is_claimed_before_the_action_runs() -> None:
+def test_a_pair_is_claimed_before_the_action_runs(run: Run) -> None:
     ports = ports_for()
     result = run(ports, depth_limit=99, max_states=99)
     graph: FakeGraph = ports.graph  # type: ignore[assignment]
     assert len(graph.visited) == result.visited_pairs
 
 
-def test_violations_are_found_once_per_state_not_once_per_visit() -> None:
+def test_violations_are_found_once_per_state_not_once_per_visit(run: Run) -> None:
     """`/login` is scanned repeatedly as cycles close. Auditing it every time
     would triple-count the same finding in the report."""
     ports = ports_for()
@@ -340,7 +379,7 @@ def test_violations_are_found_once_per_state_not_once_per_visit() -> None:
 # ===========================================================================
 
 
-def test_a_failed_action_is_skipped_not_dropped(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_failed_action_is_skipped_not_dropped(monkeypatch: pytest.MonkeyPatch, run: Run) -> None:
     ports = ports_for()
     original = ports.crawler.act
     calls = {"n": 0}
@@ -358,13 +397,13 @@ def test_a_failed_action_is_skipped_not_dropped(monkeypatch: pytest.MonkeyPatch)
     assert result.termination_reason == "frontier_exhausted"
 
 
-def test_an_unreachable_seed_ends_the_run_with_an_error() -> None:
+def test_an_unreachable_seed_ends_the_run_with_an_error(run: Run) -> None:
     result = run(ports_for(), seed="/ghost")
     assert result.termination_reason == "error"
     assert result.states == 0
 
 
-def test_a_navigation_failure_mid_run_is_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_navigation_failure_mid_run_is_skipped(monkeypatch: pytest.MonkeyPatch, run: Run) -> None:
     """A dead link is one lost subtree, not a lost run."""
     ports = ports_for()
     original = ports.crawler.act
@@ -381,7 +420,7 @@ def test_a_navigation_failure_mid_run_is_skipped(monkeypatch: pytest.MonkeyPatch
     assert any("timeout" in skip.reason for skip in result.skipped)
 
 
-def test_the_crawler_is_closed_when_the_run_ends() -> None:
+def test_the_crawler_is_closed_when_the_run_ends(run: Run) -> None:
     ports = ports_for()
     run(ports, depth_limit=99, max_states=99)
     crawler: FakeCrawler = ports.crawler  # type: ignore[assignment]
@@ -393,7 +432,7 @@ def test_the_crawler_is_closed_when_the_run_ends() -> None:
 # ===========================================================================
 
 
-def test_two_runs_over_the_same_app_agree() -> None:
+def test_two_runs_over_the_same_app_agree(run: Run) -> None:
     """A resumed run has to rebuild the same frontier as the run it resumed, so
     the traversal cannot depend on set iteration order or anything else unstable."""
     first = run(ports_for(), depth_limit=99, max_states=99)

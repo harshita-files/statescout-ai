@@ -1,9 +1,17 @@
-"""Plain-Python BFS exploration (M2-P1).
+"""Plain-Python BFS exploration (M2-P1). **Deprecated for production use.**
 
-The reference implementation of the loop. No LangGraph — that is M2-P2, and it
-must reproduce this behaviour test-for-test. Keeping a dependency-free version
-means the exploration *policy* can be reasoned about without also reasoning about
-a framework's scheduling.
+`graph_runner.py` is the implementation the product runs: parity was proven in
+M2-P2, and only the LangGraph version can be checkpointed and resumed. Nothing
+outside the tests imports this module.
+
+It is kept, not deleted, because it is the **parity oracle**. Every test in
+`tests/unit/orchestrator/test_explore.py` runs against both, so this file is what
+stops the port from drifting into behaviour nobody chose — a framework-free
+statement of the exploration policy that can be read in one sitting and does not
+require reasoning about superstep scheduling to verify.
+
+Delete it when that suite is retired, and not before. Until then, a change here
+without the same change in `graph_runner.py` is a failing test, by design.
 
 The termination invariant
 =========================
@@ -76,11 +84,9 @@ from dataclasses import dataclass, field
 
 from apps.agent.contracts import (
     Action,
-    ActionKind,
     CaptureBundle,
     CrawlerError,
     ExpectationSet,
-    Role,
     StateEdge,
     StateNode,
     StateScoutError,
@@ -90,67 +96,13 @@ from apps.agent.contracts import (
 from apps.agent.orchestrator.config import OrchestratorConfig
 from apps.agent.orchestrator.deps import Ports
 from apps.agent.orchestrator.runlog import Logger
+from apps.agent.orchestrator.state import (
+    ExplorationResult,
+    PendingAction,
+    SkippedAction,
+)
 
-__all__ = ["REPLAY_SAFE_KINDS", "ExplorationResult", "SkippedAction", "explore"]
-
-#: Kinds with no side effect on the application under test, and therefore the
-#: only ones a replay may re-fire. Deliberately conservative: a `click` on a
-#: control that turns out to mutate is a bug report for Track A's enumeration,
-#: not a reason to widen this set.
-REPLAY_SAFE_KINDS: frozenset[ActionKind] = frozenset({"navigate", "click", "back"})
-
-
-@dataclass(frozen=True, slots=True)
-class SkippedAction:
-    """An action the loop chose not to complete, and why.
-
-    Every skip is recorded. A silent drop is the bug you find three weeks later,
-    when the coverage number is wrong and nothing says which action went missing.
-    """
-
-    from_state_id: str
-    action_id: str
-    reason: str
-
-
-@dataclass(frozen=True, slots=True)
-class ExplorationResult:
-    """What one run produced. The graph itself lives in the `GraphPort`."""
-
-    run_id: str
-    seed_url: str
-    role: Role
-    termination_reason: TerminationReason
-    #: State ids in scan order. Repeats are expected: a repeat is a closed cycle.
-    order: tuple[str, ...] = ()
-    states: int = 0
-    edges: int = 0
-    visited_pairs: int = 0
-    #: How many times the loop had to re-navigate to reach a state.
-    replays: int = 0
-    #: Actions re-fired during those replays — the actual cost of breadth. A run
-    #: where this dwarfs `visited_pairs` is one where path replay, not perception,
-    #: is the bottleneck.
-    replay_steps: int = 0
-    violations: tuple[Violation, ...] = ()
-    skipped: tuple[SkippedAction, ...] = ()
-    duration_ms: float = 0.0
-
-
-@dataclass(frozen=True, slots=True)
-class _Candidate:
-    """A frontier entry: an action, the state it is valid from, and how to get back."""
-
-    from_state_id: str
-    action: Action
-    #: Depth of the state this action leads to.
-    depth: int
-    #: Actions from the seed to `from_state_id`, for replay.
-    path: tuple[Action, ...] = ()
-
-    @property
-    def replayable(self) -> bool:
-        return all(step.kind in REPLAY_SAFE_KINDS for step in self.path)
+__all__ = ["ExplorationResult", "SkippedAction", "explore"]
 
 
 @dataclass
@@ -158,7 +110,7 @@ class _Run:
     """Mutable bookkeeping for one exploration. Deliberately not the checkpointed
     state — that is `state.py`, and M2-P2 is what has to serialize it."""
 
-    frontier: deque[_Candidate] = field(default_factory=deque)
+    frontier: deque[PendingAction] = field(default_factory=deque)
     queued: set[tuple[str, str]] = field(default_factory=set)
     seen: set[str] = field(default_factory=set)
     order: list[str] = field(default_factory=list)
@@ -269,11 +221,11 @@ def explore(
                 if pair in run.queued or ports.graph.is_visited(*pair):
                     continue
                 run.queued.add(pair)
-                run.frontier.append(_Candidate(state_id, action, depth + 1, path))
+                run.frontier.append(PendingAction(state_id, action, depth + 1, path))
 
         return state_id
 
-    def reach(candidate: _Candidate) -> bool:
+    def reach(candidate: PendingAction) -> bool:
         """Put the browser back on `candidate.from_state_id`. False means skip."""
         if run.current_state_id == candidate.from_state_id:
             return True
@@ -307,7 +259,7 @@ def explore(
         log.emit("replay", "replayed", state_id=landed, steps=len(candidate.path))
         return True
 
-    def _skip(candidate: _Candidate, reason: str) -> None:
+    def _skip(candidate: PendingAction, reason: str) -> None:
         run.skipped.append(
             SkippedAction(candidate.from_state_id, candidate.action.action_id, reason)
         )
