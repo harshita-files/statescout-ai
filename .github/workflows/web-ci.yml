@@ -1,0 +1,46 @@
+name: Web CI
+
+# TypeScript: the VS Code extension and the shared API contract types.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'apps/vscode-extension/**'
+      - 'packages/**'
+      - 'tests/**/*.ts'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig.json'
+      - '.github/workflows/web-ci.yml'
+  pull_request:
+    paths:
+      - 'apps/vscode-extension/**'
+      - 'packages/**'
+      - 'tests/**/*.ts'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig.json'
+      - '.github/workflows/web-ci.yml'
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install
+        run: bun install
+
+      - name: Type check
+        run: bun run typecheck
+
+      - name: Unit tests
+        run: bun test tests/unit

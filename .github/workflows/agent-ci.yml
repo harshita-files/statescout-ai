@@ -1,0 +1,57 @@
+name: Agent CI
+
+# Python: the agent (all tracks) and the reporting API.
+# Path-filtered so a TypeScript-only change does not pay for a uv sync.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'apps/agent/**'
+      - 'services/**'
+      - 'tests/**/*.py'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.python-version'
+      - '.github/workflows/agent-ci.yml'
+  pull_request:
+    paths:
+      - 'apps/agent/**'
+      - 'services/**'
+      - 'tests/**/*.py'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.python-version'
+      - '.github/workflows/agent-ci.yml'
+
+concurrency:
+  group: agent-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+
+      - name: Install dependencies
+        run: uv sync --frozen --all-groups
+
+      - name: Lint
+        run: uv run ruff check apps services tests
+
+      - name: Format check
+        run: uv run ruff format --check apps services tests
+
+      - name: Type check
+        run: uv run mypy apps/agent
+
+      - name: Unit + integration tests
+        # `-m "not live"` keeps browser/model/database work out of the default gate.
+        run: uv run pytest -m "not live"

@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["bun"],
+    "paths": {
+      "@statescout/shared-types": ["./packages/shared-types/index.ts"]
+    }
+  },
+  "include": ["apps/vscode-extension/src", "packages", "tests/**/*.ts"],
+  "exclude": ["node_modules", ".venv", "test-apps"]
+}

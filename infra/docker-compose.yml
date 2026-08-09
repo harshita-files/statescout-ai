@@ -1,0 +1,71 @@
+# Local development stack for StateScout AI.
+#   docker compose -f infra/docker-compose.yml up -d
+#
+# Neo4j    browser  http://localhost:7474   bolt  bolt://localhost:7687
+# Redis    localhost:6379
+# API      http://localhost:8000            (Track D; profile `api`)
+
+name: statescout
+
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: statescout-neo4j
+    ports:
+      - "7474:7474" # HTTP browser
+      - "7687:7687" # Bolt
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-statescout}
+      NEO4J_server_memory_heap_max__size: 1G
+      # APOC is used by Track D for graph projections/reporting queries.
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: statescout-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    # Track D owns this image. Guarded behind a profile so `up -d` gives Track B
+    # just the two backing stores it needs:
+    #   docker compose -f infra/docker-compose.yml --profile api up -d
+    profiles: ["api"]
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+    container_name: statescout-api
+    ports:
+      - "8000:8000"
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-statescout}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  neo4j-data:
+  neo4j-logs:
+  redis-data:

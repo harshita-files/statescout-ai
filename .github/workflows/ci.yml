@@ -1,5 +1,9 @@
 name: CI
 
+# Repository-wide policy gate. Runs on every push and PR regardless of paths, so
+# it is safe to use as a required status check. Language-specific work lives in
+# the path-filtered workflows (agent-ci.yml, web-ci.yml).
+
 on:
   push:
     branches:
@@ -9,73 +13,45 @@ on:
 jobs:
   validate-branch:
     runs-on: ubuntu-latest
-
     steps:
       - name: Validate branch name
         run: |
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
           echo "Branch: $BRANCH"
 
-          if [[ "$BRANCH" == "main" || "$BRANCH" == "staging" ]]; then
+          if [[ "$BRANCH" == "main" || "$BRANCH" == "staging" || "$BRANCH" == "develop" ]]; then
             exit 0
           fi
 
-          if [[ ! "$BRANCH" =~ ^(feature|fix|hotfix|release|chore)/[a-z0-9-]+$ ]]; then
-            echo "Invalid branch name!"
+          # Track-scoped feature branches are `feature/<TRACK>-<slug>`, e.g.
+          # feature/B-bfs-loop. The track prefix is optional for shared work.
+          if [[ ! "$BRANCH" =~ ^(feature|fix|hotfix|release|chore|docs)/([A-D]-)?[a-z0-9][a-z0-9-]*$ ]]; then
+            echo "::error::Invalid branch name '$BRANCH'."
+            echo "Expected <type>/<TRACK>-<slug>, e.g. feature/B-bfs-loop or chore/ci-tidy."
+            echo "Types: feature | fix | hotfix | release | chore | docs"
             exit 1
           fi
 
   enforce-flow:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-
     steps:
-      - name: Enforce staging → main only
+      - name: Enforce staging -> main only
         run: |
           echo "Base branch: $GITHUB_BASE_REF"
           echo "Source branch: $GITHUB_HEAD_REF"
 
           if [[ "$GITHUB_BASE_REF" == "main" && "$GITHUB_HEAD_REF" != "staging" ]]; then
-            echo "Only staging can merge into main"
+            echo "::error::Only 'staging' may merge into 'main'."
             exit 1
           fi
 
   build:
+    # Aggregate gate. Kept under this name because branch protection references
+    # it; the real work is in the path-filtered workflows.
     runs-on: ubuntu-latest
     needs: [validate-branch, enforce-flow]
-
-    env:
-      CI: "true"
-
+    if: always() && !contains(needs.*.result, 'failure')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-
-      - name: Install
-        run: bun install
-
-      - name: Lint (non-blocking)
-        run: bun run lint
-        continue-on-error: true
-
-      - name: Unit Tests
-        run: bun test
-
-      - name: Build (non-blocking)
-        run: bun run build
-        continue-on-error: true
-
-      - name: E2E (non-blocking)
-        run: bun run e2e
-        continue-on-error: true
-
-      - name: Done
-        if: always()
-        run: echo "Done :)"
-
-      - name: On failure
-        if: failure()
-        run: echo "Pipeline failed :("
+      - name: Policy checks passed
+        run: echo "Branch and flow policy OK."

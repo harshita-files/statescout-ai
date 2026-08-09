@@ -1,0 +1,1 @@
+"""StateScout agent — negation module."""

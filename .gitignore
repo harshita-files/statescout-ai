@@ -1,8 +1,22 @@
 # ----------------------------
-# Dependencies
+# Node / Bun
 # ----------------------------
 node_modules/
 .bun/
+
+# ----------------------------
+# Python
+# ----------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
 # ----------------------------
 # Build outputs
@@ -11,6 +25,7 @@ dist/
 build/
 .out/
 coverage/
+*.vsix
 
 # ----------------------------
 # Logs
@@ -52,11 +67,22 @@ screenshots/
 videos/
 
 # ----------------------------
-# VLM / AI artifacts (important later)
+# Run artifacts (checkpoints, manifests, captures)
+# ----------------------------
+.statescout/
+runs/
+captures/
+
+# ----------------------------
+# VLM / AI artifacts
 # ----------------------------
 vlm-cache/
 snapshots/
 model-outputs/
+research/**/checkpoints/
+research/**/wandb/
+*.safetensors
+*.ckpt
 
 # ----------------------------
 # Temporary files
@@ -65,12 +91,7 @@ tmp/
 temp/
 
 # ----------------------------
-# Jenkins
+# Lockfiles — KEEP these tracked
 # ----------------------------
-.jenkins/
-workspace/
-
-# ----------------------------
-# Bun lockfile (KEEP this)
-# ----------------------------
-# bun.lockb <- DO NOT IGNORE
+# uv.lock   <- DO NOT IGNORE
+# bun.lock  <- DO NOT IGNORE
