@@ -1,0 +1,18 @@
+# StateScout AI — runtime dependencies (Track D)
+# Install: pip install -r requirements.txt
+
+# Neo4j Python driver
+neo4j>=5.14,<6.0
+
+# Redis client
+redis>=5.0,<6.0
+
+# Secrets from .env files
+python-dotenv>=1.0,<2.0
+
+# FastAPI + ASGI server
+fastapi>=0.111,<1.0
+uvicorn[standard]>=0.29,<1.0
+
+# Pydantic v2 (FastAPI depends on this, pinned for clarity)
+pydantic>=2.7,<3.0
