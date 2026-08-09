@@ -24,13 +24,16 @@ import pytest
 from apps.agent import contracts
 from apps.agent.contracts import (
     Action,
+    ActionError,
     CaptureBundle,
     CrawlerError,
     CrawlerPort,
     Evidence,
     ExpectationNode,
+    ExpectationSet,
     GraphError,
     GraphPort,
+    NavigationError,
     PerceptionError,
     PerceptionPort,
     SemanticUIMap,
@@ -50,6 +53,7 @@ DATACLASSES = [
     CaptureBundle,
     Evidence,
     ExpectationNode,
+    ExpectationSet,
     SemanticUIMap,
     StateEdge,
     StateNode,
@@ -65,6 +69,13 @@ WIRE_MIRROR = {
     StateEdge: "StateEdge",
     StateNode: "StateNode",
     Violation: "Violation",
+}
+
+#: Fields Track B added that Track A has not yet mirrored. Every entry is debt
+#: with an owner — an empty dict is the goal state, not a permanent allowance.
+#: See docs/adr-001-cross-track-contract-review.md, action item A-2.
+PENDING_TS_SYNC = {
+    ("Violation", "clause_type"): "decision 6: awaiting Track A PR adding `clauseType`",
 }
 
 
@@ -86,7 +97,7 @@ def test_capture_bundle_constructs() -> None:
 
 
 def test_capture_bundle_allows_dom_only_mode() -> None:
-    """Open question 7: screenshots are optional until Track A says otherwise."""
+    """Decision 7: DOM-only capture is a smoke test, not an audit."""
     bundle = CaptureBundle(url="http://x/", dom="<html/>", ax_tree=None)
     assert bundle.screenshot_path is None
     assert bundle.title == ""
@@ -142,11 +153,36 @@ def test_expectation_with_no_roles_means_every_role() -> None:
     assert expectation.roles == ()
 
 
+def test_expectation_set_splits_the_policy_by_set_operation() -> None:
+    """Decision 6: FR-18 is an intersection, FR-19 is a difference."""
+    expectations = ExpectationSet(
+        forbidden=(
+            ExpectationNode(
+                expectation_id="e-1",
+                polarity="must_not_exist",
+                subject="admin-link",
+                roles=("guest",),
+            ),
+        ),
+        required=(
+            ExpectationNode(expectation_id="e-2", polarity="must_exist", subject="logout-button"),
+        ),
+    )
+    assert expectations.forbidden[0].polarity == "must_not_exist"
+    assert expectations.required[0].polarity == "must_exist"
+
+
+def test_expectation_set_defaults_to_empty_halves() -> None:
+    """A policy with no required clauses is normal; it is not a missing argument."""
+    assert ExpectationSet() == ExpectationSet(forbidden=(), required=())
+
+
 def test_violation_constructs() -> None:
     violation = Violation(
         violation_id="v-1",
         state_id="s-abc123",
         expectation_id="e-1",
+        clause_type="forbidden_present",
         severity="critical",
         rationale="admin-link is visible to role=guest",
         evidence=Evidence(selector="#admin-link", text="Admin", screenshot_path="/tmp/s1.png"),
@@ -154,13 +190,45 @@ def test_violation_constructs() -> None:
     assert violation.evidence.selector == "#admin-link"
 
 
+def test_violation_records_which_set_operation_caught_it() -> None:
+    """NFR-14: a report has to say *which* constraint was violated, not just that
+    one was. FR-18 and FR-19 failures read very differently to a QA engineer."""
+    forbidden_present = Violation(
+        violation_id="v-1",
+        state_id="s",
+        expectation_id="e-1",
+        clause_type="forbidden_present",
+        severity="critical",
+        rationale="admin-link visible to guest",
+    )
+    required_absent = Violation(
+        violation_id="v-2",
+        state_id="s",
+        expectation_id="e-2",
+        clause_type="required_absent",
+        severity="medium",
+        rationale="logout-button missing",
+    )
+    assert forbidden_present.clause_type != required_absent.clause_type
+
+
 def test_violation_evidence_defaults_to_empty() -> None:
     """Each Violation must get its own Evidence, not a shared one."""
     first = Violation(
-        violation_id="v-1", state_id="s", expectation_id="e", severity="low", rationale=""
+        violation_id="v-1",
+        state_id="s",
+        expectation_id="e",
+        clause_type="forbidden_present",
+        severity="low",
+        rationale="",
     )
     second = Violation(
-        violation_id="v-2", state_id="s", expectation_id="e", severity="low", rationale=""
+        violation_id="v-2",
+        state_id="s",
+        expectation_id="e",
+        clause_type="forbidden_present",
+        severity="low",
+        rationale="",
     )
     assert first.evidence == Evidence()
     assert first.evidence is not second.evidence
@@ -185,12 +253,28 @@ def test_state_edge_constructs_and_records_back_edges() -> None:
     assert back.is_back_edge is True
 
 
-@pytest.mark.parametrize("error", [CrawlerError, PerceptionError, GraphError])
+@pytest.mark.parametrize(
+    "error", [CrawlerError, NavigationError, ActionError, PerceptionError, GraphError]
+)
 def test_port_errors_share_one_base(error: type[Exception]) -> None:
     """The orchestrator catches `StateScoutError` and decides fatal vs. skip."""
     assert issubclass(error, StateScoutError)
     with pytest.raises(StateScoutError):
         raise error("boom")
+
+
+def test_navigation_and_action_failures_are_separately_catchable() -> None:
+    """Decision 4: the orchestrator retries a nav timeout with backoff but skips a
+    stale element. That branch must be an `except` clause, not a type sniff."""
+    assert issubclass(NavigationError, CrawlerError)
+    assert issubclass(ActionError, CrawlerError)
+    assert not issubclass(NavigationError, ActionError)
+    assert not issubclass(ActionError, NavigationError)
+
+    with pytest.raises(NavigationError):
+        raise NavigationError("timeout")
+    with pytest.raises(ActionError):
+        raise ActionError("stale element")
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +328,14 @@ def test_ports_are_runtime_checkable_protocols(port: type) -> None:
     assert getattr(port, "_is_runtime_protocol", False)
 
 
+def test_crawler_separates_navigation_from_action() -> None:
+    """Decision 4: `capture(url_or_action)` is split. A leftover `capture` would
+    mean someone reverted the split without updating the callers."""
+    assert hasattr(CrawlerPort, "open")
+    assert hasattr(CrawlerPort, "act")
+    assert not hasattr(CrawlerPort, "capture")
+
+
 def test_protocol_conformance_is_actually_detected() -> None:
     """Guards the guard: a runtime_checkable Protocol that accepts anything is
     worse than none, because the fakes' conformance tests would pass vacuously."""
@@ -295,9 +387,24 @@ def test_wire_types_mirror_the_typescript_contract(cls: type, ts_name: str) -> N
     """
     body = _ts_interface_body(ts_name)
     missing = [
-        f.name for f in dataclasses.fields(cls) if not re.search(rf"\b{_camel(f.name)}\??:", body)
+        f.name
+        for f in dataclasses.fields(cls)
+        if not re.search(rf"\b{_camel(f.name)}\??:", body)
+        and (cls.__name__, f.name) not in PENDING_TS_SYNC
     ]
     assert not missing, f"{cls.__name__} fields absent from TS `{ts_name}`: {missing}"
+
+
+def test_pending_typescript_syncs_are_still_pending() -> None:
+    """Closes the loop on the allowlist above: once Track A ships the field, this
+    fails and tells you to delete the entry, so the debt cannot go stale."""
+    landed = [
+        (cls_name, field_name)
+        for (cls_name, field_name) in PENDING_TS_SYNC
+        for ts_name in [next(t for c, t in WIRE_MIRROR.items() if c.__name__ == cls_name)]
+        if re.search(rf"\b{_camel(field_name)}\??:", _ts_interface_body(ts_name))
+    ]
+    assert not landed, f"Track A shipped these — remove from PENDING_TS_SYNC: {landed}"
 
 
 @pytest.mark.parametrize(

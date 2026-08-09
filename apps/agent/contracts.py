@@ -20,54 +20,78 @@ After team review this file is frozen: the path guard blocks writes once
 cross-track decision, not a local fix. If a contract looks wrong while you are
 using it, stop and raise it with the owning track.
 
-Open questions for the review — resolve these BEFORE freezing
--------------------------------------------------------------
-Each of these is a place where the parent handbook underspecifies the semantics.
-They are documented rather than guessed, per M1-P1.
+Review decisions — 2026-08-09
+-----------------------------
+Seven semantics were underspecified in the parent handbook. All are now decided;
+``docs/adr-001-cross-track-contract-review.md`` carries the full reasoning and
+the per-track action items. Summarised here because this is the file people read.
 
-1. **Action identity across states** (`Action.action_id`) — is the id stable for
-   "the same" control seen on two different pages, or unique per state? The
-   visited set is keyed on `(state_id, action_id)`, so a globally stable id means
-   a nav-bar link is explored once for the whole run; a per-state id means once
-   per page. Track B assumes **per-state**, and `is_visited` is documented that
-   way. Track A owns the answer. → Tracks A + B.
+1. **Action identity — content-addressed id, per-state dedup.** `action_id` is a
+   stable hash of ``role + accessible name + normalized selector``, **never** a
+   DOM index, so the same "Logout" link carries the same id on every page.
+   Deduplication is nonetheless scoped per state, keyed ``(state_id, action_id)``.
+   The two are separable and we want both: global-once dedup would break the
+   audit mission, because a Delete button may be forbidden in one state and fine
+   in another, and FR-06/FR-07 coverage only holds if every state's occurrence is
+   checked independently. → Track A implements the hash rule.
 
-2. **What `fingerprint` hashes** — the handbook says it takes a `CaptureBundle`,
-   i.e. raw DOM. DOM-level hashing makes a timestamp or a CSRF token look like a
-   new state, which inflates the graph without bound. Fingerprinting the
-   `SemanticUIMap` instead would be stabler but couples Track D to Track C.
-   Signature below follows the handbook; the brittleness is Track D's call. → Track D.
+2. **`fingerprint` hashes a normalized `CaptureBundle`.** The signature stays as
+   the handbook has it — Track D is not coupled to Track C's semantic map. But
+   keeping the signature must not mean keeping a naive hash: `fingerprint()`
+   normalizes away timestamps, CSRF/nonce tokens, and session ids *before*
+   hashing. State explosion from an over-sensitive fingerprint is already on the
+   project risk register. Interface clean, fix internal. → Track D.
 
-3. **Who marks a pair visited** — the handbook specifies `is_visited` but no
-   writer. `mark_visited` is added here so the orchestrator is not forced to
-   infer visitation from `persist_edge` (which would break the moment an action
-   is attempted but produces no edge). → Track D to confirm.
+3. **`mark_visited` is called BEFORE the action executes.** This gives
+   at-most-once semantics against the application under test, which is generally
+   not idempotent: a form submit re-fired on crash-resume can corrupt the very
+   app being audited, which is worse than skipping one action. `persist_edge`
+   fires only *after* the action succeeds. A crash between the two leaves a
+   "visited, no edge" gap, which resume treats as done-but-unrecorded: logged,
+   never retried. This ordering is load-bearing for Month 4 checkpoint-resume.
+   → Track D confirms the ordering, not merely the method.
 
-4. **`capture()` doing two jobs** — navigating to a URL and performing an action
-   are different operations with different failure modes. They are one method
-   because the handbook specifies `capture(url_or_action)`. Splitting them into
-   `open(url)` and `act(action)` would type better. → Tracks A + B.
+4. **`capture()` is split into `open()` and `act()`.** Navigation and action
+   execution have different failure modes, so they get different methods and
+   different error types (`NavigationError`, `ActionError`). The orchestrator can
+   then branch — retry-with-backoff on a nav timeout, mark-failed-and-skip on a
+   stale element — without runtime type-sniffing a union. → Track A, proposed as
+   a concrete diff in the ADR.
 
-5. **Role switching** — nothing in the capture contract says how the crawler
-   becomes a `guest` versus an `admin`. Track B assumes one crawler instance is
-   pinned to one role for a whole run, and that a multi-role audit is multiple
-   runs. If Track A intends mid-run role switching, this contract needs a method
-   for it. → Tracks A + B.
+5. **One role per run; no mid-run role switching.** `role` is a field in
+   `orchestrator/config.py`; multi-role coverage is multiple full runs. This needs
+   no contract change: a role-gated element yields a different DOM, therefore a
+   different fingerprint, therefore a different `StateNode`. → Note for Track D:
+   cross-role comparison ("what does guest see vs. admin at this URL") is a
+   reporting-layer concern for FR-31, not a crawl-layer one.
 
-6. **`audit`'s second argument** — `C_negative` is named
-   `negative_expectations` here and documented as *only* the `must_not_exist`
-   clauses. If Track C's engine wants the full expectation set so it can also
-   check `must_exist`, say so now; the parameter changes meaning. → Track C.
+6. **`audit` takes the full `ExpectationSet`, not just the forbidden clauses.**
+   The narrow reading would have silently dropped FR-19 (required element absent
+   = violation), which is High priority in the SRS. FR-18 and FR-19 are different
+   set operations and one intersection call cannot express both:
 
-7. **Screenshot optionality** — `screenshot_path` is `str | None` on the
-   assumption that a DOM-only capture mode is useful in CI. If Track A always
-   produces a screenshot, tighten it to `str`. → Track A.
+       FR-18   S ∩ forbidden      (a forbidden thing is present)
+       FR-19   required \\ S       (a required thing is missing)
+       result  the union of the two
+
+   Every `Violation` is tagged with the `ClauseType` it came from, which NFR-14's
+   "policy constraint violated" report field needs anyway. → Track C.
+
+7. **`screenshot_path` stays optional, with a guardrail.** DOM-only capture is
+   useful for CI speed, but a screenshot-less run is not a real audit: the VLM
+   exists precisely to catch visually-ambiguous elements (a styled ``<div>`` with
+   no DOM role) that DOM/AX analysis structurally cannot see. Track C documents
+   `analyze()`'s behaviour when `screenshot_path is None` — reject or degrade —
+   and Track B's Month 4 run manifest tags such runs
+   ``perception_mode: "dom_only_smoke_test"`` so nobody reads one as a completed
+   audit. → Track A confirms optionality; Track C documents the degrade path.
 
 Mirror
 ------
 The wire-facing types here are mirrored in TypeScript at
-``packages/shared-types/index.ts``. The two definitions must change in the same
-PR; ``tests/unit/orchestrator/test_contracts.py`` fails when one drifts.
+``packages/shared-types/index.ts`` (Track A's file). The two must change in the
+same PR; ``tests/unit/orchestrator/test_contracts.py`` fails when one drifts, and
+carries an explicit allowlist for syncs still awaiting the owning track.
 """
 
 from __future__ import annotations
@@ -77,15 +101,19 @@ from typing import Literal, Protocol, TypeAlias, runtime_checkable
 
 __all__ = [
     "Action",
+    "ActionError",
     "ActionKind",
     "CaptureBundle",
+    "ClauseType",
     "CrawlerError",
     "CrawlerPort",
     "Evidence",
     "ExpectationNode",
+    "ExpectationSet",
     "GraphError",
     "GraphPort",
     "JSONValue",
+    "NavigationError",
     "PerceptionError",
     "PerceptionPort",
     "Polarity",
@@ -108,6 +136,7 @@ __all__ = [
 JSONValue: TypeAlias = "str | int | float | bool | list[JSONValue] | dict[str, JSONValue] | None"
 
 #: A role the crawler browses as. Free-form: the policy author names them.
+#: One role is pinned per run (decision 5).
 Role: TypeAlias = str
 
 #: What the crawler can do to a page. Deliberately small — an action the crawler
@@ -122,6 +151,10 @@ Verdict: TypeAlias = Literal["clean", "violated"]
 #: Whether a policy clause asserts presence or absence. `must_not_exist` is the
 #: negation case StateScout exists to catch.
 Polarity: TypeAlias = Literal["must_exist", "must_not_exist"]
+
+#: Which set operation produced a violation (decision 6). `forbidden_present` is
+#: FR-18, `required_absent` is FR-19. Reports must distinguish them (NFR-14).
+ClauseType: TypeAlias = Literal["forbidden_present", "required_absent"]
 
 #: Why a run ended. `frontier_exhausted` is the only one that means "complete".
 TerminationReason: TypeAlias = Literal[
@@ -152,7 +185,8 @@ class CaptureBundle:
     #: Accessibility tree as parsed JSON. The orchestrator does not interpret
     #: this; it hands it to perception and to action enumeration.
     ax_tree: JSONValue
-    #: `None` when running in a DOM-only capture mode. See open question 7.
+    #: `None` in DOM-only capture mode, which is a smoke test and not an audit
+    #: (decision 7).
     screenshot_path: str | None = None
     title: str = ""
 
@@ -161,9 +195,15 @@ class CaptureBundle:
 class Action:
     """One thing the crawler can do from a given state.
 
-    `action_id` must be **deterministic**: replaying a run from a checkpoint
-    depends on the same page yielding the same id for the same control. A
-    position-derived id (`button-3`) breaks that as soon as the DOM reorders.
+    `action_id` is a **content-addressed** hash of the control's role, accessible
+    name, and normalized selector — never a DOM index (decision 1). Two
+    consequences the whole loop depends on:
+
+    * Replay after a checkpoint is safe, because the same control yields the same
+      id even if the DOM reordered around it.
+    * The same "Logout" link carries one id across every page, which makes
+      cross-state analytics possible — while dedup stays scoped to
+      `(state_id, action_id)`, so each state's occurrence is audited separately.
     """
 
     action_id: str
@@ -196,7 +236,7 @@ class UIElement:
 class SemanticUIMap:
     """Track C's reading of a capture: what a user in this role can see and do.
 
-    This is `S` in the negation engine's `S ∩ C`.
+    This is `S` in the negation engine's set algebra.
     """
 
     state_id: str
@@ -228,6 +268,20 @@ class ExpectationNode:
 
 
 @dataclass(frozen=True, slots=True)
+class ExpectationSet:
+    """The policy, split by the set operation each half requires (decision 6).
+
+    `forbidden` clauses have polarity `must_not_exist` and are checked by
+    intersection (FR-18). `required` clauses have polarity `must_exist` and are
+    checked by difference (FR-19). Passing only the forbidden half would silently
+    drop FR-19, so `audit()` takes the whole thing.
+    """
+
+    forbidden: tuple[ExpectationNode, ...] = ()
+    required: tuple[ExpectationNode, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class Evidence:
     """Why a violation is believed to be real, in a form a human can check."""
 
@@ -243,6 +297,9 @@ class Violation:
     violation_id: str
     state_id: str
     expectation_id: str
+    #: Which set operation caught this — the "policy constraint violated" field
+    #: every report carries (NFR-14).
+    clause_type: ClauseType
     severity: Severity
     #: Why the engine believes this is a violation, in plain language.
     rationale: str
@@ -292,7 +349,22 @@ class StateScoutError(Exception):
 
 
 class CrawlerError(StateScoutError):
-    """Navigation failed, an action was not replayable, the page timed out."""
+    """Track A failed. Prefer one of the two subclasses — they branch differently."""
+
+
+class NavigationError(CrawlerError):
+    """`open()` failed: DNS, timeout, unreachable host, non-navigable URL.
+
+    Usually transient and usually worth a retry with backoff (decision 4).
+    """
+
+
+class ActionError(CrawlerError):
+    """`act()` failed: stale element, detached node, action not replayable.
+
+    Usually permanent for that `(state, action)` pair — mark failed and skip
+    rather than retry (decision 4).
+    """
 
 
 class PerceptionError(StateScoutError):
@@ -312,18 +384,23 @@ class GraphError(StateScoutError):
 class CrawlerPort(Protocol):
     """Track A — Playwright capture and action execution.
 
-    One instance is pinned to one role for the lifetime of a run (open question 5).
+    One instance is pinned to one role for the lifetime of a run (decision 5).
     """
 
-    def capture(self, target: str | Action) -> CaptureBundle:
-        """Observe a UI state.
-
-        A `str` target is a URL to navigate to; an `Action` is performed against
-        the current page and the resulting state is captured. Either way the
-        return value describes the state the browser is in afterwards.
+    def open(self, url: str) -> CaptureBundle:
+        """Navigate to `url` and capture the resulting state.
 
         Raises:
-            CrawlerError: navigation or action execution failed.
+            NavigationError: the page could not be reached or rendered.
+        """
+        ...
+
+    def act(self, action: Action) -> CaptureBundle:
+        """Perform `action` against the current page and capture what follows.
+
+        Raises:
+            ActionError: the control was stale, detached, or not replayable.
+            NavigationError: the action triggered navigation that then failed.
         """
         ...
 
@@ -331,7 +408,8 @@ class CrawlerPort(Protocol):
         """Every action worth trying from this state, derived from the AX tree.
 
         Order must be deterministic — the BFS frontier's shape, and therefore a
-        resumed run's behaviour, depends on it.
+        resumed run's behaviour, depends on it. Each `Action.action_id` is
+        content-addressed per decision 1.
         """
         ...
 
@@ -351,6 +429,10 @@ class PerceptionPort(Protocol):
     def analyze(self, bundle: CaptureBundle, role: Role) -> SemanticUIMap:
         """Turn a raw capture into what a user in `role` can see and do.
 
+        Behaviour when `bundle.screenshot_path is None` is Track C's documented
+        choice — reject, or degrade to DOM/AX-only. A degraded run is a smoke
+        test, not an audit (decision 7).
+
         Raises:
             PerceptionError: the provider failed or returned unusable output.
         """
@@ -359,12 +441,15 @@ class PerceptionPort(Protocol):
     def audit(
         self,
         s_current: SemanticUIMap,
-        negative_expectations: tuple[ExpectationNode, ...],
+        expectations: ExpectationSet,
     ) -> tuple[Violation, ...]:
-        """Find the clauses this state breaks — the `S ∩ C` intersection.
+        """Find every clause this state breaks.
 
-        `negative_expectations` carries only `must_not_exist` clauses
-        (open question 6). An empty result means the state is clean.
+        Computes ``S ∩ forbidden`` unioned with ``required \\ S`` — FR-18 and FR-19
+        are
+        different set operations, so both halves of the `ExpectationSet` are
+        required (decision 6). Each returned `Violation` carries the `clause_type`
+        that produced it. An empty result means the state is clean.
 
         Raises:
             PerceptionError: the negation engine could not reach a verdict.
@@ -391,14 +476,15 @@ class GraphPort(Protocol):
     def fingerprint(self, bundle: CaptureBundle) -> str:
         """A stable content hash identifying this UI state.
 
-        Two captures of the same logical state must produce the same string, or
-        the graph grows without bound (open question 2). This is the `state_id`
-        every other type refers to.
+        Implementations **normalize before hashing** — timestamps, CSRF and nonce
+        tokens, and session ids are stripped, or the graph explodes with one node
+        per page load (decision 2). This is the `state_id` every other type
+        refers to.
         """
         ...
 
     def is_visited(self, state_id: str, action_id: str) -> bool:
-        """Has this exact `(state, action)` pair already been executed?
+        """Has this exact `(state, action)` pair already been claimed?
 
         The loop-prevention primitive. Note it is a *pair* check: revisiting a
         state is normal and expected, and is how cycles get recorded.
@@ -406,7 +492,16 @@ class GraphPort(Protocol):
         ...
 
     def mark_visited(self, state_id: str, action_id: str) -> None:
-        """Record that a pair was executed. Idempotent (open question 3)."""
+        """Claim a pair, **before** the action is executed (decision 3).
+
+        Marking first gives at-most-once semantics against the application under
+        test, which is generally not idempotent. The cost is that a crash between
+        this call and a successful `persist_edge` leaves a claimed pair with no
+        edge; resume treats that as done-but-unrecorded and logs it rather than
+        re-firing a possibly destructive action.
+
+        Idempotent.
+        """
         ...
 
     def persist_state(self, state: StateNode) -> None:
@@ -414,7 +509,10 @@ class GraphPort(Protocol):
         ...
 
     def persist_edge(self, edge: StateEdge) -> None:
-        """Append an edge. Never deduplicated away, never pruned."""
+        """Append an edge, **after** the action succeeded (decision 3).
+
+        Never deduplicated away, never pruned.
+        """
         ...
 
     def persist_violation(self, violation: Violation) -> None:
