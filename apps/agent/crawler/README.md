@@ -1,4 +1,6 @@
-# StateScout AI ΓÇö Playwright Capture Module (v0)
+# StateScout AI - Playwright Capture Module (v0)
+
+**Owner: Track A**
 
 This module handles the autonomous capture layer of StateScout AI, launching a headless Chromium browser instance to extract DOM structure, accessibility trees, and screenshots from a target URL.
 
