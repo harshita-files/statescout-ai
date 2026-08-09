@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StateScout Test-App: Feature Flag Violation Demo</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f9fafb; margin: 0; padding: 2rem; color: #333; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ccc; padding-bottom: 1rem; margin-bottom: 2rem; }
+        .tier-badge { background-color: #e5e7eb; padding: 0.5rem 1rem; border-radius: 9999px; font-weight: bold; border: 1px solid #d1d5db; }
+        .card { background-color: #fff; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }
+        .btn { padding: 0.5rem 1rem; border-radius: 0.25rem; border: none; font-weight: bold; cursor: pointer; color: #fff; }
+        .btn-primary { background-color: #3b82f6; }
+        .btn-premium { background-color: #8b5cf6; background-image: linear-gradient(to right, #8b5cf6, #d946ef); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Dashboard</h1>
+        <div class="tier-badge" id="user-tier">Current Plan: Free Tier</div>
+    </div>
+
+    <div class="card">
+        <h2>Basic Usage Stats</h2>
+        <p>You have used 45% of your monthly allowance.</p>
+        <button class="btn btn-primary" onclick="alert('Viewing usage')">View Details</button>
+    </div>
+
+    <div class="card" style="border-left: 4px solid #d946ef;">
+        <h2>Advanced Analytics (Premium Feature Leak)</h2>
+        <p>Due to a broken feature flag check on the frontend, this premium-only panel is fully rendered and interactive for Free Tier users.</p>
+        <button class="btn btn-premium" id="btn-export-data" onclick="alert('Exporting full dataset (Violation!)')">Export Data</button>
+    </div>
+</body>
+</html>
