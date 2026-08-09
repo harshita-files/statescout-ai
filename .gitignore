@@ -55,6 +55,14 @@ Thumbs.db
 # ----------------------------
 .vscode/
 .idea/
+
+# ----------------------------
+# Claude Code — per-developer overrides only.
+# .claude/{agents,skills,hooks,settings.json} ARE tracked; they are team config.
+# ----------------------------
+.claude/settings.local.json
+.claude/track.local
+NOTES.md
 *.swp
 *.swo
 
