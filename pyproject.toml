@@ -8,6 +8,7 @@ license = { file = "LICENSE" }
 dependencies = [
     "langgraph>=1.2.10",
     "playwright>=1.58.0",
+    "pydantic-settings>=2.15.0",
 ]
 
 # Optional per-track extras. Kept separate so Track B's orchestrator work does not

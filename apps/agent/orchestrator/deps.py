@@ -5,8 +5,12 @@ three attributes. Nothing in `orchestrator/` imports a concrete implementation â
 that single rule is what makes the loop testable with `fakes.py` and what keeps
 Track B from accidentally depending on another track's internals.
 
-Assembly happens here and nowhere else: `fake_ports()` for tests and the M1 demo,
-`live_ports()` once the real modules land.
+Assembly happens here and nowhere else: `build_ports(config)` for anything
+driven by configuration, `fake_ports()` / `live_ports()` when a test wants to
+choose directly.
+
+Perception is wrapped in `ThrottledPerception` whenever a limiter is supplied, so
+the nodes hold an already-throttled port and cannot forget to wait for a token.
 """
 
 from __future__ import annotations
@@ -14,8 +18,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from apps.agent.contracts import CrawlerPort, GraphPort, PerceptionPort, Role
+from apps.agent.orchestrator.config import OrchestratorConfig
+from apps.agent.orchestrator.ratelimit import RateLimiter, ThrottledPerception
 
-__all__ = ["Ports", "fake_ports", "live_ports"]
+__all__ = ["Ports", "build_ports", "fake_ports", "live_ports"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,18 +37,35 @@ class Ports:
     graph: GraphPort
 
 
-def fake_ports(*, role: Role = "guest") -> Ports:
+def _throttled(perception: PerceptionPort, limiter: RateLimiter | None) -> PerceptionPort:
+    return perception if limiter is None else ThrottledPerception(perception, limiter)
+
+
+def fake_ports(*, role: Role = "guest", limiter: RateLimiter | None = None) -> Ports:
     """In-memory ports over the scripted app. No network, no docker, no browser."""
     from apps.agent.orchestrator.fakes import FakeCrawler, FakeGraph, FakePerception
 
     return Ports(
         crawler=FakeCrawler(role=role),
-        perception=FakePerception(),
+        perception=_throttled(FakePerception(), limiter),
         graph=FakeGraph(),
     )
 
 
-def live_ports(*, role: Role = "guest") -> Ports:
+def build_ports(config: OrchestratorConfig, *, live: bool = False) -> Ports:
+    """The configured entry point: role and throttle both come from `config`.
+
+    A rate limiter is attached only when `perception_rate_per_min` is non-zero,
+    so the fakes stay instantaneous by default and a real key never does.
+    """
+    limiter = (
+        RateLimiter(config.perception_rate_per_min) if config.perception_rate_per_min else None
+    )
+    build = live_ports if live else fake_ports
+    return build(role=config.role, limiter=limiter)
+
+
+def live_ports(*, role: Role = "guest", limiter: RateLimiter | None = None) -> Ports:
     """Real ports from the other tracks' modules.
 
     Imports are deliberately local: `--fake` must keep working on a machine where
@@ -79,6 +102,6 @@ def live_ports(*, role: Role = "guest") -> Ports:
 
     return Ports(  # pragma: no cover - unreachable until all three land
         crawler=PlaywrightCrawler(role=role),
-        perception=VLMPerception(),
+        perception=_throttled(VLMPerception(), limiter),
         graph=Neo4jGraph(),
     )
