@@ -1,0 +1,46 @@
+{
+  "role": "guest",
+  "source_text": [
+    "A guest must never see the admin link.",
+    "A guest must never be able to delete a user.",
+    "No page may ship a debug panel.",
+    "Every page must offer a skip-to-content link."
+  ],
+  "comment": [
+    "The structured form of the English above. In Month 3 this file becomes the",
+    "expected output of the policy parser (M3-P1/M3-P2) rather than a hand-written",
+    "input — which is why the English is kept alongside it verbatim."
+  ],
+  "forbidden": [
+    {
+      "id": "e-admin-link",
+      "subject": "admin-link",
+      "roles": ["guest"],
+      "severity": "critical",
+      "source_text": "A guest must never see the admin link."
+    },
+    {
+      "id": "e-delete-user",
+      "subject": "delete-user",
+      "roles": ["guest"],
+      "severity": "critical",
+      "source_text": "A guest must never be able to delete a user."
+    },
+    {
+      "id": "e-debug-panel",
+      "subject": "debug-panel",
+      "roles": [],
+      "severity": "critical",
+      "source_text": "No page may ship a debug panel."
+    }
+  ],
+  "required": [
+    {
+      "id": "e-skip-link",
+      "subject": "skip-to-content",
+      "roles": [],
+      "severity": "medium",
+      "source_text": "Every page must offer a skip-to-content link."
+    }
+  ]
+}

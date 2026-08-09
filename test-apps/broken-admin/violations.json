@@ -1,0 +1,49 @@
+{
+  "comment": [
+    "Ground truth. Every defect in this app is here, on purpose, with the page it",
+    "lives on and the clause it breaks. Tests assert the crawl finds exactly this",
+    "set — no misses and no extras. An undocumented finding is a false positive;",
+    "a documented one that goes unfound is a regression. An actual bug in the app",
+    "that is not listed here is a bug in the app, not a discovery."
+  ],
+  "expected": [
+    {
+      "id": "V-01",
+      "page": "/pages/dashboard.html",
+      "expectation_id": "e-admin-link",
+      "clause_type": "forbidden_present",
+      "why": "The Admin link is rendered for every role. The backend rejects the request, but the link itself is the exposure StateScout exists to catch."
+    },
+    {
+      "id": "V-02",
+      "page": "/pages/reports.html",
+      "expectation_id": "e-debug-panel",
+      "clause_type": "forbidden_present",
+      "why": "A debug panel left in the production build."
+    },
+    {
+      "id": "V-03",
+      "page": "/pages/admin.html",
+      "expectation_id": "e-delete-user",
+      "clause_type": "forbidden_present",
+      "why": "A destructive control reachable by a guest, two clicks from the seed."
+    },
+    {
+      "id": "V-04",
+      "page": "/pages/admin.html",
+      "expectation_id": "e-skip-link",
+      "clause_type": "required_absent",
+      "why": "The skip-to-content link every other page carries is missing here. Exercises FR-19, which an intersection-only audit cannot express."
+    }
+  ],
+  "expected_graph": {
+    "states": 6,
+    "cycles": [
+      "login <-> register",
+      "dashboard -> reports -> dashboard",
+      "dashboard -> admin -> dashboard",
+      "dashboard -> login (log out)"
+    ],
+    "comment": "States assume one role per run. A second role is a second run with its own graph."
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "name": "broken-admin",
+  "description": "Six-page demo app with four planted policy violations and two cycles.",
+  "seed": "/index.html",
+  "role": "guest",
+  "comment": [
+    "The machine-readable twin of the HTML in this directory. Track B's tests",
+    "build an in-memory crawler from it today; Track A's live crawler must",
+    "produce the same states and actions from the real pages tomorrow. If the",
+    "two ever disagree, one of them is wrong and the disagreement is the bug.",
+    "`elements` are the data-tag values a page renders. `links` are the",
+    "controls the accessibility tree exposes."
+  ],
+  "pages": {
+    "/index.html": {
+      "title": "Acme — Home",
+      "elements": ["skip-to-content", "hero"],
+      "links": [{ "name": "Sign in", "to": "/pages/login.html", "role": "link" }]
+    },
+    "/pages/login.html": {
+      "title": "Sign in",
+      "elements": ["skip-to-content", "login-form"],
+      "links": [
+        { "name": "Create an account", "to": "/pages/register.html", "role": "link" },
+        { "name": "Sign in", "to": "/pages/dashboard.html", "role": "button" }
+      ]
+    },
+    "/pages/register.html": {
+      "title": "Create account",
+      "elements": ["skip-to-content", "register-form"],
+      "links": [{ "name": "Back to sign in", "to": "/pages/login.html", "role": "link" }]
+    },
+    "/pages/dashboard.html": {
+      "title": "Dashboard",
+      "elements": ["skip-to-content", "reports", "admin-link", "logout-button"],
+      "links": [
+        { "name": "Admin", "to": "/pages/admin.html", "role": "link" },
+        { "name": "Reports", "to": "/pages/reports.html", "role": "link" },
+        { "name": "Log out", "to": "/pages/login.html", "role": "button" }
+      ]
+    },
+    "/pages/reports.html": {
+      "title": "Reports",
+      "elements": ["skip-to-content", "reports", "debug-panel", "logout-button"],
+      "links": [
+        { "name": "Back", "to": "/pages/dashboard.html", "role": "link" },
+        { "name": "Log out", "to": "/pages/login.html", "role": "button" }
+      ]
+    },
+    "/pages/admin.html": {
+      "title": "Admin",
+      "elements": ["admin-panel", "delete-user", "logout-button"],
+      "links": [
+        { "name": "Back", "to": "/pages/dashboard.html", "role": "link" },
+        { "name": "Log out", "to": "/pages/login.html", "role": "button" }
+      ]
+    }
+  }
+}
