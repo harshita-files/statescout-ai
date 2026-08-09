@@ -7,7 +7,7 @@ project_root = os.path.dirname(
 )
 sys.path.insert(0, project_root)
 
-from apps.agent.crawler.capture import capture_page
+from apps.agent.crawler.capture import capture_page  # noqa: E402
 
 
 def test_capture_page_success() -> None:

@@ -1,12 +1,11 @@
 import os
 import sys
-import json
 
 # Ensure project root is in path
 project_root = r"c:\Users\jaisu\Projects\fyp"
 sys.path.insert(0, project_root)
 
-from apps.agent.crawler.actions import launch_session, execute_action
+from apps.agent.crawler.actions import execute_action, launch_session  # noqa: E402
 
 
 def verify_actions() -> None:

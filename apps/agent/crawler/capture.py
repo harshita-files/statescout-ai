@@ -3,8 +3,10 @@ import hashlib
 import json
 import os
 import sys
+from contextlib import suppress
 from datetime import datetime
 from typing import Any
+
 from playwright.sync_api import Page, sync_playwright
 
 
@@ -99,11 +101,8 @@ def capture_page(url: str, output_dir: str = DEFAULT_OUTPUT_DIR) -> dict[str, An
                 raise Exception("Failed to get response from URL (page navigation returned None)")
 
             # Wait for network idle to allow dynamic JS to execute/render
-            try:
+            with suppress(Exception):
                 page.wait_for_load_state("networkidle", timeout=5000)
-            except Exception:
-                # Network idle timeout is non-fatal; proceed with capture
-                pass
 
             # Extract page state
             result = extract_page_state(page, url, output_dir)

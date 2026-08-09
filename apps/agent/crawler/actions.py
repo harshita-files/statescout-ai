@@ -1,14 +1,20 @@
 import time
-from typing import Iterator, Any
-from contextlib import contextmanager
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
+from typing import Any
+
+from playwright.sync_api import (
+    Error as PlaywrightError,
+)
 from playwright.sync_api import (
     Page,
     sync_playwright,
+)
+from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
-    Error as PlaywrightError,
 )
 
-from apps.agent.crawler.capture import extract_page_state, DEFAULT_OUTPUT_DIR
+from apps.agent.crawler.capture import DEFAULT_OUTPUT_DIR, extract_page_state
 
 
 @contextmanager
@@ -39,20 +45,16 @@ def _perform_action(page: Page, action: dict[str, Any]) -> None:
         response = page.goto(url, wait_until="load", timeout=30000)
         if response is None:
             raise Exception("Failed to get response from URL")
-        try:
+        with suppress(PlaywrightTimeoutError):
             page.wait_for_load_state("networkidle", timeout=short_timeout)
-        except PlaywrightTimeoutError:
-            pass
 
     elif action_type == "click":
         selector = action.get("selector")
         if not selector:
             raise ValueError("Click action missing 'selector'")
         page.click(selector, timeout=short_timeout)
-        try:
+        with suppress(PlaywrightTimeoutError):
             page.wait_for_load_state("networkidle", timeout=short_timeout)
-        except PlaywrightTimeoutError:
-            pass
 
     elif action_type == "type":
         selector = action.get("selector")
@@ -106,14 +108,15 @@ def execute_action(
                 break
 
         except PlaywrightError as e:
-            # PlaywrightError (e.g. strict mode violation, bad selector, invalid URL) is usually permanent.
+            # PlaywrightError (e.g. strict mode violation, bad selector, invalid URL)
+            # is usually permanent.
             # We do not retry.
-            result["error"] = f"Playwright error: {str(e)}"
+            result["error"] = f"Playwright error: {e!s}"
             break
 
         except Exception as e:
             # Other errors (e.g. ValueError from our code)
-            result["error"] = f"Execution error: {str(e)}"
+            result["error"] = f"Execution error: {e!s}"
             break
 
     return result
