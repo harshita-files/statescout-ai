@@ -141,6 +141,28 @@ Two obligations follow. Track C documents `analyze()`'s behaviour when
 run manifest tags such runs `perception_mode: "dom_only_smoke_test"`, so nobody
 reads one as a completed audit.
 
+### 8. Who mints the `state_id` in a `SemanticUIMap`? — **open**
+
+Found while building the fakes (M1-P2), not during the original review.
+
+`PerceptionPort.analyze()` returns a `SemanticUIMap` carrying a `state_id`, but
+`GraphPort.fingerprint()` is what actually mints state ids — and `analyze()`
+never receives one. Nothing in the contract makes the two agree. If they
+disagree, every `Violation` is filed against a `state_id` the graph has no node
+for, and the report joins to nothing.
+
+Two clean resolutions; either works, but it has to be one of them:
+
+1. `analyze(bundle, role, state_id)` — the orchestrator fingerprints first and
+   passes the id down. Keeps one minter, costs a parameter.
+2. `SemanticUIMap` drops `state_id`, and the orchestrator pairs the map with the
+   fingerprint it already holds. Keeps the signature, costs a tuple at the call site.
+
+Track B leans (1): the orchestrator already calls `fingerprint()` before
+`analyze()` in the loop order fixed by decision 3, so the id is in hand and
+passing it is free. `orchestrator/fakes.py` currently makes the two agree by
+construction, which is a choice the fakes make, not one the contract guarantees.
+
 ---
 
 ## Action items
@@ -156,6 +178,8 @@ reads one as a completed audit.
 | D-1 | Track D | Normalize timestamps, CSRF/nonce tokens, and session ids inside `fingerprint()` before hashing. (Decision 2) |
 | D-2 | Track D | Confirm the `mark_visited` → `act` → `persist_edge` ordering, and that `mark_visited` is idempotent. (Decision 3) |
 | D-3 | Track D | Note only: cross-role comparison is reporting-layer (FR-31), not crawl-layer. (Decision 5) |
+| C-3 | Track C | Decide who mints `SemanticUIMap.state_id` — take it as a parameter, or drop the field. **Blocks the freeze.** (Decision 8) |
+| D-4 | Track D | Confirm whichever resolution C-3 picks; `fingerprint()` stays the single minter either way. (Decision 8) |
 | B-1 | Track B | Month 4 run manifest tags screenshot-less runs `perception_mode: "dom_only_smoke_test"`. (Decision 7) |
 | B-2 | Track B | Create `.claude/frozen/contracts` once A/C/D acknowledge. |
 
