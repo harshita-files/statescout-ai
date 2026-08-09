@@ -18,8 +18,8 @@ direct imports of another module's internals.
 The orchestrator is a *consumer* of three interfaces. They are frozen after
 team review; a change to any of them is a cross-track decision, not a local one.
 
-1. **Capture** (Track A) — `capture(url_or_action) -> {dom, ax_tree, screenshot_path, url}`
-2. **Perception** (Track C) — `analyze(bundle, role) -> SemanticUIMap`, `audit(S_current, C_negative) -> list[Violation]`
+1. **Capture** (Track A) — `open(url) -> CaptureBundle`, `act(action) -> CaptureBundle`
+2. **Perception** (Track C) — `analyze(bundle, role) -> SemanticUIMap`, `audit(s_current, expectations) -> tuple[Violation, ...]`
 3. **Persistence** (Track D) — `fingerprint(bundle) -> str`, `is_visited(state_id, action_id) -> bool`, `persist_state/edge/violation(...)`
 
 Until the real implementations land, every track codes against
