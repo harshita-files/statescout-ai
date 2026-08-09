@@ -126,6 +126,7 @@ def run_once(
 
     # 4. Perceive ----------------------------------------------------------
     ui_map = ports.perception.analyze(bundle, role)
+    state_id_matches = ui_map.state_id == state_id
     log.emit(
         "perceive",
         "analyzed",
@@ -133,8 +134,12 @@ def run_once(
         elements=len(ui_map.elements),
         # ADR-001 decision 8: nothing guarantees these agree, so say so out loud
         # rather than discovering it when a report joins to zero rows.
-        state_id_matches_fingerprint=ui_map.state_id == state_id,
+        state_id_matches_fingerprint=state_id_matches,
     )
+    if not state_id_matches:
+        raise StateScoutError(
+            f"perception returned state_id={ui_map.state_id} but fingerprint={state_id}"
+        )
 
     # 5. Audit -------------------------------------------------------------
     violations = list(ports.perception.audit(ui_map, policy))
