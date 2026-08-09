@@ -42,8 +42,6 @@ import sys
 import time
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, datetime
-from typing import IO, Any
 
 from apps.agent.contracts import (
     CaptureBundle,
@@ -55,8 +53,17 @@ from apps.agent.contracts import (
     Violation,
 )
 from apps.agent.orchestrator.deps import Ports, fake_ports, live_ports
+from apps.agent.orchestrator.runlog import Logger
 
-__all__ = ["EXIT_CLEAN", "EXIT_ERROR", "EXIT_VIOLATION", "SKELETON_POLICY", "main", "run_once"]
+__all__ = [
+    "EXIT_CLEAN",
+    "EXIT_ERROR",
+    "EXIT_VIOLATION",
+    "SKELETON_POLICY",
+    "Logger",
+    "main",
+    "run_once",
+]
 
 EXIT_CLEAN = 0
 EXIT_VIOLATION = 1
@@ -78,32 +85,6 @@ SKELETON_POLICY = ExpectationSet(
         ),
     )
 )
-
-
-class Logger:
-    """One JSON object per line, on stderr.
-
-    Provisional: M4-P2 replaces this with orchestrator-wide structured logging.
-    The shape is already the one that module will use — `run_id`, `node`, and a
-    duration on anything that calls out — so the migration is a swap, not a
-    rewrite. It is a class rather than a module-level function so tests can
-    capture output without touching global state.
-    """
-
-    def __init__(self, run_id: str, stream: IO[str]) -> None:
-        self.run_id = run_id
-        self.stream = stream
-
-    def emit(self, node: str, event: str, **fields: Any) -> None:
-        record = {
-            "ts": datetime.now(UTC).isoformat(),
-            "run_id": self.run_id,
-            "node": node,
-            "event": event,
-            **fields,
-        }
-        self.stream.write(json.dumps(record, default=str) + "\n")
-        self.stream.flush()
 
 
 def run_once(

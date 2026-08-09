@@ -41,6 +41,7 @@ from dataclasses import dataclass, field
 from apps.agent.contracts import (
     Action,
     ActionError,
+    ActionKind,
     CaptureBundle,
     Evidence,
     ExpectationNode,
@@ -81,6 +82,9 @@ class FakeLink:
     to: str
     #: ARIA role of the control. Feeds the action id, per ADR-001 decision 1.
     role: str = "link"
+    #: Override the derived `ActionKind`. Set it to `submit` / `fill` to model a
+    #: control with side effects — the exploration loop refuses to replay those.
+    kind: ActionKind | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,7 +298,7 @@ class FakeCrawler:
         return tuple(
             Action(
                 action_id=_action_id(link),
-                kind="click" if link.role == "button" else "navigate",
+                kind=link.kind or ("click" if link.role == "button" else "navigate"),
                 target=_selector(link),
                 label=f'{"click" if link.role == "button" else "follow"} "{link.name}"',
             )
