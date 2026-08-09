@@ -8,12 +8,13 @@ sys.path.insert(0, project_root)
 
 from apps.agent.crawler.actions import launch_session, execute_action
 
-def verify_actions():
+
+def verify_actions() -> None:
     base_dir = os.path.join(project_root, "test-apps", "broken-rbac-demo")
     login_url = f"file:///{os.path.join(base_dir, 'login.html').replace(os.sep, '/')}"
 
     print("--- Starting Action Verification ---")
-    
+
     with launch_session(headless=True) as page:
         # Step 1: Navigate to Login
         print("\n[Step 1] Navigating to login.html...")
@@ -42,15 +43,16 @@ def verify_actions():
             print(f"  Resulting URL: {res3['resulting_state']['url']}")
             # Let's inspect the DOM length or text to prove we reached the admin zone
             print(f"  DOM Length: {len(res3['resulting_state']['dom'])} bytes")
-            if "SECURE ZONE: User Management" in res3['resulting_state']['dom']:
+            if "SECURE ZONE: User Management" in res3["resulting_state"]["dom"]:
                 print("  Verification: Genuinely reached the Admin page via action execution!")
             else:
                 print("  Verification: Did NOT find expected admin text.")
         else:
             print(f"  Failed: {res3['error']}")
             return
-            
+
     print("\n--- Action Verification Complete ---")
+
 
 if __name__ == "__main__":
     verify_actions()

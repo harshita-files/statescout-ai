@@ -21,7 +21,9 @@ DEFAULT_OUTPUT_DIR = os.path.join(
 )
 
 
-def extract_page_state(page: Page, url: str, output_dir: str = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
+def extract_page_state(
+    page: Page, url: str, output_dir: str = DEFAULT_OUTPUT_DIR
+) -> dict[str, Any]:
     """Extracts the state from an already-open Playwright Page object."""
     os.makedirs(output_dir, exist_ok=True)
     filename_base = get_unique_filename(url)
