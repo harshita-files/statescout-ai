@@ -1,0 +1,29 @@
+{
+  "name": "statescout-vscode",
+  "displayName": "StateScout AI",
+  "description": "Run policy-aware UI audits and review forbidden interface states without leaving the editor.",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Testing"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "statescout.startScan",
+        "title": "StateScout: Start Scan"
+      },
+      {
+        "command": "statescout.stopScan",
+        "title": "StateScout: Stop Scan"
+      }
+    ]
+  },
+  "dependencies": {
+    "@statescout/shared-types": "workspace:*"
+  },
+  "license": "MIT"
+}

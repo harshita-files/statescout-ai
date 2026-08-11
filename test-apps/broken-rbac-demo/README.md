@@ -1,0 +1,23 @@
+# StateScout AI ΓÇö Broken RBAC Test App
+
+This test application provides a ground truth baseline for testing Role-Based Access Control (RBAC) policy violations ("forbidden element present"). It has been upgraded to a multi-page flow.
+
+## Known Policy Violations
+
+The application forces the user session role to `Guest`. According to the standard business policy, **Guest users must never see administrative links, nor should they be able to access administrative pages.**
+
+This app contains a multi-step violation:
+
+1.  **`login.html`**: A simple entry point. Clicking "Continue as Guest" navigates to the dashboard.
+2.  **`dashboard.html`**: The main interface. It erroneously renders the **"Admin Dashboard"** link in the sidebar to the Guest user (UI Violation).
+3.  **`admin.html`**: The secure zone. Clicking the admin link on the dashboard successfully navigates here. A Guest reaching this page is a critical logic/backend enforcement violation.
+
+---
+
+## Verifying Audit Detection
+
+When StateScout AI's autonomous crawlers explore this app:
+1.  **Action Execution** will navigate to `login.html`, click the button, and capture `dashboard.html`.
+2.  It will identify the `#nav-admin-dashboard` link and execute a `click` action.
+3.  The crawler will successfully navigate to `admin.html` and capture its state.
+4.  **VLM Perception / Negation** will compare the final state ("SECURE ZONE") against the user role ("Guest") and flag a critical violation, proving that the crawler can autonomously discover deep violations through multi-step interaction.s.
