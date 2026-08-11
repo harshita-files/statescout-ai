@@ -1,0 +1,48 @@
+version: '3.8'
+
+# StateScout AI — local development stack
+# Usage:  docker-compose -f infra/docker-compose.yml up -d
+#
+# Services:
+#   neo4j  — graph DB (Bolt :7687, browser :7474)
+#   redis  — visited-state cache (:6379)
+
+services:
+  neo4j:
+    image: neo4j:5.20-community
+    container_name: statescout-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_dbms_memory_heap_initial__size: 512m
+      NEO4J_dbms_memory_heap_max__size: 1g
+    ports:
+      - "7474:7474"   # HTTP browser UI
+      - "7687:7687"   # Bolt driver (used by Python code)
+    volumes:
+      - neo4j_data:/var/lib/neo4j/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: statescout-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  neo4j_data:
+    driver: local
+  redis_data:
+    driver: local
