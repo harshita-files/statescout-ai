@@ -120,3 +120,34 @@ def fingerprint(dom: str, url: str, ax_tree: str) -> str:
     """
     normalized = normalize_state(dom, url, ax_tree)
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def fingerprint_bundle(bundle: object) -> str:
+    """Return a fingerprint for a CaptureBundle (GraphPort.fingerprint contract).
+
+    This is the entry point the orchestrator uses.  It unpacks dom, url, and
+    ax_tree from the bundle and delegates to :func:`fingerprint`.
+
+    The ``ax_tree`` field on a real ``CaptureBundle`` may be a dict (raw CDP
+    JSON) or a string summary.  We serialize it to a stable string before
+    hashing so the fingerprint is deterministic regardless of which form Track
+    A delivers.
+
+    Parameters
+    ----------
+    bundle:
+        Any object with ``url: str``, ``dom: str``, and ``ax_tree`` attributes.
+        Typed as ``object`` to avoid importing ``CaptureBundle`` here and
+        creating a circular dependency; the caller (GraphStore / main.py) holds
+        the concrete type.
+    """
+    import json as _json
+
+    url: str = getattr(bundle, "url", "")
+    dom: str = getattr(bundle, "dom", "")
+    ax_raw = getattr(bundle, "ax_tree", "")
+    if isinstance(ax_raw, (dict, list)):
+        ax_tree = _json.dumps(ax_raw, sort_keys=True, ensure_ascii=False)
+    else:
+        ax_tree = str(ax_raw)
+    return fingerprint(dom, url, ax_tree)
