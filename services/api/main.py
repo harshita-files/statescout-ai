@@ -110,13 +110,18 @@ async def lifespan(app: FastAPI):
     """Open and close Neo4j + Redis connections around the app's lifetime."""
     import os
 
-    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
-    app.state.graph: GraphStore = GraphStore()
-    app.state.redis = redis_lib.from_url(redis_url, decode_responses=True)
+    # Skip real connections if state was pre-injected (e.g. by unit-test fixtures).
+    _injected = hasattr(app.state, "graph") and app.state.graph is not None
+    if not _injected:
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+        app.state.graph = GraphStore()
+        app.state.redis = redis_lib.from_url(redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
     logger.info('"StateScout API started"')
     yield
-    app.state.graph.close()
+    if not _injected:
+        app.state.graph.close()
     logger.info('"StateScout API shut down"')
+
 
 
 # ---------------------------------------------------------------------------
