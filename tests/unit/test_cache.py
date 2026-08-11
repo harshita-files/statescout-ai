@@ -30,7 +30,7 @@ def fake_redis_cache():
     cache_module.redis.from_url = lambda url, decode_responses=True: fakeredis.FakeStrictRedis(
         decode_responses=decode_responses
     )
-    cache = VisitedCache()
+    cache = VisitedCache(scan_id="test-scan-001")
     cache.clear()  # start each test with a blank slate
     yield cache
     cache_module.redis.from_url = original_from_url
