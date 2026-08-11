@@ -11,9 +11,7 @@ Pydantic v2 is used throughout (Field, model_config, etc.).
 
 from __future__ import annotations
 
-from typing import Optional
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Requests
@@ -57,7 +55,7 @@ class ScanStatusResponse(BaseModel):
         default=0,
         description="Number of policy violations detected so far",
     )
-    message: Optional[str] = Field(
+    message: str | None = Field(
         default=None,
         description="Human-readable status message or error detail",
     )
@@ -76,7 +74,7 @@ class ViolationRecord(BaseModel):
         ...,
         description="The plain-English policy rule that was violated",
     )
-    evidence_summary: Optional[str] = Field(
+    evidence_summary: str | None = Field(
         default=None,
         description="[Placeholder] Evidence summary; full chain assembled in Month 3 "
                     "via Neo4j evidence-chain queries.",

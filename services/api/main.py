@@ -33,13 +33,12 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
 from services.api.models import (
     ScanReportResponse,
     ScanStatusResponse,
     StartScanRequest,
-    ViolationRecord,
 )
 
 # ---------------------------------------------------------------------------

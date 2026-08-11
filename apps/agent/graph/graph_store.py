@@ -14,6 +14,7 @@ Design rules (from handbook Sections 1.4, 2.1):
 """
 
 import os
+
 from neo4j import GraphDatabase
 
 
