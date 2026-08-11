@@ -32,7 +32,7 @@ DYNAMIC_ATTR_NAMES: set[str] = {
 # and their quoted values, including any leading whitespace.
 #   e.g. ' data-session="sess_abc123"'  →  removed
 _DYNAMIC_ATTR_RE = re.compile(
-    r'\s+(?:' + '|'.join(re.escape(a) for a in DYNAMIC_ATTR_NAMES) + r')="[^"]*"',
+    r"\s+(?:" + "|".join(re.escape(a) for a in DYNAMIC_ATTR_NAMES) + r')="[^"]*"',
     re.IGNORECASE,
 )
 
@@ -49,14 +49,14 @@ _HEX_ID_ATTR_RE = re.compile(
 # Values prefixed with a token-style prefix like "sess_…", "csrf_…", "tok_…"
 # These appear in attribute values, e.g. data-session="sess_abc123xyz".
 _PREFIXED_TOKEN_RE = re.compile(
-    r'\b(?:sess|csrf|tok|req|trk)_[A-Za-z0-9_-]+\b',
+    r"\b(?:sess|csrf|tok|req|trk)_[A-Za-z0-9_-]+\b",
 )
 
 # Long numeric timestamps (10+ digits) embedded anywhere in the DOM string.
-_TIMESTAMP_RE = re.compile(r'\d{10,}')
+_TIMESTAMP_RE = re.compile(r"\d{10,}")
 
 # Collapse runs of whitespace (normalises indented HTML).
-_WHITESPACE_RE = re.compile(r'\s+')
+_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def normalize_state(dom: str, url: str, ax_tree: str) -> str:
@@ -82,24 +82,24 @@ def normalize_state(dom: str, url: str, ax_tree: str) -> str:
         Normalized composite string ``"{url}|{dom}|{ax_tree}"``.
     """
     # 1. Remove known dynamic attribute names and their values completely
-    dom = _DYNAMIC_ATTR_RE.sub('', dom)
+    dom = _DYNAMIC_ATTR_RE.sub("", dom)
 
     # 2. Remove hex-looking id / data-* attribute values
-    dom = _HEX_ID_ATTR_RE.sub('', dom)
+    dom = _HEX_ID_ATTR_RE.sub("", dom)
 
     # 3. Remove prefixed token values (sess_…, csrf_…, etc.) from text nodes
-    dom = _PREFIXED_TOKEN_RE.sub('', dom)
+    dom = _PREFIXED_TOKEN_RE.sub("", dom)
 
     # 4. Strip long numeric timestamps
-    dom = _TIMESTAMP_RE.sub('', dom)
+    dom = _TIMESTAMP_RE.sub("", dom)
 
     # 5. Collapse whitespace (handles indented / multi-line HTML)
-    dom = _WHITESPACE_RE.sub(' ', dom).strip()
+    dom = _WHITESPACE_RE.sub(" ", dom).strip()
 
     # 6. Strip spaces that appear immediately inside tag boundaries.
     #    e.g. "<h1> Home </h1>" (from indented HTML) → "<h1>Home</h1>"
-    dom = re.sub(r'>\s+', '>', dom)
-    dom = re.sub(r'\s+<', '<', dom)
+    dom = re.sub(r">\s+", ">", dom)
+    dom = re.sub(r"\s+<", "<", dom)
 
     return f"{url}|{dom}|{ax_tree}"
 

@@ -60,6 +60,7 @@ logger = logging.getLogger("statescout.api")
 # WebSocket connection manager
 # ---------------------------------------------------------------------------
 
+
 class ConnectionManager:
     """Tracks active WebSocket connections per scan_id.
 
@@ -103,10 +104,12 @@ manager = ConnectionManager()
 # App lifecycle
 # ---------------------------------------------------------------------------
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Open and close Neo4j + Redis connections around the app's lifetime."""
     import os
+
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
     app.state.graph: GraphStore = GraphStore()
     app.state.redis = redis_lib.from_url(redis_url, decode_responses=True)
@@ -138,6 +141,7 @@ app = FastAPI(
 # Helper
 # ---------------------------------------------------------------------------
 
+
 def _graph(request: Any) -> GraphStore:
     """Access the shared GraphStore from a request's app state."""
     return request.app.state.graph
@@ -146,6 +150,7 @@ def _graph(request: Any) -> GraphStore:
 # ---------------------------------------------------------------------------
 # Ops
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health", tags=["ops"])
 async def health_check() -> dict[str, str]:
@@ -156,6 +161,7 @@ async def health_check() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Scan lifecycle
 # ---------------------------------------------------------------------------
+
 
 @app.post("/scan/start", response_model=ScanStatusResponse, tags=["scan"])
 async def start_scan(
@@ -186,7 +192,7 @@ async def start_scan(
     # BackgroundTask placeholder — Track B's orchestrator drives the real crawl
     # once it integrates. For now this just marks the scan as running.
     async def _mark_running(sid: str) -> None:
-        await asyncio.sleep(0)   # yield to event loop
+        await asyncio.sleep(0)  # yield to event loop
         app.state.graph.update_scan_status(sid, "running")
         logger.info('"scan_started" {"scan_id": "%s"}', sid)
 
@@ -274,8 +280,8 @@ async def get_scan_report(scan_id: str) -> ScanReportResponse:
 
     return ScanReportResponse(
         scan_id=scan_id,
-        url_scanned="",   # Month 3: query from PolicyContext node
-        policy="",        # Month 3: query from PolicyContext node
+        url_scanned="",  # Month 3: query from PolicyContext node
+        policy="",  # Month 3: query from PolicyContext node
         total_states=counts["states_explored"],
         violations=violations,
         scan_duration_seconds=0.0,  # Month 3: store started_at and compute elapsed
@@ -285,6 +291,7 @@ async def get_scan_report(scan_id: str) -> ScanReportResponse:
 # ---------------------------------------------------------------------------
 # Crawl integration — Track B
 # ---------------------------------------------------------------------------
+
 
 @app.post("/crawl/state-visit", tags=["crawl"])
 async def receive_state_visit(update: CrawlStateUpdate) -> dict[str, Any]:
@@ -315,8 +322,8 @@ async def receive_state_visit(update: CrawlStateUpdate) -> dict[str, Any]:
     state = StateNode(
         state_id=state_fp,
         url=update.url,
-        role="",       # role is on PolicyContext; StateNode is role-agnostic
-        depth=0,       # Track B to provide depth in a future field (Month 3)
+        role="",  # role is on PolicyContext; StateNode is role-agnostic
+        depth=0,  # Track B to provide depth in a future field (Month 3)
         title=update.title,
         screenshot_path=update.screenshot_path,
     )
@@ -358,7 +365,9 @@ async def receive_state_visit(update: CrawlStateUpdate) -> dict[str, Any]:
 
     logger.info(
         '"state_visited" {"scan_id": "%s", "fp": "%s", "url": "%s"}',
-        update.scan_id, state_fp[:8], update.url,
+        update.scan_id,
+        state_fp[:8],
+        update.url,
     )
 
     return {"accepted": True, "state_fingerprint": state_fp}
@@ -367,6 +376,7 @@ async def receive_state_visit(update: CrawlStateUpdate) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Violation reporting — Track C
 # ---------------------------------------------------------------------------
+
 
 @app.post("/violations/report", tags=["violations"])
 async def receive_violation(report: ViolationReport) -> dict[str, Any]:
@@ -395,8 +405,9 @@ async def receive_violation(report: ViolationReport) -> dict[str, Any]:
     try:
         graph.persist_violation(violation)
     except Exception as exc:
-        logger.error('"persist_violation_error" {"vid": "%s", "error": "%s"}',
-                     report.violation_id, exc)
+        logger.error(
+            '"persist_violation_error" {"vid": "%s", "error": "%s"}', report.violation_id, exc
+        )
         return {"recorded": False, "error": str(exc)}
 
     event = LiveEvent(
@@ -414,7 +425,9 @@ async def receive_violation(report: ViolationReport) -> dict[str, Any]:
 
     logger.info(
         '"violation_recorded" {"scan_id": "%s", "vid": "%s", "clause": "%s"}',
-        report.scan_id, report.violation_id, report.clause_type,
+        report.scan_id,
+        report.violation_id,
+        report.clause_type,
     )
 
     return {"recorded": True, "violation_id": report.violation_id}
@@ -423,6 +436,7 @@ async def receive_violation(report: ViolationReport) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # WebSocket — live event stream
 # ---------------------------------------------------------------------------
+
 
 @app.websocket("/scan/{scan_id}/live")
 async def websocket_live(websocket: WebSocket, scan_id: str) -> None:
@@ -447,4 +461,5 @@ async def websocket_live(websocket: WebSocket, scan_id: str) -> None:
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("services.api.main:app", host="0.0.0.0", port=8000, reload=True)

@@ -42,6 +42,7 @@ def client(mock_graph):
 # GET /health
 # ---------------------------------------------------------------------------
 
+
 class TestHealth:
     def test_returns_200(self, client):
         r = client.get("/health")
@@ -56,6 +57,7 @@ class TestHealth:
 # POST /scan/start
 # ---------------------------------------------------------------------------
 
+
 class TestStartScan:
     def test_returns_200(self, client):
         r = client.post(
@@ -68,7 +70,7 @@ class TestStartScan:
         r = client.post("/scan/start", json={"url": "http://app.local", "policy": "policy"})
         body = r.json()
         assert "scan_id" in body
-        assert len(body["scan_id"]) == 36   # UUID4
+        assert len(body["scan_id"]) == 36  # UUID4
 
     def test_status_is_queued(self, client):
         r = client.post("/scan/start", json={"url": "http://app.local", "policy": "policy"})
@@ -90,6 +92,7 @@ class TestStartScan:
 # ---------------------------------------------------------------------------
 # GET /scan/{id}/status
 # ---------------------------------------------------------------------------
+
 
 class TestScanStatus:
     def test_returns_200(self, client):
@@ -113,6 +116,7 @@ class TestScanStatus:
 # POST /crawl/state-visit
 # ---------------------------------------------------------------------------
 
+
 class TestCrawlStateVisit:
     _payload: ClassVar[dict[str, Any]] = {
         "scan_id": "scan-111",
@@ -133,7 +137,7 @@ class TestCrawlStateVisit:
     def test_returns_fingerprint(self, client):
         r = client.post("/crawl/state-visit", json=self._payload)
         fp = r.json().get("state_fingerprint", "")
-        assert len(fp) == 64   # SHA-256 hex
+        assert len(fp) == 64  # SHA-256 hex
 
     def test_calls_persist_state(self, client, mock_graph):
         client.post("/crawl/state-visit", json=self._payload)
@@ -158,6 +162,7 @@ class TestCrawlStateVisit:
 # ---------------------------------------------------------------------------
 # POST /violations/report
 # ---------------------------------------------------------------------------
+
 
 class TestViolationsReport:
     _payload: ClassVar[dict[str, Any]] = {

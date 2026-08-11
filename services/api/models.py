@@ -31,7 +31,7 @@ class StartScanRequest(BaseModel):
     policy: str = Field(
         ...,
         description="Plain-English policy rule to audit "
-                    "(e.g. 'guest must never see an Admin link')",
+        "(e.g. 'guest must never see an Admin link')",
         examples=["guest must never see an Admin link"],
     )
     role: str = Field(
@@ -68,12 +68,12 @@ class CrawlStateUpdate(BaseModel):
     prev_state_fingerprint: str | None = Field(
         default=None,
         description="Fingerprint of the state the crawler came from. "
-                    "None for the root state (initial open()).",
+        "None for the root state (initial open()).",
     )
     action_id: str | None = Field(
         default=None,
         description="Content-addressed action_id that led here (ADR-001 decision 1). "
-                    "None for the root state.",
+        "None for the root state.",
     )
     action_label: str = Field(
         default="",

@@ -65,6 +65,7 @@ class GraphStore:
         normalizes volatile attributes before hashing.
         """
         from apps.agent.graph.fingerprint import fingerprint_bundle
+
         return fingerprint_bundle(bundle)
 
     # ------------------------------------------------------------------
@@ -164,7 +165,9 @@ class GraphStore:
             )
         logger.debug(
             "persist_edge: %s --[%s]--> %s%s",
-            from_fp[:8], action_id[:8], to_fp[:8],
+            from_fp[:8],
+            action_id[:8],
+            to_fp[:8],
             " [BACK]" if is_back_edge else "",
         )
 
@@ -230,9 +233,7 @@ class GraphStore:
                 eid=exp_id,
                 vid=vid,
             )
-        logger.info(
-            "persist_violation: %s (%s) on state %s", vid, clause_type, state_id[:8]
-        )
+        logger.info("persist_violation: %s (%s) on state %s", vid, clause_type, state_id[:8])
 
     # ------------------------------------------------------------------
     # Month 2 extras — scan lifecycle

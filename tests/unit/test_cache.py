@@ -31,7 +31,7 @@ def fake_redis_cache():
         decode_responses=decode_responses
     )
     cache = VisitedCache()
-    cache.clear()   # start each test with a blank slate
+    cache.clear()  # start each test with a blank slate
     yield cache
     cache_module.redis.from_url = original_from_url
 

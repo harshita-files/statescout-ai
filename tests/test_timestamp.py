@@ -3,8 +3,8 @@ from graph.fingerprint import fingerprint
 
 def test_timestamp_removed():
 
-    dom1 = '<span>1717171717</span>'
-    dom2 = '<span>1818181818</span>'
+    dom1 = "<span>1717171717</span>"
+    dom2 = "<span>1818181818</span>"
 
     url = "/dashboard"
     ax = "Dashboard"
