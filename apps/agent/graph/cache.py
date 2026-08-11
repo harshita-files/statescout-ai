@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 
-import redis
+import redis  # type: ignore[import-not-found]
 
 
 class VisitedCache:
@@ -53,7 +53,7 @@ class VisitedCache:
 
     def is_visited(self, state_id: str, action_id: str) -> bool:
         """Return True if (state_id, action_id) has been claimed for this scan."""
-        return self.r.exists(self._key(state_id, action_id)) == 1
+        return bool(self.r.exists(self._key(state_id, action_id)) == 1)
 
     def mark_visited(self, state_id: str, action_id: str) -> None:
         """Claim (state_id, action_id) BEFORE the action executes (ADR-001 decision 3).

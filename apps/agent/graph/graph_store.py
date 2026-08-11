@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 import os
 
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 
@@ -290,7 +290,7 @@ class GraphStore:
                 "violations_found": record["violations"],
             }
 
-    def get_violations_for_scan(self, scan_id: str) -> list[dict]:
+    def get_violations_for_scan(self, scan_id: str) -> list[dict[str, object]]:
         """Return all ViolationNodes linked to states in this scan."""
         with self.driver.session() as session:
             result = session.run(
