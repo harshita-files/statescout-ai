@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 import os
 
-from neo4j import GraphDatabase  # type: ignore[import-not-found]
+from neo4j import GraphDatabase
 
 logger = logging.getLogger(__name__)
 

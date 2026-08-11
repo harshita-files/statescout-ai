@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 
-import redis  # type: ignore[import-not-found]
+import redis
 
 
 class VisitedCache:
@@ -35,7 +35,7 @@ class VisitedCache:
     def __init__(self, scan_id: str, redis_url: str | None = None) -> None:
         self.scan_id = scan_id
         url = redis_url or os.environ.get("REDIS_URL", "redis://localhost:6379")
-        self.r = redis.from_url(url, decode_responses=True)
+        self.r = redis.from_url(url, decode_responses=True)  # type: ignore[no-untyped-call]
 
     # ------------------------------------------------------------------
     # Key helpers
