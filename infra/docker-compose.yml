@@ -8,30 +8,40 @@ version: '3.8'
 #   redis  — visited-state cache (:6379)
 
 services:
+  # Neo4j Graph Database
+  # Persistent storage for explored execution states and policies
   neo4j:
     image: neo4j:5.20-community
     container_name: statescout-neo4j
     environment:
-      NEO4J_AUTH: neo4j/password
+      # NOTE: For local setup simplicity, default credentials are set here.
+      # WARNING: Move these to a .env file and reference them via env_file/variables
+      # before deploying or sharing the environment.
+      NEO4J_AUTH: neo4j/testpassword123
       NEO4J_dbms_memory_heap_initial__size: 512m
       NEO4J_dbms_memory_heap_max__size: 1g
+      NEO4J_PLUGINS: '["apoc"]'   # Optional utility library commonly used for graphs
     ports:
-      - "7474:7474"   # HTTP browser UI
-      - "7687:7687"   # Bolt driver (used by Python code)
+      - "7474:7474"   # Neo4j Browser HTTP UI
+      - "7687:7687"   # Bolt Protocol (used by Python code)
     volumes:
       - neo4j_data:/var/lib/neo4j/data
+      - neo4j_logs:/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7474"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+    restart: unless-stopped
 
+  # Redis Session Cache
+  # In-memory cache for tracking visited state-action pairs (deduplication)
   redis:
     image: redis:7-alpine
     container_name: statescout-redis
     ports:
-      - "6379:6379"
+      - "6379:6379"   # Redis default port
     volumes:
       - redis_data:/data
     healthcheck:
@@ -40,9 +50,12 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    restart: unless-stopped
 
 volumes:
   neo4j_data:
+    driver: local
+  neo4j_logs:
     driver: local
   redis_data:
     driver: local
