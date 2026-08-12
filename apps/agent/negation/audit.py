@@ -14,9 +14,9 @@ from __future__ import annotations
 import re
 
 from apps.agent.contracts import (
+    Evidence,
     ExpectationNode,
     ExpectationSet,
-    Evidence,
     SemanticUIMap,
     Violation,
 )
@@ -52,10 +52,8 @@ def _matches_subject(
             return True, Evidence(text=capability)
 
     for element in semantic_map.elements:
-        candidates = (
-            element.tags
-            + (element.name,)
-        )
+        
+        candidates = (*element.tags, element.name)
 
         if any(_normalize(value) == wanted for value in candidates):
             return True, Evidence(

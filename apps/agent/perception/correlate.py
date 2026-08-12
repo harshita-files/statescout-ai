@@ -13,8 +13,8 @@ Matching priority:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from apps.agent.perception.dom import DOMElement

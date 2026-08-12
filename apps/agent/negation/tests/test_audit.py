@@ -1,7 +1,6 @@
 from apps.agent.contracts import (
     ExpectationNode,
     ExpectationSet,
-    Role,
     SemanticUIMap,
     UIElement,
 )
