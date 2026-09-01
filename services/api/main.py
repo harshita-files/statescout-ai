@@ -30,19 +30,35 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import redis as redis_lib
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.background import BackgroundTasks
 
 from apps.agent.graph.graph_store import GraphStore
+from services.api.auth import auth_enabled, require_api_key, websocket_authorized
 from services.api.models import (
     CrawlStateUpdate,
     LiveEvent,
+    ProjectRequest,
+    ProjectResponse,
     ScanReportResponse,
     ScanStatusResponse,
     StartScanRequest,
     ViolationRecord,
     ViolationReport,
 )
+from services.api.runner import finalize_scan_sync, run_scan, set_visited_ttl
+
+#: X-API-Key guard for every route except /health. No-op unless STATESCOUT_API_KEY
+#: is set (see services/api/auth.py).
+_PROTECTED = [Depends(require_api_key)]
+
+# A 'stopping' run still finishing its in-flight iteration keeps its visited keys
+# alive this long; `runner.finalize_scan_sync` shortens that once the run ends.
+VISITED_TTL_GRACE_SECONDS = 3600
+
+#: scan_ids with a pending stop request. In-process fast path for the crawl
+#: BackgroundTask; out-of-process Track B polls GraphStore.is_stop_requested.
+_STOP_FLAGS: set[str] = set()
 
 # ---------------------------------------------------------------------------
 # Logging — structured, one line per event
@@ -157,9 +173,76 @@ def _graph(request: Any) -> GraphStore:
 
 
 @app.get("/health", tags=["ops"])
-async def health_check() -> dict[str, str]:
-    """Liveness probe. Returns 200 as long as the process is alive."""
-    return {"status": "ok", "version": "0.2.0"}
+async def health_check() -> dict[str, Any]:
+    """Liveness probe. Always open (no auth) — Docker healthcheck hits it."""
+    return {"status": "ok", "version": "0.2.0", "auth_required": auth_enabled()}
+
+
+# ---------------------------------------------------------------------------
+# Projects — saved (url + policy + role) scan targets
+# ---------------------------------------------------------------------------
+
+
+def _project_response(record: dict[str, Any]) -> ProjectResponse:
+    return ProjectResponse(
+        project_id=str(record.get("project_id", "")),
+        name=str(record.get("name", "")),
+        url=str(record.get("url", "")),
+        policy=str(record.get("policy", "")),
+        role=str(record.get("role", "guest")),
+        created_at=record.get("created_at"),
+        updated_at=record.get("updated_at"),
+    )
+
+
+@app.post("/projects", response_model=ProjectResponse, tags=["projects"], dependencies=_PROTECTED)
+async def create_project(body: ProjectRequest) -> ProjectResponse:
+    """Save a scan target so it can be re-run by `project_id`."""
+    project_id = str(uuid.uuid4())
+    app.state.graph.create_project(project_id, body.name, body.url, body.policy, body.role)
+    logger.info('"project_created" {"project_id": "%s"}', project_id)
+    return _project_response({"project_id": project_id, **body.model_dump()})
+
+
+@app.get(
+    "/projects", response_model=list[ProjectResponse], tags=["projects"], dependencies=_PROTECTED
+)
+async def list_projects() -> list[ProjectResponse]:
+    return [_project_response(p) for p in app.state.graph.list_projects()]
+
+
+@app.get(
+    "/projects/{project_id}",
+    response_model=ProjectResponse,
+    tags=["projects"],
+    dependencies=_PROTECTED,
+)
+async def get_project(project_id: str) -> ProjectResponse:
+    project = app.state.graph.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail=f"Unknown project '{project_id}'.")
+    return _project_response(project)
+
+
+@app.put(
+    "/projects/{project_id}",
+    response_model=ProjectResponse,
+    tags=["projects"],
+    dependencies=_PROTECTED,
+)
+async def update_project(project_id: str, body: ProjectRequest) -> ProjectResponse:
+    if not app.state.graph.update_project(
+        project_id, name=body.name, url=body.url, policy=body.policy, role=body.role
+    ):
+        raise HTTPException(status_code=404, detail=f"Unknown project '{project_id}'.")
+    return _project_response({"project_id": project_id, **body.model_dump()})
+
+
+@app.delete("/projects/{project_id}", status_code=204, tags=["projects"], dependencies=_PROTECTED)
+async def delete_project(project_id: str) -> None:
+    if not app.state.graph.delete_project(project_id):
+        raise HTTPException(status_code=404, detail=f"Unknown project '{project_id}'.")
+    logger.info('"project_deleted" {"project_id": "%s"}', project_id)
 
 
 # ---------------------------------------------------------------------------
@@ -167,7 +250,7 @@ async def health_check() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
-@app.post("/scan/start", response_model=ScanStatusResponse, tags=["scan"])
+@app.post("/scan/start", response_model=ScanStatusResponse, tags=["scan"], dependencies=_PROTECTED)
 async def start_scan(
     request_body: StartScanRequest,
     background_tasks: BackgroundTasks,
@@ -175,48 +258,70 @@ async def start_scan(
 ) -> ScanStatusResponse:
     """Initiate a new crawl/audit.
 
-    Returns immediately with scan_id and status=queued.
-    The crawl is launched as a BackgroundTask so this endpoint never blocks.
-
-    Month 2: PolicyContext is persisted to Neo4j; in_memory_scans is gone.
+    Returns immediately with scan_id and status=queued; the crawl runs as a
+    BackgroundTask (`services.api.runner.run_scan`) that drives Track B's
+    exploration loop against this scan's Neo4jGraph. Poll GET /scan/{id}/status
+    or subscribe to the WS stream for progress.
     """
     scan_id = str(uuid.uuid4())
-
-    # Persist the scan session to Neo4j
-    # (request is injected by FastAPI; we need app.state)
-    # We access graph via app.state directly since we can't use Depends here easily
     graph: GraphStore = app.state.graph
-    graph.create_policy_context(
+
+    # Resolve the target: a saved project, or the url/policy/role in the body.
+    if request_body.project_id:
+        project = graph.get_project(request_body.project_id)
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail=f"Unknown project '{request_body.project_id}'."
+            )
+        url = str(project["url"])
+        policy = str(project["policy"])
+        role = str(project["role"])
+    else:
+        url, policy, role = request_body.url, request_body.policy, request_body.role
+
+    graph.create_policy_context(scan_id=scan_id, url=url, policy=policy, role=role)
+    if request_body.project_id:
+        with contextlib.suppress(Exception):
+            graph.link_scan_to_project(request_body.project_id, scan_id)
+
+    loop = asyncio.get_running_loop()
+
+    def _emit(sid: str, event: str, payload: dict[str, Any]) -> None:
+        """Bridge a live event from the crawl worker thread to WS subscribers."""
+        with contextlib.suppress(Exception):
+            asyncio.run_coroutine_threadsafe(
+                manager.broadcast(sid, LiveEvent(event=event, scan_id=sid, payload=payload)),
+                loop,
+            )
+
+    background_tasks.add_task(
+        run_scan,
         scan_id=scan_id,
-        url=request_body.url,
-        policy=request_body.policy,
-        role=request_body.role,
+        seed_url=url,
+        policy_text=policy,
+        role=role,
+        graph_store=graph,
+        emit=_emit,
+        stop_check=lambda: scan_id in _STOP_FLAGS,
     )
 
-    # BackgroundTask placeholder — Track B's orchestrator drives the real crawl
-    # once it integrates. For now this just marks the scan as running.
-    async def _mark_running(sid: str) -> None:
-        await asyncio.sleep(0)  # yield to event loop
-        app.state.graph.update_scan_status(sid, "running")
-        logger.info('"scan_started" {"scan_id": "%s"}', sid)
-
-    background_tasks.add_task(_mark_running, scan_id)
-
-    logger.info('"scan_queued" {"scan_id": "%s", "url": "%s"}', scan_id, request_body.url)
+    logger.info('"scan_queued" {"scan_id": "%s", "url": "%s"}', scan_id, url)
 
     return ScanStatusResponse(
         scan_id=scan_id,
         status="queued",
         states_explored=0,
         violations_found=0,
-        message=(
-            f"Scan {scan_id} queued. "
-            "Track B's orchestrator will drive the crawl loop (Month 2 integration)."
-        ),
+        message=f"Scan {scan_id} queued; the crawl is starting.",
     )
 
 
-@app.get("/scan/{scan_id}/status", response_model=ScanStatusResponse, tags=["scan"])
+@app.get(
+    "/scan/{scan_id}/status",
+    response_model=ScanStatusResponse,
+    tags=["scan"],
+    dependencies=_PROTECTED,
+)
 async def get_scan_status(scan_id: str) -> ScanStatusResponse:
     """Poll scan progress. Returns real counts from Neo4j (Month 2).
 
@@ -231,6 +336,22 @@ async def get_scan_status(scan_id: str) -> ScanStatusResponse:
             scan_id=scan_id,
             status="failed",
             message=f"Failed to query scan status: {exc}",
+        )
+
+    # Prefer the PolicyContext's own lifecycle status (queued / running / stopping
+    # / stopped / completed / failed) when it is available; fall back to inferring
+    # from counts otherwise.
+    scan = None
+    with contextlib.suppress(Exception):
+        scan = app.state.graph.get_scan(scan_id)
+    pc_status = scan.get("status") if isinstance(scan, dict) else None
+
+    if pc_status:
+        return ScanStatusResponse(
+            scan_id=scan_id,
+            status=str(pc_status),
+            states_explored=counts["states_explored"],
+            violations_found=counts["violations_found"],
         )
 
     if counts["states_explored"] == 0 and counts["violations_found"] == 0:
@@ -250,7 +371,85 @@ async def get_scan_status(scan_id: str) -> ScanStatusResponse:
     )
 
 
-@app.get("/scan/{scan_id}/report", response_model=ScanReportResponse, tags=["scan"])
+async def _finalize_scan(scan_id: str, status: str) -> None:
+    """Terminal transition for a run (``stopped`` / ``completed`` / ``failed``).
+
+    Stamps the PolicyContext, expires the run's Redis visited keys so they do not
+    leak, and pushes a ``scan_<status>`` live event. Safe to call from the stop
+    endpoint and from the crawl BackgroundTask's completion path.
+    """
+    finalize_scan_sync(app.state.graph, scan_id, status)
+    _STOP_FLAGS.discard(scan_id)
+    with contextlib.suppress(Exception):
+        await manager.broadcast(
+            scan_id, LiveEvent(event=f"scan_{status}", scan_id=scan_id, payload={})
+        )
+
+
+@app.post(
+    "/scan/{scan_id}/stop",
+    response_model=ScanStatusResponse,
+    tags=["scan"],
+    dependencies=_PROTECTED,
+)
+async def stop_scan(scan_id: str) -> ScanStatusResponse:
+    """Request a graceful stop of a crawl.
+
+    This only records intent — the in-flight iteration is allowed to finish.
+    Whatever drives the loop polls ``GraphStore.is_stop_requested(scan_id)``
+    between iterations and exits with ``termination_reason="stopped"``.
+
+    - queued scan  → finalized immediately (nothing is running)
+    - running scan → status becomes ``stopping``; visited keys get a grace TTL
+    - already ended → idempotent no-op
+    - unknown id   → soft failure (status ``failed``), not HTTP 404
+    """
+    graph: GraphStore = app.state.graph
+    try:
+        scan = graph.get_scan(scan_id)
+    except Exception as exc:
+        logger.error('"stop_scan_error" {"scan_id": "%s", "error": "%s"}', scan_id, exc)
+        return ScanStatusResponse(scan_id=scan_id, status="failed", message=f"stop failed: {exc}")
+
+    if not isinstance(scan, dict):
+        return ScanStatusResponse(
+            scan_id=scan_id, status="failed", message=f"Unknown scan '{scan_id}'."
+        )
+
+    status = str(scan.get("status", ""))
+
+    if status in GraphStore.TERMINAL_STATUSES:
+        return ScanStatusResponse(scan_id=scan_id, status=status, message="Scan already ended.")
+
+    _STOP_FLAGS.add(scan_id)
+
+    if status == "queued":
+        await _finalize_scan(scan_id, "stopped")
+        logger.info('"scan_stopped" {"scan_id": "%s", "from": "queued"}', scan_id)
+        return ScanStatusResponse(
+            scan_id=scan_id, status="stopped", message="Scan stopped before it started."
+        )
+
+    graph.update_scan_status(scan_id, "stopping")
+    set_visited_ttl(scan_id, VISITED_TTL_GRACE_SECONDS)
+    with contextlib.suppress(Exception):
+        await manager.broadcast(
+            scan_id, LiveEvent(event="scan_stopping", scan_id=scan_id, payload={})
+        )
+    logger.info('"scan_stopping" {"scan_id": "%s"}', scan_id)
+    return ScanStatusResponse(
+        scan_id=scan_id,
+        status="stopping",
+        message="Stop requested. The in-flight iteration will finish, then the crawl exits.",
+    )
+
+
+@app.get(
+    "/scan/{scan_id}/report",
+    response_model=ScanReportResponse,
+    tags=["scan"],
+    dependencies=_PROTECTED,
+)
 async def get_scan_report(scan_id: str) -> ScanReportResponse:
     """Retrieve the full audit report for a completed scan.
 
@@ -297,7 +496,7 @@ async def get_scan_report(scan_id: str) -> ScanReportResponse:
 # ---------------------------------------------------------------------------
 
 
-@app.post("/crawl/state-visit", tags=["crawl"])
+@app.post("/crawl/state-visit", tags=["crawl"], dependencies=_PROTECTED)
 async def receive_state_visit(update: CrawlStateUpdate) -> dict[str, Any]:
     """Track B calls this for every state the BFS loop visits.
 
@@ -332,7 +531,9 @@ async def receive_state_visit(update: CrawlStateUpdate) -> dict[str, Any]:
         screenshot_path=update.screenshot_path,
     )
     try:
-        graph.persist_state(state)
+        # scan_id → the node is linked into this scan's PolicyContext (:CONTAINS)
+        # in the same write, so /scan/{id}/status counts see it.
+        graph.persist_state(state, scan_id=update.scan_id)
     except Exception as exc:
         logger.error('"persist_state_error" {"fp": "%s", "error": "%s"}', state_fp[:8], exc)
         return {"accepted": False, "error": str(exc)}
@@ -382,7 +583,7 @@ async def receive_state_visit(update: CrawlStateUpdate) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-@app.post("/violations/report", tags=["violations"])
+@app.post("/violations/report", tags=["violations"], dependencies=_PROTECTED)
 async def receive_violation(report: ViolationReport) -> dict[str, Any]:
     """Track C calls this when the VLM + negation engine confirms a violation.
 
@@ -449,7 +650,12 @@ async def websocket_live(websocket: WebSocket, scan_id: str) -> None:
     The VS Code extension connects here and receives LiveEvent JSON objects
     as Track B visits states and Track C reports violations.
     Connection is kept open until the client disconnects or the scan ends.
+
+    When STATESCOUT_API_KEY is set, the handshake must carry a matching
+    X-API-Key header or the socket is closed with 1008.
     """
+    if not await websocket_authorized(websocket):
+        return
     await manager.connect(scan_id, websocket)
     try:
         while True:

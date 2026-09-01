@@ -72,14 +72,17 @@ class TestPersistState:
 
 
 class TestPersistEdge:
-    def test_uses_create_not_merge(self, gs, mock_driver):
+    def test_relationship_is_created_never_merged(self, gs, mock_driver):
+        """The :ACTION relationship is CREATEd — every traversal is a distinct
+        record, cycles/parallel edges preserved. (Endpoint nodes may be MERGEd so
+        an edge to a not-yet-persisted state still lands.)"""
         sess = _session(mock_driver)
         from apps.agent.contracts import StateEdge
 
         gs.persist_edge(StateEdge("fp_a", "fp_b", "act_1"))
         query = sess.run.call_args[0][0]
-        assert "CREATE" in query
-        assert "MERGE" not in query
+        assert "CREATE (a)-[:ACTION" in query
+        assert "MERGE (a-[:ACTION" not in query  # the relationship is never MERGEd
 
     def test_stores_is_back_edge(self, gs, mock_driver):
         sess = _session(mock_driver)

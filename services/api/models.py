@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # ---------------------------------------------------------------------------
 # Requests
@@ -21,24 +21,49 @@ from pydantic import BaseModel, Field
 
 
 class StartScanRequest(BaseModel):
-    """Payload sent by the VS Code extension to initiate a new crawl/audit."""
+    """Payload sent by the VS Code extension to initiate a new crawl/audit.
+
+    Contract evolution (additive / loosening, backward compatible): `url` and
+    `policy` were required; they are now optional so a caller may pass a saved
+    `project_id` instead. Exactly one of (url + policy) or project_id is required
+    — enforced below, so a caller that omits both still gets a 422.
+    """
 
     url: str = Field(
-        ...,
-        description="Starting URL for the crawl (e.g. https://staging.app.local)",
+        default="",
+        description="Starting URL for the crawl. Required unless project_id is given.",
         examples=["https://app.local/dashboard"],
     )
     policy: str = Field(
-        ...,
-        description="Plain-English policy rule to audit "
-        "(e.g. 'guest must never see an Admin link')",
+        default="",
+        description="Plain-English policy rule to audit. Required unless project_id is given.",
         examples=["guest must never see an Admin link"],
     )
     role: str = Field(
         default="guest",
-        description="Role the crawler browses as. One role per run (ADR-001 decision 5).",
+        description="Role the crawler browses as. One role per run (ADR-001 decision 5). "
+        "Ignored when project_id is given (the project's role wins).",
         examples=["guest", "admin"],
     )
+    project_id: str | None = Field(
+        default=None,
+        description="Run a saved project. url / policy / role are taken from it.",
+    )
+
+    @model_validator(mode="after")
+    def _url_and_policy_or_project(self) -> StartScanRequest:
+        if not self.project_id and not (self.url and self.policy):
+            raise ValueError("provide url + policy, or project_id")
+        return self
+
+
+class ProjectRequest(BaseModel):
+    """Create / update a saved scan target (POST /projects, PUT /projects/{id})."""
+
+    name: str = Field(..., description="Human label for the project", examples=["Staging — guest"])
+    url: str = Field(..., description="Starting URL", examples=["https://staging.app.local"])
+    policy: str = Field(..., description="Plain-English policy rule")
+    role: str = Field(default="guest", description="Role the crawler browses as")
 
 
 class CrawlStateUpdate(BaseModel):
@@ -193,19 +218,36 @@ class ScanReportResponse(BaseModel):
     )
 
 
+class ProjectResponse(BaseModel):
+    """A saved scan target."""
+
+    project_id: str
+    name: str
+    url: str
+    policy: str
+    role: str
+    created_at: int | None = Field(default=None, description="epoch ms")
+    updated_at: int | None = Field(default=None, description="epoch ms")
+
+
 class LiveEvent(BaseModel):
     """WebSocket push payload sent to connected clients on each crawl event.
 
     event values:
-      'state_visited'  — Track B visited a new state
+      'state_visited'   — Track B visited a new state
       'violation_found' — Track C confirmed a violation
-      'scan_complete'  — crawl finished normally
-      'scan_failed'    — crawl aborted with an error
+      'scan_stopping'   — a graceful stop was requested; loop is winding down
+      'scan_stopped'    — crawl ended early on a stop request
+      'scan_completed'  — crawl finished normally (frontier exhausted / limit hit)
+      'scan_failed'     — crawl aborted with an error
     """
 
     event: str = Field(
         ...,
-        description="Event type: state_visited | violation_found | scan_complete | scan_failed",
+        description=(
+            "state_visited | violation_found | scan_stopping | scan_stopped | "
+            "scan_completed | scan_failed"
+        ),
     )
     scan_id: str = Field(..., description="Scan this event belongs to")
     payload: dict[str, Any] = Field(

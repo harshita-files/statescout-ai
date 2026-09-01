@@ -180,6 +180,28 @@ class TestPersistEdge:
         assert "CREATE" in sess.run.call_args[0][0]
 
 
+class TestScanScoping:
+    """`persist_state` also links the node into its scan's PolicyContext, so the
+    API's live counts (`(:PolicyContext)-[:CONTAINS]->(:StateNode)`) work for an
+    orchestrator-driven run — Month 2."""
+
+    def test_persist_state_query_conditionally_attaches_to_the_scan(self, graph, mock_neo4j):
+        sess = _session(mock_neo4j)
+        graph.persist_state(StateNode(state_id="fp1", url="/x", role="guest", depth=0))
+        query = sess.run.call_args[0][0]
+        assert "PolicyContext" in query
+        assert "CONTAINS" in query
+        # still one round trip, still the same node-upsert semantics
+        assert sess.run.call_count == 1
+        assert "coalesce(s.depth" in query
+
+    def test_persist_state_passes_the_scan_id(self, mock_neo4j, fake_redis):
+        sess = _session(mock_neo4j)
+        g = Neo4jGraph(scan_id="scan-xyz")
+        g.persist_state(StateNode(state_id="fp1", url="/x", role="guest", depth=0))
+        assert sess.run.call_args[1]["sid"] == "scan-xyz"
+
+
 class TestDelegationAndLifecycle:
     def test_persist_violation_delegates_to_the_store(self, mock_neo4j, fake_redis):
         store = MagicMock()

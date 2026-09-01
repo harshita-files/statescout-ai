@@ -13,23 +13,22 @@ Redis (`tests/unit/graph/test_neo4j_graph.py` runs the real loop to prove it).
 Why this exists instead of exposing `GraphStore` directly
 --------------------------------------------------------
 `GraphStore` (Neo4j) and `VisitedCache` (Redis) are the two raw stores Track D
-owns. Neither is, on its own, the `GraphPort` the orchestrator needs:
+owns. Neither is, on its own, the `GraphPort` the orchestrator needs. This class
+is a thin adapter: every method delegates, and the only thing it adds is *which*
+store each call goes to and the per-run `scan_id`.
 
 * **The visited set belongs in Redis, not Neo4j.** ADR-001 decision 3 and
   handbook §3 both say the `(state_id, action_id)` loop-prevention check is a
   hot-path O(1) lookup — a Neo4j round-trip per candidate is exactly what Redis
   is there to avoid. So `is_visited` / `mark_visited` delegate to `VisitedCache`.
 
-* **`persist_edge` has to survive the orchestrator's call order.** Both
-  `explore.py` and `graph_runner.py` persist an edge *before* the destination
-  node is persisted (the `scan` that writes the node runs on the next step). A
-  plain ``MATCH (a), (b) CREATE (a)->(b)`` would find no `b` and silently drop
-  the edge. This class MERGEs both endpoints first, so a forward edge to a
-  not-yet-seen state still lands. `persist_state` then fills that stub in, with
-  `depth` kept first-write-wins via `coalesce`.
+* **Persistence goes to `GraphStore`, scoped to this run.** `persist_state`
+  passes `scan_id` so the node is linked into the run's PolicyContext
+  (`:CONTAINS`); `GraphStore` also handles the orchestrator's call order (an edge
+  written before its destination node — it MERGEs endpoints, `persist_state`
+  fills the stub, `depth` first-write-wins via `coalesce`).
 
-`fingerprint`, `persist_violation`, and connection lifecycle are call-order
-independent and delegate straight to `GraphStore`.
+`fingerprint`, `persist_violation`, and connection lifecycle delegate unchanged.
 
 Run scoping
 -----------
@@ -54,33 +53,6 @@ if TYPE_CHECKING:
     from apps.agent.contracts import GraphPort
 
 __all__ = ["Neo4jGraph"]
-
-# StateNode upsert. `depth` is the BFS depth at which the state was *first*
-# reached, so it is only ever filled if currently unset — `persist_edge` may have
-# created this node as a bare stub, which carries no depth.
-_PERSIST_STATE = """
-MERGE (s:StateNode {fingerprint: $fp})
-ON CREATE SET s.created_at = timestamp()
-SET s.url = $url,
-    s.role = $role,
-    s.title = $title,
-    s.screenshot_path = $sp,
-    s.depth = coalesce(s.depth, $depth)
-"""
-
-# ActionEdge write. MERGE the endpoints (either may not be persisted yet — see
-# the module docstring) then CREATE the edge unconditionally: every traversal is
-# a distinct record, so parallel edges and cycles are preserved.
-_PERSIST_EDGE = """
-MERGE (a:StateNode {fingerprint: $from_fp})
-MERGE (b:StateNode {fingerprint: $to_fp})
-CREATE (a)-[:ACTION {
-    action_id: $aid,
-    label: $label,
-    is_back_edge: $ibe,
-    recorded_at: timestamp()
-}]->(b)
-"""
 
 
 class Neo4jGraph:
@@ -113,30 +85,13 @@ class Neo4jGraph:
     def mark_visited(self, state_id: str, action_id: str) -> None:
         self._visited.mark_visited(state_id, action_id)
 
-    # -- persistence (Neo4j) ----------------------------------------------
+    # -- persistence (Neo4j, via GraphStore) -------------------------------
 
     def persist_state(self, state: StateNode) -> None:
-        with self._store.driver.session() as session:
-            session.run(
-                _PERSIST_STATE,
-                fp=state.state_id,
-                url=state.url,
-                role=state.role,
-                depth=state.depth,
-                title=state.title,
-                sp=state.screenshot_path,
-            )
+        self._store.persist_state(state, scan_id=self.scan_id)
 
     def persist_edge(self, edge: StateEdge) -> None:
-        with self._store.driver.session() as session:
-            session.run(
-                _PERSIST_EDGE,
-                from_fp=edge.from_state_id,
-                to_fp=edge.to_state_id,
-                aid=edge.action_id,
-                label=edge.label,
-                ibe=edge.is_back_edge,
-            )
+        self._store.persist_edge(edge)
 
     def persist_violation(self, violation: Violation) -> None:
         self._store.persist_violation(violation)

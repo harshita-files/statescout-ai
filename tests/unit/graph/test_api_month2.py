@@ -3,11 +3,11 @@ Unit tests for services.api.main — Month 2 endpoints.
 
 Uses FastAPI's TestClient with mocked GraphStore so no Neo4j or Redis is needed.
 
-Run:  pytest tests/unit/test_api_month2.py -v
+Run:  pytest tests/unit/graph/test_api_month2.py -v
 """
 
 from typing import Any, ClassVar
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -30,7 +30,15 @@ def mock_graph():
 
 
 @pytest.fixture
-def client(mock_graph):
+def stub_run_scan():
+    """Neutralise the crawl BackgroundTask — its own wiring is covered by
+    tests/unit/graph/test_runner.py; here we only care about the HTTP layer."""
+    with patch("services.api.main.run_scan") as m:
+        yield m
+
+
+@pytest.fixture
+def client(mock_graph, stub_run_scan):
     """TestClient with injected mock GraphStore."""
     app.state.graph = mock_graph
     app.state.redis = MagicMock()
@@ -79,6 +87,15 @@ class TestStartScan:
     def test_calls_create_policy_context(self, client, mock_graph):
         client.post("/scan/start", json={"url": "http://app.local", "policy": "policy"})
         mock_graph.create_policy_context.assert_called_once()
+
+    def test_schedules_the_crawl_runner(self, client, stub_run_scan):
+        r = client.post("/scan/start", json={"url": "http://app.local", "policy": "p"})
+        scan_id = r.json()["scan_id"]
+        stub_run_scan.assert_called_once()
+        kwargs = stub_run_scan.call_args.kwargs
+        assert kwargs["scan_id"] == scan_id
+        assert kwargs["seed_url"] == "http://app.local"
+        assert callable(kwargs["stop_check"])
 
     def test_missing_url_returns_422(self, client):
         r = client.post("/scan/start", json={"policy": "no url"})
