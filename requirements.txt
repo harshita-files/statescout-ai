@@ -16,3 +16,6 @@ uvicorn[standard]>=0.29,<1.0
 
 # Pydantic v2 (FastAPI depends on this, pinned for clarity)
 pydantic>=2.7,<3.0
+
+# WebSocket transport layer (used by FastAPI's WS support)
+websockets>=12.0,<14.0
