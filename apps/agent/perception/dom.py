@@ -37,9 +37,7 @@ class _DOMParser(HTMLParser):
     ) -> None:
         attributes = dict(attrs)
 
-        classes = tuple(
-            value for value in (attributes.get("class") or "").split() if value
-        )
+        classes = tuple(value for value in (attributes.get("class") or "").split() if value)
 
         style = (attributes.get("style") or "").replace(" ", "").lower()
 

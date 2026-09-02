@@ -64,12 +64,7 @@ def _normalize(value: str) -> str:
 
 
 def _dom_name(element: DOMElement) -> str:
-    return (
-        element.aria_label
-        or element.text
-        or element.element_id
-        or ""
-    )
+    return element.aria_label or element.text or element.element_id or ""
 
 
 def _same_name(left: str, right: str) -> bool:
@@ -146,18 +141,10 @@ def correlate(
         if role in {"", "none", "generic", "document", "rootwebarea"} and not name:
             continue
 
-        candidates = [
-            element
-            for element in unused_dom
-            if _same_role(role, element)
-        ]
+        candidates = [element for element in unused_dom if _same_role(role, element)]
 
         # Strong semantic match: role + accessible name.
-        strong = [
-            element
-            for element in candidates
-            if _same_name(name, _dom_name(element))
-        ]
+        strong = [element for element in candidates if _same_name(name, _dom_name(element))]
 
         if len(strong) == 1:
             element = strong[0]
@@ -175,11 +162,7 @@ def correlate(
 
         # If role is absent/weak, name-only matching is acceptable only when
         # there is exactly one candidate.
-        name_matches = [
-            element
-            for element in unused_dom
-            if _same_name(name, _dom_name(element))
-        ]
+        name_matches = [element for element in unused_dom if _same_name(name, _dom_name(element))]
 
         if len(name_matches) == 1:
             element = name_matches[0]

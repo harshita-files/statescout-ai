@@ -52,7 +52,6 @@ def _matches_subject(
             return True, Evidence(text=capability)
 
     for element in semantic_map.elements:
-        
         candidates = (*element.tags, element.name)
 
         if any(_normalize(value) == wanted for value in candidates):
@@ -78,11 +77,7 @@ def _element_capabilities(element) -> tuple[str, ...]:
         "login": "login",
     }
 
-    return tuple(
-        capability
-        for tag in element.tags
-        if (capability := mapping.get(tag)) is not None
-    )
+    return tuple(capability for tag in element.tags if (capability := mapping.get(tag)) is not None)
 
 
 def _severity_for(expectation: ExpectationNode) -> str:
@@ -104,10 +99,7 @@ def _violation(
     rationale: str,
     evidence: Evidence,
 ) -> Violation:
-    violation_id = (
-        f"v-{semantic_map.state_id}-"
-        f"{expectation.expectation_id}"
-    )
+    violation_id = f"v-{semantic_map.state_id}-{expectation.expectation_id}"
 
     return Violation(
         violation_id=violation_id,

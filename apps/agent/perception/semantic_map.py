@@ -59,11 +59,7 @@ def _semantic_text(element: CorrelatedElement) -> str:
 
 def _tags_for(element: CorrelatedElement) -> tuple[str, ...]:
     text = _semantic_text(element)
-    tags = [
-        tag
-        for tag, keywords in _TAG_RULES
-        if any(keyword in text for keyword in keywords)
-    ]
+    tags = [tag for tag, keywords in _TAG_RULES if any(keyword in text for keyword in keywords)]
     return tuple(sorted(set(tags)))
 
 
@@ -101,24 +97,14 @@ def build_semantic_map(
     correlated = correlate(dom_elements, bundle.ax_tree)
 
     elements = tuple(
-        _ui_element(element)
-        for element in correlated
-        if element.name or element.dom is not None
+        _ui_element(element) for element in correlated if element.name or element.dom is not None
     )
 
     capabilities = sorted(
-        {
-            capability
-            for element in correlated
-            for capability in _capabilities_for(element)
-        }
+        {capability for element in correlated for capability in _capabilities_for(element)}
     )
 
-    meaningful = [
-        element.name
-        for element in elements
-        if element.name
-    ]
+    meaningful = [element.name for element in elements if element.name]
 
     if meaningful:
         preview = ", ".join(meaningful[:5])

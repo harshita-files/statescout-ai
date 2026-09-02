@@ -45,9 +45,7 @@ def test_preserves_unmatched_ax_evidence() -> None:
 
 
 def test_preserves_dom_only_evidence() -> None:
-    elements = extract_dom_elements(
-        '<button id="hidden" style="display:none">Hidden</button>'
-    )
+    elements = extract_dom_elements('<button id="hidden" style="display:none">Hidden</button>')
 
     result = correlate(elements, {"nodes": []})
 

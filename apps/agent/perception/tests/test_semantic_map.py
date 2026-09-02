@@ -27,11 +27,7 @@ def test_builds_delete_capability() -> None:
     assert result.role == "guest"
     assert "delete-user" in result.capabilities
 
-    button = next(
-        element
-        for element in result.elements
-        if element.name == "Delete All Records"
-    )
+    button = next(element for element in result.elements if element.name == "Delete All Records")
 
     assert button.selector == "#delete-db"
     assert "delete" in button.tags
