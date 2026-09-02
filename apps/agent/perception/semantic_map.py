@@ -15,7 +15,6 @@ from apps.agent.contracts import CaptureBundle, Role, SemanticUIMap, UIElement
 from apps.agent.perception.correlate import CorrelatedElement, correlate
 from apps.agent.perception.dom import extract_dom_elements
 
-
 _CAPABILITY_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("delete-user", ("delete", "remove", "destroy", "wipe")),
     ("admin-access", ("admin", "administrator")),
