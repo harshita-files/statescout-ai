@@ -6,7 +6,6 @@ from typing import Any
 
 from apps.agent.contracts import CaptureBundle, UIElement
 
-
 # Structural AX roles that aren't useful as UI elements for our semantic map.
 _STRUCTURAL_ROLES = {
     "none",
