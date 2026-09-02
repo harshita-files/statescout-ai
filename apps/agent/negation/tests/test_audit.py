@@ -9,8 +9,8 @@ from apps.agent.negation.audit import audit
 
 def make_map(
     *,
-    elements=(),
-    capabilities=(),
+    elements: tuple[UIElement, ...] = (),
+    capabilities: tuple[str, ...] = (),
 ) -> SemanticUIMap:
     return SemanticUIMap(
         state_id="state-1",

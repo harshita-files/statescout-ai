@@ -14,6 +14,7 @@ Matching priority:
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -120,7 +121,7 @@ def _ax_nodes(ax_tree: Any) -> list[dict[str, Any]]:
 
 
 def correlate(
-    dom_elements: list[DOMElement],
+    dom_elements: Sequence[DOMElement],
     ax_tree: Any,
 ) -> tuple[CorrelatedElement, ...]:
     """Correlate semantic AX nodes with DOM evidence.

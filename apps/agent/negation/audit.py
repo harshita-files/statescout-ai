@@ -14,10 +14,13 @@ from __future__ import annotations
 import re
 
 from apps.agent.contracts import (
+    ClauseType,
     Evidence,
     ExpectationNode,
     ExpectationSet,
     SemanticUIMap,
+    Severity,
+    UIElement,
     Violation,
 )
 
@@ -66,7 +69,7 @@ def _matches_subject(
     return False, Evidence()
 
 
-def _element_capabilities(element) -> tuple[str, ...]:
+def _element_capabilities(element: UIElement) -> tuple[str, ...]:
     """Map the standard Track C tags back to their capabilities."""
     mapping = {
         "admin": "admin-access",
@@ -80,7 +83,7 @@ def _element_capabilities(element) -> tuple[str, ...]:
     return tuple(capability for tag in element.tags if (capability := mapping.get(tag)) is not None)
 
 
-def _severity_for(expectation: ExpectationNode) -> str:
+def _severity_for(expectation: ExpectationNode) -> Severity:
     """Baseline severity until policy parsing carries explicit severity.
 
     ExpectationNode currently has no severity field, so this is deliberately
@@ -95,7 +98,7 @@ def _severity_for(expectation: ExpectationNode) -> str:
 def _violation(
     semantic_map: SemanticUIMap,
     expectation: ExpectationNode,
-    clause_type: str,
+    clause_type: ClauseType,
     rationale: str,
     evidence: Evidence,
 ) -> Violation:
