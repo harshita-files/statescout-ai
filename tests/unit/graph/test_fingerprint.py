@@ -7,7 +7,8 @@ Tests cover both normalize_state (the normalization logic) and fingerprint
 Run:  pytest tests/unit/test_fingerprint.py -v
 """
 
-from apps.agent.graph.fingerprint import fingerprint, normalize_state
+from apps.agent.contracts import CaptureBundle
+from apps.agent.graph.fingerprint import fingerprint, fingerprint_bundle, normalize_state
 
 
 class TestNormalizeState:
@@ -113,3 +114,48 @@ class TestFingerprint:
         fp_1 = fingerprint("<h1>Home</h1>", "/", "heading Home")
         fp_2 = fingerprint("<h1>Login</h1>", "/login", "heading Login")
         assert fp_1 != fp_2
+
+
+class TestAXTreeNormalization:
+    """A real CDP accessibility tree (`Accessibility.getFullAXTree`) carries
+    per-session `nodeId`s and a `focused` property that change on every capture.
+    `fingerprint_bundle` must strip them, or two captures of the *same* UI state
+    hash differently and the crawl never recognises a revisit (ADR-001 dec. 2).
+    """
+
+    @staticmethod
+    def _ax(node_id: str, focused: bool):
+        return {
+            "nodes": [
+                {
+                    "nodeId": node_id,
+                    "backendDOMNodeId": int(node_id) + 100,
+                    "ignored": False,
+                    "role": {"type": "role", "value": "link"},
+                    "name": {"type": "computedString", "value": "Admin"},
+                    "childIds": [node_id + "0"],
+                    "properties": [
+                        {"name": "focusable", "value": {"type": "boolean", "value": True}},
+                        {"name": "focused", "value": {"type": "boolean", "value": focused}},
+                    ],
+                }
+            ]
+        }
+
+    def _bundle(self, ax):
+        return CaptureBundle(url="/dashboard", dom="<a>Admin</a>", ax_tree=ax, title="Dashboard")
+
+    def test_volatile_node_ids_and_focus_do_not_change_the_fingerprint(self):
+        a = self._bundle(self._ax(node_id="1", focused=True))
+        b = self._bundle(self._ax(node_id="7", focused=False))
+        assert fingerprint_bundle(a) == fingerprint_bundle(b)
+
+    def test_semantic_ax_content_still_changes_the_fingerprint(self):
+        base = self._ax(node_id="1", focused=False)
+        changed = self._ax(node_id="1", focused=False)
+        changed["nodes"][0]["name"]["value"] = "Reports"  # a real difference
+        assert fingerprint_bundle(self._bundle(base)) != fingerprint_bundle(self._bundle(changed))
+
+    def test_string_ax_summary_still_works(self):
+        a = CaptureBundle(url="/x", dom="<h1>X</h1>", ax_tree="heading X")
+        assert len(fingerprint_bundle(a)) == 64

@@ -2,9 +2,11 @@
 State fingerprinting for StateScout AI — Track D.
 
 Produces a deterministic SHA-256 fingerprint for any UI state, keyed on
-(normalized DOM, URL, AX-tree).  Normalization strips volatile attributes
-(session ids, CSRF tokens, dynamic form ids, timestamps) so that semantically
-identical states always hash identically, regardless of per-request noise.
+(normalized DOM, URL, AX-tree).  Normalization strips volatile data so that
+semantically identical states always hash identically, regardless of per-request
+noise: session ids, CSRF tokens, dynamic form ids and timestamps out of the DOM
+(``normalize_state``), and per-session CDP node ids / focus state out of a raw
+accessibility tree (``_normalize_ax``, used by ``fingerprint_bundle``).
 """
 
 import hashlib
@@ -129,9 +131,11 @@ def fingerprint_bundle(bundle: object) -> str:
     ax_tree from the bundle and delegates to :func:`fingerprint`.
 
     The ``ax_tree`` field on a real ``CaptureBundle`` may be a dict (raw CDP
-    JSON) or a string summary.  We serialize it to a stable string before
-    hashing so the fingerprint is deterministic regardless of which form Track
-    A delivers.
+    ``Accessibility.getFullAXTree`` JSON) or a string summary.  A raw CDP tree
+    carries per-session ``nodeId``s and a transient ``focused`` property that
+    change on every capture; :func:`_normalize_ax` strips those before hashing
+    so two captures of the same UI state agree (ADR-001 decision 2).  A string
+    summary is hashed as-is.
 
     Parameters
     ----------
@@ -147,7 +151,44 @@ def fingerprint_bundle(bundle: object) -> str:
     dom: str = getattr(bundle, "dom", "")
     ax_raw = getattr(bundle, "ax_tree", "")
     if isinstance(ax_raw, (dict, list)):
-        ax_tree = _json.dumps(ax_raw, sort_keys=True, ensure_ascii=False)
+        ax_tree = _json.dumps(_normalize_ax(ax_raw), sort_keys=True, ensure_ascii=False)
     else:
         ax_tree = str(ax_raw)
     return fingerprint(dom, url, ax_tree)
+
+
+#: CDP accessibility-tree keys whose values are per-session — node ids and the
+#: parent/child wiring between them. Left in, every fresh capture of the same
+#: page serialises differently and the crawl never recognises a revisit.
+_AX_VOLATILE_KEYS = frozenset(
+    {
+        "nodeId",
+        "backendDOMNodeId",
+        "parentId",
+        "childIds",
+        "frameId",
+        "chromeRole",
+        "sources",
+        "nativeSource",
+    }
+)
+
+
+def _normalize_ax(node: object) -> object:
+    """Recursively drop volatile CDP AX keys and the transient ``focused`` state.
+
+    Keeps the semantic content — role, accessible name, ignored/disabled, and the
+    other computed properties — and discards only what tracks *this* capture
+    session rather than what the UI state contains.
+    """
+    if isinstance(node, dict):
+        return {
+            key: _normalize_ax(value) for key, value in node.items() if key not in _AX_VOLATILE_KEYS
+        }
+    if isinstance(node, list):
+        return [
+            _normalize_ax(item)
+            for item in node
+            if not (isinstance(item, dict) and item.get("name") == "focused")
+        ]
+    return node
