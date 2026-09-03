@@ -84,7 +84,7 @@ def live_ports(*, role: Role = "guest", limiter: RateLimiter | None = None) -> P
         missing.append("apps.agent.crawler.PlaywrightCrawler (Track A)")
 
     try:  # pragma: no cover - exercised only once Track C lands
-        from apps.agent.perception import VLMPerception  # type: ignore[attr-defined]
+        from apps.agent.perception import VLMPerception
     except ImportError:
         missing.append("apps.agent.perception.VLMPerception (Track C)")
 
