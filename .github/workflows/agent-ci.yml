@@ -43,7 +43,7 @@ jobs:
           cache-dependency-glob: 'uv.lock'
 
       - name: Install dependencies
-        run: uv sync --frozen --all-groups
+        run: uv sync --frozen --all-groups --all-extras
 
       - name: Lint
         run: uv run ruff check apps services tests .claude/hooks
