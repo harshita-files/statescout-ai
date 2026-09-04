@@ -1,0 +1,13 @@
+{
+  "name": "@statescout/shared-types",
+  "version": "0.1.0",
+  "description": "API contract types shared between the FastAPI backend and the VS Code extension.",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "types": "index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StateScout Test-App: Missing Consent Violation Demo</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-box { background-color: #fff; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 300px; text-align: center; }
+        .input-group { margin-bottom: 1rem; text-align: left; }
+        .input-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #374151; }
+        .input-group input { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; box-sizing: border-box; }
+        .btn { width: 100%; padding: 0.75rem; border-radius: 0.25rem; border: none; font-weight: bold; cursor: pointer; color: #fff; background-color: #10b981; }
+        /* Notice: There is no cookie banner markup anywhere in this DOM */
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>Welcome Back</h2>
+        <p style="color: #6b7280; margin-bottom: 1.5rem; font-size: 0.875rem;">Please sign in to continue.</p>
+        <div class="input-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="you@example.com">
+        </div>
+        <div class="input-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó">
+        </div>
+        <button class="btn" onclick="alert('Logging in...')">Sign In</button>
+    </div>
+</body>
+</html>

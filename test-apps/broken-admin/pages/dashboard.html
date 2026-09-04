@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard</title>
+</head>
+<body>
+  <a href="#main" data-tag="skip-to-content" class="skip">Skip to content</a>
+  <main id="main">
+    <h1>Dashboard</h1>
+    <p data-tag="reports">Your reports are ready.</p>
+
+    <!-- PLANTED V-01: rendered for every role, including guest. The backend
+         rejects the request, but the link itself is the exposure. -->
+    <a href="admin.html" role="link" data-tag="admin-link">Admin</a>
+
+    <a href="reports.html" role="link">Reports</a>
+    <a href="login.html" role="button" data-tag="logout-button">Log out</a>
+  </main>
+</body>
+</html>

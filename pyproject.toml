@@ -1,0 +1,63 @@
+[project]
+name = "statescout-ai"
+version = "0.1.0"
+description = "Policy-aware UI auditing engine that autonomously explores web apps and detects forbidden interface states."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "langgraph>=1.2.10",
+    "playwright>=1.58.0",
+    "pydantic-settings>=2.15.0",
+]
+
+# Optional per-track extras. Kept separate so Track B's orchestrator work does not
+# drag in Neo4j / FastAPI / torch when all you want to run is `uv run pytest`.
+[project.optional-dependencies]
+api = []
+research = []
+perception = ["google-genai>=0.3"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-playwright>=0.7.2",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["apps"]
+
+[tool.pytest.ini_options]
+# Repo root on sys.path so tests import the real tree: `from apps.agent.contracts import ...`
+pythonpath = ["."]
+testpaths = ["tests/unit", "tests/integration"]
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers"
+markers = [
+    "live: hits a real browser/model/database; excluded from the default CI run",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "test-apps"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+exclude = ["^\\.venv/", "^test-apps/"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
