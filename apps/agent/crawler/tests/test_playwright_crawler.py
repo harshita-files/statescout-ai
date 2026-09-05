@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import Any
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, project_root)
@@ -56,7 +57,7 @@ def test_action_id_case_insensitive_on_role_and_name() -> None:
 # ---------------------------------------------------------------------------
 
 
-NESTED_AX: dict = {
+NESTED_AX: dict[str, Any] = {
     "role": "document",
     "name": "Home",
     "children": [
@@ -95,7 +96,7 @@ def test_extract_nested_skips_non_actionable() -> None:
 # ---------------------------------------------------------------------------
 
 
-CDP_AX: dict = {
+CDP_AX: dict[str, Any] = {
     "nodes": [
         {
             "nodeId": "1",
@@ -149,7 +150,7 @@ def test_extract_cdp_uses_backend_node_id_selector() -> None:
 # ---------------------------------------------------------------------------
 
 
-DUPE_AX: dict = {
+DUPE_AX: dict[str, Any] = {
     "role": "document",
     "name": "Dupes",
     "children": [
@@ -216,7 +217,7 @@ def test_open_without_session_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     def _fail_goto(*args: object, **kwargs: object) -> None:
         from playwright.sync_api import TimeoutError as PTE
 
-        raise PTE("timeout")  # type: ignore[call-arg]
+        raise PTE("timeout")
 
     # Stub _start_session so no real browser is launched, but set a fake page.
     class _FakePage:
