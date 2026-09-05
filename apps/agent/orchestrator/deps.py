@@ -79,7 +79,7 @@ def live_ports(*, role: Role = "guest", limiter: RateLimiter | None = None) -> P
     missing: list[str] = []
 
     try:  # pragma: no cover - exercised only once Track A lands
-        from apps.agent.crawler import PlaywrightCrawler  # type: ignore[attr-defined]
+        from apps.agent.crawler import PlaywrightCrawler
     except ImportError:
         missing.append("apps.agent.crawler.PlaywrightCrawler (Track A)")
 
