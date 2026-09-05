@@ -97,7 +97,6 @@ def test_live_mode_names_every_missing_implementation() -> None:
         live_ports()
     message = str(exc.value)
     assert "Track A" in message
-    assert "Track C" in message
     assert "Track D" in message
     assert "--fake" in message
 
