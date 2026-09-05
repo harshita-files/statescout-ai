@@ -93,10 +93,13 @@ def test_live_mode_exits_two_with_a_useful_reason(capsys: pytest.CaptureFixture[
 
 
 def test_live_mode_names_every_missing_implementation() -> None:
+    # Track A (PlaywrightCrawler) is now implemented and imports cleanly.
+    # Track C (VLMPerception) is implemented and imports cleanly.
+    # Track D (Neo4jGraph) is still missing — it must appear in the message.
     with pytest.raises(NotImplementedError) as exc:
         live_ports()
     message = str(exc.value)
-    assert "Track A" in message
+    assert "Track A" not in message
     assert "Track D" in message
     assert "--fake" in message
 
