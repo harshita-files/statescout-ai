@@ -9,17 +9,12 @@ low-level functions so no Playwright binary is needed.
 
 from __future__ import annotations
 
-import os
-import sys
 from typing import Any
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-sys.path.insert(0, project_root)
+import pytest
 
-import pytest  # noqa: E402
-
-from apps.agent.contracts import Action, CaptureBundle, NavigationError  # noqa: E402
-from apps.agent.crawler.playwright_crawler import (  # noqa: E402
+from apps.agent.contracts import Action, CaptureBundle, NavigationError
+from apps.agent.crawler.playwright_crawler import (
     PlaywrightCrawler,
     _action_id,
     _extract_actions,
