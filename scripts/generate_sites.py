@@ -1,4 +1,5 @@
-"""Generates 5 broken (and 1 clean) demo sites under demo-inputs/. Run: python scripts/generate_sites.py"""
+"""Generates 5 demo sites (4 with a planted violation, 1 clean) under demo-inputs/.
+Run: python scripts/generate_sites.py"""
 from __future__ import annotations
 import os
 
@@ -76,23 +77,27 @@ _w("teamhub", "settings.html", _page(title="TeamHub — Settings", theme="#05966
 <div class="card"><h2>Debug Tools</h2><p>Developer diagnostics for this workspace — request logs, cache state, feature flags.</p><a class="btn" href="index.html">Open debug console</a></div>
 <div class="card"><a class="btn danger" href="index.html">Sign out</a></div>"""))
 
-DV = [("Dashboard", "index.html"), ("Reports", "reports.html"), ("Account", "account.html")]
-_w("datavault", "index.html", _page(title="DataVault — Dashboard", theme="#7c3aed", brand="Data<span>Vault</span>", active="Dashboard", nav_links=DV, body="""<h1>Welcome, guest</h1><p class="sub">Read-only workspace access</p>
-<div class="card"><h2>Storage usage</h2><p>1.2 GB of 5 GB used.</p></div>"""))
-_w("datavault", "reports.html", _page(title="DataVault — Reports", theme="#7c3aed", brand="Data<span>Vault</span>", active="Reports", nav_links=DV, body="""<h1>Reports</h1>
-<div class="card"><h2>Monthly summary</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Records processed</td><td>18,204</td></tr><tr><td>Errors</td><td>3</td></tr></table></div>
-<div class="card"><h2>Bulk export</h2><p>Download every record in this workspace as CSV.</p><a class="btn" href="account.html">Download records (Export All Records)</a></div>"""))
-_w("datavault", "account.html", _page(title="DataVault — Account", theme="#7c3aed", brand="Data<span>Vault</span>", active="Account", nav_links=DV, body="""<h1>Account</h1>
-<div class="card"><h2>Profile</h2><p>guest@datavault.example</p></div>
-<div class="card"><a class="btn danger" href="index.html">Log out</a></div>"""))
+# --- fintrack: two leaks at once — admin settings + export all (admin-access + export-data, FR-18) ---
+FT = [("Overview", "index.html"), ("Transactions", "transactions.html"), ("Admin settings", "admin.html")]
+_w("fintrack", "index.html", _page(title="FinTrack — Overview", theme="#0d9488", brand="Fin<span>Track</span>", active="Overview", nav_links=FT, body="""<h1>Account overview</h1><p class="sub">Read-only access as <span class="role-tag">guest</span></p>
+<div class="card"><h2>Balances</h2><table><tr><th>Account</th><th>Balance</th></tr>
+<tr><td>Operating</td><td>$48,120.55</td></tr><tr><td>Payroll</td><td>$16,900.00</td></tr></table></div>"""))
+_w("fintrack", "transactions.html", _page(title="FinTrack — Transactions", theme="#0d9488", brand="Fin<span>Track</span>", active="Transactions", nav_links=FT, body="""<h1>Transactions</h1>
+<div class="card"><table><tr><th>Date</th><th>Description</th><th>Amount</th></tr>
+<tr><td>2026-09-01</td><td>Vendor payout</td><td>-$2,300.00</td></tr>
+<tr><td>2026-08-28</td><td>Client invoice</td><td>+$5,000.00</td></tr></table></div>
+<div class="card"><h2>Bulk export</h2><p>Download the full ledger.</p><a class="btn" href="index.html">Export all transactions</a></div>"""))
+_w("fintrack", "admin.html", _page(title="FinTrack — Admin settings", theme="#0d9488", brand="Fin<span>Track</span>", active="Admin settings", nav_links=FT, body="""<h1>Admin settings</h1><p class="sub">Organisation-wide configuration</p>
+<div class="card"><h2>Members</h2><p>6 users, 2 administrators.</p></div>
+<div class="card"><h2>Danger zone</h2><a class="btn danger" href="index.html">Wipe all data</a></div>"""))
 
-SL = [("Home", "index.html"), ("Messages", "messages.html"), ("Profile", "profile.html")]
-_w("securelogin", "index.html", _page(title="SecureLogin — Home", theme="#dc2626", brand="Secure<span>Login</span>", active="Home", nav_links=SL, body="""<h1>Welcome back, guest</h1><p class="sub">Session started 12 minutes ago</p>
-<div class="card"><h2>Inbox</h2><p>1 unread message.</p></div>"""))
-_w("securelogin", "messages.html", _page(title="SecureLogin — Messages", theme="#dc2626", brand="Secure<span>Login</span>", active="Messages", nav_links=SL, body="""<h1>Messages</h1><div class="card"><p>"Your subscription renews on the 14th." — Billing</p></div>"""))
-_w("securelogin", "profile.html", _page(title="SecureLogin — Profile", theme="#dc2626", brand="Secure<span>Login</span>", active="Profile", nav_links=SL, body="""<h1>Profile</h1>
-<div class="card"><h2>Details</h2><p>guest@securelogin.example</p></div>
-<div class="card"><h2>Session</h2><p>There is no control anywhere in this app to end the session.</p></div>"""))
+# --- lockedout: a logged-out session with no way to sign in (login, FR-19 required-absent) ---
+LO = [("Status", "index.html"), ("Help", "help.html")]
+_w("lockedout", "index.html", _page(title="LockedOut — Session expired", theme="#64748b", brand="Locked<span>Out</span>", active="Status", nav_links=LO, body="""<h1>Your session expired</h1><p class="sub">You have been signed out for inactivity</p>
+<div class="card"><h2>What now?</h2><p>Contact your administrator to regain access.</p></div>"""))
+_w("lockedout", "help.html", _page(title="LockedOut — Help", theme="#64748b", brand="Locked<span>Out</span>", active="Help", nav_links=LO, body="""<h1>Help</h1>
+<div class="card"><p>If you keep getting signed out, clear your cookies and try a different browser.</p></div>
+<div class="card"><p>There is no sign-in form on this page.</p></div>"""))
 
 CA = [("Dashboard", "index.html"), ("Tasks", "tasks.html"), ("Account", "account.html"), ("Log out", "index.html")]
 _w("cleanapp", "index.html", _page(title="CleanApp — Dashboard", theme="#0891b2", brand="Clean<span>App</span>", active="Dashboard", nav_links=CA, body="""<h1>Welcome, guest</h1><p class="sub">Everything here is scoped correctly to your role</p>

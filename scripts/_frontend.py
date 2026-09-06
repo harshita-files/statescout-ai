@@ -14,8 +14,6 @@ def page(mode: str) -> str:
             '<input id="target" type="url" required placeholder="https://example.com">'
         )
         examples_html = ""
-        hint = ("The crawl stays on the URL's own origin. With vision on, each state is one Gemini "
-                "call (free tier is limited); a rate-limited run still finishes on the deterministic parse.")
     else:
         lede = ("Point it at a folder on this machine that holds a static site — an index.html plus "
                 "linked pages. It serves the folder locally, the crawler explores it, and a Gemini "
@@ -34,9 +32,6 @@ def page(mode: str) -> str:
       d.names.map(n=>`<a data-p="${d.root}/${n}">${n}</a>`).join(" · ");
     document.querySelectorAll("#ex a").forEach(a=>a.addEventListener("click",()=>{document.querySelector("#target").value=a.dataset.p;}));
   });"""
-        hint = ("The whole crawl is local — the served folder never leaves this machine. With vision on, "
-                "each state is one Gemini call (free tier is limited); a rate-limited run still finishes "
-                "on the deterministic parse alone.")
 
     entry_field = 'entry:document.querySelector("#entry")?document.querySelector("#entry").value:"",' if not is_url else ""
     body_key = "url" if is_url else "path"
@@ -76,7 +71,6 @@ def page(mode: str) -> str:
   h1{{font-size:25px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px}}
   .wordmark{{font-family:var(--mono);font-weight:600;font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent)}}
   .lede{{color:var(--muted);max-width:64ch;margin:6px 0 0}}
-  .disclose{{font-size:12px;color:var(--muted);margin-top:14px;border-left:3px solid var(--warn);padding:6px 0 6px 12px}}
   form{{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px 24px;margin:28px 0}}
   label{{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}}
   input,textarea{{width:100%;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--ground);border:1px solid var(--border);border-radius:7px;padding:9px 11px;margin-bottom:16px}}
@@ -85,7 +79,7 @@ def page(mode: str) -> str:
   @media(max-width:600px){{.row{{grid-template-columns:1fr}}}}
   button{{font-family:var(--sans);font-weight:600;font-size:14px;color:#fff;background:var(--accent);border:0;border-radius:7px;padding:10px 20px;cursor:pointer}}
   button:disabled{{opacity:.5;cursor:not-allowed}}
-  .hint,.ex{{font-size:11.5px;color:var(--muted);margin:-8px 0 16px}}
+  .ex{{font-size:11.5px;color:var(--muted);margin:-8px 0 16px}}
   .ex a{{color:var(--accent);cursor:pointer;text-decoration:underline}}
   .panel{{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-top:20px}}
   .eyebrow{{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:12px}}
@@ -124,10 +118,6 @@ def page(mode: str) -> str:
   <span class="wordmark">StateScout AI</span>
   <h1>{h1}</h1>
   <p class="lede">{lede}</p>
-  <p class="disclose">Real stack at ~60%. Local stand-ins: the ADR-001 C-3 <code>state_id</code> fix and a
-    Gemini-backed policy parser filling in for Track B's unbuilt FR-04 parser. The negation engine only
-    recognises the subjects <code>admin-access, debug-access, export-data, delete-user, logout, login</code>.</p>
-
   <form id="f">
     {input_html}
     <label for="policy">Policy (one role, plain English)</label>
@@ -140,7 +130,6 @@ def page(mode: str) -> str:
     <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);margin-bottom:14px">
       <input id="vis" type="checkbox" checked style="width:auto;margin:0"> Gemini vision pass on every state
     </label>
-    <p class="hint">{hint}</p>
     <button id="go" type="submit">Run audit</button>
   </form>
   <div id="out"></div>

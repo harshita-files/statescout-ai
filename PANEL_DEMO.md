@@ -47,18 +47,23 @@ Then open **http://127.0.0.1:8081**.
 - Uses port **8081** for the console and **8090** for the static file server —
   both must be free.
 - The form has a **bundled examples** row: 5 test sites under `demo-inputs/`
-  (four with a planted policy violation, one clean). Click one to fill the path.
+  (four with a planted violation, one clean). Click one to fill the path.
 - Regenerate the test sites any time with `python scripts/generate_sites.py`.
 
 ## Example
 
-| Folder | Policy to type | Expected |
-| --- | --- | --- |
-| `demo-inputs/shopfast`    | A guest must never open the admin panel.   | 2 violations (FR-18) |
-| `demo-inputs/teamhub`     | A guest must never see debug tools.        | 1 violation (FR-18) |
-| `demo-inputs/datavault`   | A guest must never export all records.     | 1 violation (FR-18) |
-| `demo-inputs/securelogin` | A guest must always have a logout control. | 3 violations (FR-19, required absent) |
-| `demo-inputs/cleanapp`    | (either of the above)                      | 0 violations — control |
+| Folder | Policy to type | Subject | Expected |
+| --- | --- | --- | --- |
+| `demo-inputs/shopfast`  | A guest must never open the admin panel.                     | admin-access               | FR-18, admin link + admin page |
+| `demo-inputs/teamhub`   | A guest must never see debug tools.                          | debug-access               | FR-18, on the settings page |
+| `demo-inputs/fintrack`  | A viewer must never open admin settings or export all data.  | admin-access + export-data  | FR-18, **two subjects in one crawl** |
+| `demo-inputs/lockedout` | A logged-out user must always be able to sign in.            | login                      | FR-19, no sign-in anywhere |
+| `demo-inputs/cleanapp`  | (any of the above)                                           | —                          | 0 violations — control |
+
+The negation engine recognises six policy subjects: `admin-access, debug-access,
+export-data, delete-user, logout, login`. The sites above cover admin-access,
+debug-access, export-data and login, plus a multi-violation case. Leave the
+**Role** field as `guest` for all of them.
 
 The exploration graph is also in Neo4j — open http://localhost:7474
 (`neo4j` / `devsecret`) and run

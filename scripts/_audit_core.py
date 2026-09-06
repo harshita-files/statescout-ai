@@ -22,6 +22,7 @@ import dataclasses
 import http.server
 import json
 import os
+import pathlib
 import socket
 import threading
 import traceback
@@ -42,8 +43,27 @@ from apps.agent.perception import gemini as _gemini_mod
 from apps.agent.perception.gemini import VLMPerception
 from apps.agent.perception.semantic_map import build_semantic_map
 
-# gemini.py hardcodes gemini-3.6-flash (tiny free quota) and ignores GEMINI_MODEL.
-_gemini_mod._MODEL = os.environ.get("GEMINI_MODEL") or "gemini-3.5-flash-lite"
+# Load <repo-root>/.env into the process environment (keys already set win), so
+# the console works no matter how it was launched.
+def _load_dotenv() -> None:
+    env_path = pathlib.Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.is_file():
+        return
+    for raw in env_path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip().removeprefix("export ").strip()
+        os.environ.setdefault(key, val.strip().strip("\"").strip("'"))
+
+
+_load_dotenv()
+
+# gemini.py hardcodes gemini-3.6-flash (a tiny 20/day free-tier quota). Pin a
+# flash-lite model instead (bigger quota, still vision-capable). Not read from
+# GEMINI_MODEL on purpose: the gemini-2.x names 404 on this API.
+_gemini_mod._MODEL = "gemini-3.5-flash-lite"
 
 SHOT_DIR = "/tmp/statescout-demo-shots"
 
