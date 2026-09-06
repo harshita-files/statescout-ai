@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>ShopFast — Orders</title>
+<style>
+  :root { --accent: #2563eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; background:#f4f5f7; color:#1c1e21; }
+  header { display:flex; align-items:center; justify-content:space-between; background:#14161c; color:#fff; padding:14px 28px; }
+  .brand { font-weight:700; font-size:17px; } .brand span { color:var(--accent); }
+  nav { display:flex; gap:22px; }
+  .nav-link { color:#b7bac2; text-decoration:none; font-size:14px; padding:6px 2px; border-bottom:2px solid transparent; }
+  .nav-link.active { color:#fff; border-bottom-color:var(--accent); }
+  .nav-link:hover { color:#fff; }
+  main { max-width:880px; margin:36px auto; padding:0 24px; }
+  h1 { font-size:22px; margin-bottom:4px; }
+  .sub { color:#6b6f76; font-size:14px; margin-bottom:24px; }
+  .card { background:#fff; border:1px solid #e3e5e8; border-radius:10px; padding:20px 22px; margin-bottom:16px; }
+  .card h2 { font-size:15px; margin:0 0 10px 0; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:8px 6px; border-bottom:1px solid #eee; }
+  th { color:#6b6f76; font-weight:600; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:600; background:#eef7ee; color:#2a7a2a; }
+  .btn { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; }
+  .btn.danger { background:#c0392b; }
+  .role-tag { font-size:12px; color:#6b6f76; background:#eceef1; padding:3px 8px; border-radius:6px; }
+</style></head>
+<body>
+<header><div class="brand">Shop<span>Fast</span></div><nav>
+        <a class="nav-link" href="index.html">Dashboard</a>
+        <a class="nav-link active" href="orders.html">Orders</a>
+        <a class="nav-link" href="account.html">Account</a>
+</nav></header>
+<main>
+<h1>Your orders</h1><div class="card"><table><tr><th>Order</th><th>Date</th><th>Status</th></tr>
+<tr><td>#10245</td><td>2026-08-29</td><td><span class="pill">Shipped</span></td></tr>
+<tr><td>#10198</td><td>2026-08-11</td><td><span class="pill">Delivered</span></td></tr></table></div>
+</main></body></html>
