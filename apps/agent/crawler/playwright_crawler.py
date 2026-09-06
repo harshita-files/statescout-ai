@@ -104,13 +104,14 @@ def _extract_actions(node: Any, collected: list[Action]) -> None:
     name = str(name_raw).strip()
 
     if role in _ACTIONABLE_ROLES and name:
-        backend_id = node.get("backendDOMNodeId")
-        if backend_id:
-            selector = f"[data-backend-node-id='{backend_id}']"
-        else:
-            selector = (
-                f"[aria-label='{name}'], [name='{name}'], [placeholder='{name}'], :text('{name}')"
-            )
+        # Playwright's role engine resolves an element by its ARIA role and
+        # accessible name -- exactly what the AX node carries. A CDP
+        # ``backendDOMNodeId`` is a DevTools-session id, *not* a DOM attribute,
+        # so a ``[data-backend-node-id=...]`` selector matches nothing and every
+        # click times out. ``>> nth=0`` keeps the click safe when two controls
+        # on one page share a role and name (they dedupe to one Action anyway).
+        escaped = name.replace("\\", "\\\\").replace('"', '\\"')
+        selector = f'role={role}[name="{escaped}"] >> nth=0'
         kind = _KIND_MAP.get(role, "click")
         collected.append(
             Action(

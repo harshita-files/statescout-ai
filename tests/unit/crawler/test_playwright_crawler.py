@@ -133,11 +133,25 @@ def test_extract_cdp_skips_empty_name() -> None:
     assert all(a.label != 'click ""' for a in collected)
 
 
-def test_extract_cdp_uses_backend_node_id_selector() -> None:
+def test_extract_cdp_builds_a_resolvable_role_selector() -> None:
+    """The target must be a selector Playwright can actually resolve. A CDP
+    ``backendDOMNodeId`` is a DevTools-session id, not a DOM attribute, so a
+    ``[data-...]`` selector built from it matches nothing and every click times
+    out. The AX node already carries role + accessible name -- feed those to
+    Playwright's role engine."""
     collected: list[Action] = []
     _extract_actions(CDP_AX, collected)
     admin = next(a for a in collected if "Admin panel" in a.label)
-    assert "42" in admin.target
+    assert admin.target == 'role=link[name="Admin panel"] >> nth=0'
+    logout = next(a for a in collected if "Log out" in a.label)
+    assert logout.target == 'role=button[name="Log out"] >> nth=0'
+
+
+def test_extract_selector_escapes_quotes_in_the_name() -> None:
+    ax: dict[str, Any] = {"nodes": [{"role": {"value": "button"}, "name": {"value": 'Say "hi"'}}]}
+    collected: list[Action] = []
+    _extract_actions(ax, collected)
+    assert collected[0].target == r'role=button[name="Say \"hi\""] >> nth=0'
 
 
 # ---------------------------------------------------------------------------
@@ -228,3 +242,48 @@ def test_open_without_session_raises(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(NavigationError):
         crawler.open("http://unreachable.local")
+
+
+# ---------------------------------------------------------------------------
+# LIVE -- a real browser against real HTML. The mocked tests above check the
+# selector *string*; this checks it actually resolves and the click navigates.
+# Run:  uv run pytest -m live tests/unit/crawler/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.live
+def test_enumerated_action_actually_clicks_through(tmp_path: Any) -> None:
+    import http.server
+    import threading
+
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "index.html").write_text(
+        "<!doctype html><title>Home</title><h1>Home</h1>"
+        '<nav><a href="settings.html">Settings</a></nav>'
+    )
+    (site / "settings.html").write_text(
+        "<!doctype html><title>Settings</title><h1>Settings</h1>"
+        '<nav><a href="index.html">Home</a></nav>'
+    )
+
+    handler = lambda *a, **kw: http.server.SimpleHTTPRequestHandler(  # noqa: E731
+        *a, directory=str(site), **kw
+    )
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    port = httpd.server_address[1]
+
+    crawler = PlaywrightCrawler(role="guest", output_dir=str(tmp_path / "shots"))
+    try:
+        home = crawler.open(f"http://127.0.0.1:{port}/index.html")
+        actions = crawler.enumerate_actions(home)
+        settings_link = next(a for a in actions if a.label == 'click "Settings"')
+
+        after = crawler.act(settings_link)  # the bug: this used to time out
+
+        assert after.url.endswith("/settings.html")
+        assert "Settings" in after.title
+    finally:
+        crawler.close()
+        httpd.shutdown()
