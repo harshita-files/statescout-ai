@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import http.server
+import hashlib
 import pathlib
 import threading
 import uuid
@@ -20,12 +21,16 @@ EXAMPLES = sorted(d.name for d in DEMO_ROOT.iterdir() if d.is_dir()) if DEMO_ROO
 
 
 # --- fixed-port static server ------------------------------------------------
-# One long-lived server for the whole console session, serving whatever folder
-# the current audit points at. A stable host:port means re-running the same
-# folder yields the same URLs -> the same fingerprints -> Neo4j MERGEs onto the
-# existing StateNodes instead of writing a fresh copy every run.
+# One long-lived server for the whole console session. Each audited folder is
+# served under its own stable path segment, /<slug>/, where slug = <folder name>
+# + a short hash of its absolute path. Consequences:
+#   * re-running the SAME folder -> identical URLs -> identical fingerprints, so
+#     Neo4j MERGEs onto the existing StateNodes (no bloat), and purge_target only
+#     clears that folder's subtree;
+#   * running a DIFFERENT folder -> a different /<slug>/ -> its graph is separate,
+#     so auditing teamhub does not wipe cleanapp.
 _PREFERRED_PORT = 8090
-_serve_state: dict[str, str | None] = {"dir": None}
+_serve_state: dict[str, str | None] = {"dir": None, "slug": None}
 _httpd: http.server.ThreadingHTTPServer | None = None
 _httpd_port: int | None = None
 _audit_lock = threading.Lock()
@@ -34,6 +39,16 @@ _audit_lock = threading.Lock()
 class _DirHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args: object, **kwargs: object) -> None:
         super().__init__(*args, directory=_serve_state["dir"] or ".", **kwargs)  # type: ignore[arg-type]
+
+    def translate_path(self, path: str) -> str:
+        # strip the leading /<slug>/ so it maps onto the current folder
+        slug = _serve_state.get("slug")
+        if slug:
+            if path.startswith(f"/{slug}/"):
+                path = "/" + path[len(slug) + 2 :]
+            elif path == f"/{slug}":
+                path = "/"
+        return super().translate_path(path)
 
     def log_message(self, *args: object) -> None:  # keep the console quiet
         pass
@@ -94,12 +109,14 @@ def _run(job_id: str, path_str: str, entry: str, policy: str, role: str) -> None
         j["log"].append("ERROR: " + j["error"])
         return
 
-    # One audit at a time: the static server has a single "current directory".
+    # One audit at a time: the static server has a single "current folder".
+    slug = pathlib.Path(abs_dir).name + "-" + hashlib.sha1(abs_dir.encode()).hexdigest()[:6]
     with _audit_lock:
         _serve_state["dir"] = abs_dir
+        _serve_state["slug"] = slug
         port = _ensure_httpd()
-        base = f"http://127.0.0.1:{port}/"
-        JOBS[job_id]["log"].append(f"serving {abs_dir} on 127.0.0.1:{port} (fixed)")
+        base = f"http://127.0.0.1:{port}/{slug}/"
+        JOBS[job_id]["log"].append(f"serving {abs_dir} at 127.0.0.1:{port}/{slug}/")
 
         def display(u: str | None) -> str | None:
             if not u:
