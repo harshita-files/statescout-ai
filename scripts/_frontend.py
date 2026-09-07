@@ -80,7 +80,7 @@ def page(mode: str) -> str:
   label{{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}}
   input,textarea{{width:100%;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--ground);border:1px solid var(--border);border-radius:7px;padding:9px 11px;margin-bottom:16px}}
   textarea{{min-height:96px;resize:vertical}}
-  .row{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}}
+  .row{{display:grid;grid-template-columns:1fr 1fr;gap:14px}}
   @media(max-width:600px){{.row{{grid-template-columns:1fr}}}}
   button{{font-family:var(--sans);font-weight:600;font-size:14px;color:#fff;background:var(--accent);border:0;border-radius:7px;padding:10px 20px;cursor:pointer}}
   button:disabled{{opacity:.5;cursor:not-allowed}}
@@ -128,7 +128,6 @@ def page(mode: str) -> str:
     <label for="policy">Policy (one role, plain English)</label>
     <textarea id="policy" required placeholder="A guest must never see an admin panel."></textarea>
     <div class="row">
-      <div><label for="role">Role</label><input id="role" value="guest"></div>
       <div><label for="ms">Max states</label><input id="ms" type="number" value="15" min="1" max="40"></div>
       <div><label for="dl">Depth limit</label><input id="dl" type="number" value="3" min="0" max="6"></div>
     </div>
@@ -149,7 +148,7 @@ $("#f").addEventListener("submit",async e=>{{
   let job;
   try{{
     const r=await fetch("/api/audit",{{method:"POST",headers:{{"content-type":"application/json"}},body:JSON.stringify({{
-      {body_key}:$("#target").value,{entry_field}policy:$("#policy").value,role:$("#role").value,
+      {body_key}:$("#target").value,{entry_field}policy:$("#policy").value,
       max_states:+$("#ms").value,depth_limit:+$("#dl").value,use_vision:$("#vis").checked
     }})}});
     job=(await r.json()).job_id;
