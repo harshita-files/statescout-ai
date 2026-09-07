@@ -27,10 +27,15 @@ def page(mode: str) -> str:
         )
         examples_html = """
   fetch("/api/examples").then(r=>r.json()).then(d=>{
-    if(!d.names||!d.names.length) return;
+    if(!d.apps||!d.apps.length) return;
+    const POL={};
+    d.apps.forEach(a=>{POL[a.name]=a.policy||"";});
     document.querySelector("#ex").innerHTML = "bundled examples: " +
-      d.names.map(n=>`<a data-p="${d.root}/${n}">${n}</a>`).join(" · ");
-    document.querySelectorAll("#ex a").forEach(a=>a.addEventListener("click",()=>{document.querySelector("#target").value=a.dataset.p;}));
+      d.apps.map(a=>`<a data-p="${d.root}/${a.name}" data-name="${a.name}">${a.name}</a>`).join(" · ");
+    document.querySelectorAll("#ex a").forEach(a=>a.addEventListener("click",()=>{
+      document.querySelector("#target").value=a.dataset.p;
+      document.querySelector("#policy").value=POL[a.dataset.name]||"";
+    }));
   });"""
 
     entry_field = 'entry:document.querySelector("#entry")?document.querySelector("#entry").value:"",' if not is_url else ""
@@ -74,7 +79,7 @@ def page(mode: str) -> str:
   form{{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px 24px;margin:28px 0}}
   label{{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}}
   input,textarea{{width:100%;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--ground);border:1px solid var(--border);border-radius:7px;padding:9px 11px;margin-bottom:16px}}
-  textarea{{min-height:64px;resize:vertical}}
+  textarea{{min-height:96px;resize:vertical}}
   .row{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}}
   @media(max-width:600px){{.row{{grid-template-columns:1fr}}}}
   button{{font-family:var(--sans);font-weight:600;font-size:14px;color:#fff;background:var(--accent);border:0;border-radius:7px;padding:10px 20px;cursor:pointer}}
@@ -162,6 +167,7 @@ $("#f").addEventListener("submit",async e=>{{
 function render(s){{
   const r=s.result,pp=s.policy_parsed||{{}};const clean=r.violations.length===0;
   let h=`<div class="panel"><span class="eyebrow">Result — ${{esc(r.target)}} as “${{esc(r.role)}}”</span>
+    ${{r.served_url?`<p style="margin:0 0 12px"><a href="${{esc(r.served_url)}}" target="_blank" rel="noopener" style="font-weight:600">Open the audited site ↗</a> <span style="color:var(--muted);font-size:11px">served locally at ${{esc(r.served_url)}}</span></p>`:""}}
     <div class="tiles">
       <div class="tile"><span class="tile-n">${{r.states}}</span><span class="tile-l">states</span></div>
       <div class="tile"><span class="tile-n">${{r.edges}}</span><span class="tile-l">action edges</span></div>
@@ -172,6 +178,9 @@ function render(s){{
     </div>
     <p class="parsed"><span class="k">policy parsed as</span><br>
       forbidden: <code>${{(pp.forbidden||[]).join(", ")||"—"}}</code> &nbsp; required: <code>${{(pp.required||[]).join(", ")||"—"}}</code></p>
+    <p class="parsed"><span class="k">clauses</span>
+      ${{((pp.forbidden||[]).length+(pp.required||[]).length)}} checked,
+      ${{new Set((r.violations||[]).map(v=>v.rationale)).size}} breached</p>
     ${{(pp.notes||[]).map(n=>`<p class="note">${{esc(n)}}</p>`).join("")}}
     <p class="parsed"><span class="k">ended</span> <code>${{esc(r.termination_reason)}}</code> — graph is cyclic, revisits kept as back-edges.</p>`;
   if(r.vision_calls===0&&r.vision_failed===0) h+=`<p class="vision"><span class="vision-tag">Gemini vision</span> off — deterministic DOM/AX parse only.</p>`;

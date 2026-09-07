@@ -14,5 +14,6 @@ if [ -z "${GEMINI_API_KEY:-}" ]; then
 fi
 
 echo "Neo4j + Redis must be running:  docker compose -f infra/docker-compose.yml up -d"
+uv sync --extra perception --quiet   # keeps google-genai installed (plain `uv run` drops it)
 echo "Opening  http://127.0.0.1:8081   (static file server uses :8090)"
 exec uv run uvicorn scripts.local_audit_app:app --port 8081 --host 127.0.0.1

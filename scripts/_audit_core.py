@@ -397,6 +397,7 @@ def run_audit(
         job["result"] = {
             "target": label,
             "role": role,
+            "served_url": seed_url,
             "termination_reason": result.termination_reason,
             "states": result.states,
             "edges": result.edges,
