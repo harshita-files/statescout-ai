@@ -4,3 +4,5 @@ captures/
 __pycache__/
 *.pyc
 .env
+node_modules/
+.claude/settings.local.json
