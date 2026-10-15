@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from apps.agent.contracts import CrawlerPort, GraphPort, PerceptionPort, Role
 from apps.agent.orchestrator.config import OrchestratorConfig
+from apps.agent.orchestrator.dynamic import NetworkObservations
 from apps.agent.orchestrator.ratelimit import RateLimiter, ThrottledPerception
 
 __all__ = ["Ports", "build_ports", "fake_ports", "live_ports"]
@@ -35,6 +36,7 @@ class Ports:
     crawler: CrawlerPort
     perception: PerceptionPort
     graph: GraphPort
+    network: NetworkObservations | None = None
 
 
 def _throttled(perception: PerceptionPort, limiter: RateLimiter | None) -> PerceptionPort:
@@ -61,11 +63,16 @@ def build_ports(config: OrchestratorConfig, *, live: bool = False) -> Ports:
     limiter = (
         RateLimiter(config.perception_rate_per_min) if config.perception_rate_per_min else None
     )
-    build = live_ports if live else fake_ports
-    return build(role=config.role, limiter=limiter)
+    if live:
+        return live_ports(
+            role=config.role, limiter=limiter, probabilistic_states=config.probabilistic_states
+        )
+    return fake_ports(role=config.role, limiter=limiter)
 
 
-def live_ports(*, role: Role = "guest", limiter: RateLimiter | None = None) -> Ports:
+def live_ports(
+    *, role: Role = "guest", limiter: RateLimiter | None = None, probabilistic_states: bool = False
+) -> Ports:
     """Real ports from the other tracks' modules.
 
     Imports are deliberately local: `--fake` must keep working on a machine where
@@ -89,7 +96,10 @@ def live_ports(*, role: Role = "guest", limiter: RateLimiter | None = None) -> P
         missing.append("apps.agent.perception.VLMPerception (Track C)")
 
     try:  # pragma: no cover - exercised only once Track D lands
-        from apps.agent.graph import Neo4jGraph  # type: ignore[attr-defined]
+        if probabilistic_states:
+            from apps.agent.graph.neo4j_graph import Neo4jGraph
+        else:
+            from apps.agent.graph import Neo4jGraph  # type: ignore[attr-defined,no-redef]
     except ImportError:
         missing.append("apps.agent.graph.Neo4jGraph (Track D)")
 
@@ -100,8 +110,14 @@ def live_ports(*, role: Role = "guest", limiter: RateLimiter | None = None) -> P
             + ". Run with --fake until they land."
         )
 
-    return Ports(  # pragma: no cover - unreachable until all three land
-        crawler=PlaywrightCrawler(role=role),
+    crawler = (
+        PlaywrightCrawler(role=role, probabilistic_states=True)
+        if probabilistic_states
+        else PlaywrightCrawler(role=role)
+    )
+    return Ports(
+        crawler=crawler,
+        network=crawler if probabilistic_states else None,
         perception=_throttled(VLMPerception(), limiter),
         graph=Neo4jGraph(),
     )

@@ -41,6 +41,7 @@ Termination needs both.
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -72,6 +73,10 @@ class OrchestratorConfig(BaseSettings):
         frozen=True,
     )
 
+    probabilistic_states: bool = False
+    volatility_patterns: tuple[str, ...] = ()
+    replay_min_probability: float = Field(default=0.05, gt=0, le=1)
+
     role: Role = "guest"
 
     #: FR-10. Depth of the *state*, not of the action; 0 audits the seed alone.
@@ -94,6 +99,8 @@ class OrchestratorConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _fixed_strategy_needs_an_id(self) -> OrchestratorConfig:
+        for pattern in self.volatility_patterns:
+            re.compile(pattern)
         if self.run_id_strategy == "fixed" and not self.run_id:
             raise ValueError(
                 "run_id_strategy='fixed' requires run_id "

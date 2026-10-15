@@ -55,7 +55,10 @@ in the termination reasoning, not in the constant.
 
 from __future__ import annotations
 
+import sys
 import time
+from copy import deepcopy
+from dataclasses import replace
 from typing import Literal, cast
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -71,9 +74,19 @@ from apps.agent.contracts import (
     StateNode,
     StateScoutError,
     TerminationReason,
+    Violation,
 )
 from apps.agent.orchestrator.config import OrchestratorConfig
 from apps.agent.orchestrator.deps import Ports
+from apps.agent.orchestrator.dynamic import (
+    DynamicStats,
+    identity,
+    observe_transition,
+    priority,
+    record_calls,
+    record_capture,
+    replay_target_allowed,
+)
 from apps.agent.orchestrator.runlog import Logger
 from apps.agent.orchestrator.state import (
     ExplorationResult,
@@ -94,6 +107,10 @@ Runner = CompiledStateGraph[ExplorationState, None, ExplorationState, Exploratio
 def recursion_limit(config: OrchestratorConfig) -> int:
     """A backstop, not a policy. Four supersteps per candidate, a generous
     fan-out allowance per state, and a floor for tiny runs."""
+    # Equivalence can collapse arbitrarily many finite actions into one state.
+    # No state-based framework budget may truncate that frontier.
+    if config.probabilistic_states:
+        return sys.maxsize
     return max(100, 40 * config.max_states + 100)
 
 
@@ -137,13 +154,20 @@ def build_graph(
             SkippedAction(candidate.from_state_id, candidate.action.action_id, reason),
         ]
 
+    def fingerprint(bundle: CaptureBundle) -> str:
+        return (
+            identity(bundle, config)
+            if config.probabilistic_states
+            else ports.graph.fingerprint(bundle)
+        )
+
     # -- nodes ------------------------------------------------------------
 
     def scan(state: ExplorationState) -> dict[str, object]:
         """Fingerprint, persist the node, and enqueue what leads out of it."""
         bundle = state["current_bundle"]
         assert bundle is not None  # the seed is opened before the graph runs
-        state_id = ports.graph.fingerprint(bundle)
+        state_id = fingerprint(bundle)
         first_visit = state_id not in state["seen"]
 
         emit("scan", "scanned", state_id=state_id, depth=state["depth"], first_visit=first_visit)
@@ -153,6 +177,12 @@ def build_graph(
             "order": [*state["order"], state_id],
             "first_visit": first_visit,
         }
+        if config.probabilistic_states:
+            stats = deepcopy(state["dynamic"]) or DynamicStats()
+            record_capture(
+                stats, state_id, bundle, getattr(ports.network, "last_capture_ready", None)
+            )
+            update["dynamic"] = stats
         if not first_visit:
             # Everything below is idempotent by state. The revisit is already
             # recorded: `order` grew, and the edge that brought us here was
@@ -186,18 +216,38 @@ def build_graph(
 
         return {**update, "seen": [*state["seen"], state_id], "frontier": frontier}
 
-    def reason(state: ExplorationState) -> dict[str, object]:
-        """Analyze and audit — once per state, not once per visit."""
-        if not state["first_visit"]:
-            return {"verdict": "clean"}
-
-        bundle = state["current_bundle"]
-        assert bundle is not None
-        state_id = state["current_state_id"]
-        assert state_id is not None
-
+    def audit_capture(
+        bundle: CaptureBundle,
+        state_id: str,
+        previous: list[Violation],
+        stats: DynamicStats | None,
+    ) -> tuple[Violation, ...]:
         ui_map = ports.perception.analyze(bundle, config.role)
+        if config.probabilistic_states:
+            ui_map = replace(ui_map, state_id=state_id)
         found = ports.perception.audit(ui_map, policy)
+        if stats is not None:
+            stats.audits[state_id] = stats.audits.get(state_id, 0) + 1
+            for violation in found:
+                stats.hits[violation.violation_id] = stats.hits.get(violation.violation_id, 0) + 1
+            for violation in (*previous, *found):
+                recurrence = (stats.hits.get(violation.violation_id, 0) + 1) / (
+                    stats.audits[violation.state_id] + 2
+                )
+                incoming = [
+                    counts for counts in stats.transitions.values() if violation.state_id in counts
+                ]
+                reproducibility = (
+                    sum(counts[violation.state_id] for counts in incoming)
+                    / sum(sum(counts.values()) for counts in incoming)
+                    if incoming
+                    else 1.0
+                )
+                stats.recurrence[violation.violation_id] = recurrence
+                stats.reproducibility[violation.violation_id] = reproducibility
+                stats.confidence[violation.violation_id] = recurrence * reproducibility
+            existing = {v.violation_id for v in previous}
+            found = tuple(v for v in found if v.violation_id not in existing)
         for violation in found:
             ports.graph.persist_violation(violation)
             emit(
@@ -208,8 +258,18 @@ def build_graph(
                 clause_type=violation.clause_type,
                 severity=violation.severity,
             )
+        return found
 
+    def reason(state: ExplorationState) -> dict[str, object]:
+        """Audit raw captures, including equivalent revisits in dynamic mode."""
+        if not state["first_visit"] and not config.probabilistic_states:
+            return {"verdict": "clean"}
+        bundle, state_id = state["current_bundle"], state["current_state_id"]
+        assert bundle is not None and state_id is not None
+        stats = deepcopy(state["dynamic"])
+        found = audit_capture(bundle, state_id, state["violations"], stats)
         return {
+            "dynamic": stats,
             "violations": [*state["violations"], *found],
             "verdict": "violated" if found else "clean",
         }
@@ -217,8 +277,35 @@ def build_graph(
     def act(state: ExplorationState) -> dict[str, object]:
         """Return to the candidate's state, claim the pair, execute the action."""
         frontier = list(state["frontier"])
+        stats = deepcopy(state["dynamic"])
+        if stats is not None:
+            frontier.sort(
+                key=lambda item: (
+                    item.depth,
+                    -priority(stats, item.from_state_id, item.action.action_id),
+                )
+            )
         candidate = frontier.pop(0)
         base: dict[str, object] = {"frontier": frontier, "pending": candidate, "acted": False}
+
+        replay_violations = list(state["violations"])
+        if stats is not None:
+            base["dynamic"] = stats
+            base["violations"] = replay_violations
+
+        def audit_replay(bundle: CaptureBundle) -> None:
+            replay_id = fingerprint(bundle)
+            if stats is not None:
+                record_capture(
+                    stats, replay_id, bundle, getattr(ports.network, "last_capture_ready", None)
+                )
+                if replay_id in state["seen"]:
+                    replay_violations.extend(
+                        audit_capture(bundle, replay_id, replay_violations, stats)
+                    )
+
+        if ports.graph.is_visited(candidate.from_state_id, candidate.action.action_id):
+            return {**base, "skipped": skip(state, candidate, "pair already visited")}
 
         # -- get back to where the action is valid ------------------------
         landed_at = state["current_state_id"]
@@ -238,19 +325,63 @@ def build_graph(
                 }
             try:
                 bundle = ports.crawler.open(state["seed_url"])
+                if stats is not None:
+                    if ports.network is not None:
+                        ports.network.drain()  # seed traffic is not caused by a click
+                    audit_replay(bundle)
                 for step in candidate.path:
-                    bundle = ports.crawler.act(step)
+                    source = fingerprint(bundle)
+                    if stats is not None and ports.network is not None:
+                        ports.network.drain()  # discard traffic outside the action window
+                    try:
+                        bundle = ports.crawler.act(step)
+                    finally:
+                        if stats is not None:
+                            record_calls(
+                                stats,
+                                ports.network,
+                                replay=True,
+                                click=step.kind == "click",
+                                source=source,
+                                action=step.action_id,
+                            )
                     replay_steps += 1
+                    if stats is not None:
+                        target = fingerprint(bundle)
+                        observe_transition(stats, source, step.action_id, target, replay=True)
+                        audit_replay(bundle)
             except StateScoutError as exc:
                 return {
                     **base,
                     "replay_steps": replay_steps,
+                    **({"current_state_id": None} if stats is not None else {}),
                     "skipped": skip(state, candidate, f"replay failed: {exc}"),
                 }
 
             replays += 1
-            landed_at = ports.graph.fingerprint(bundle)
+            landed_at = fingerprint(bundle)
             path = candidate.path
+            if (
+                landed_at != candidate.from_state_id
+                and stats is not None
+                and state["dynamic"] is not None
+                and candidate.path
+                and replay_target_allowed(
+                    state["dynamic"],
+                    source,
+                    candidate.path[-1].action_id,
+                    landed_at,
+                    candidate.action,
+                    ports.crawler.enumerate_actions(bundle),
+                    set(state["seen"]),
+                    config.replay_min_probability,
+                )
+            ):
+                candidate = replace(candidate, from_state_id=landed_at)
+                base["pending"] = candidate
+                emit(
+                    "replay", "retargeted", state_id=landed_at, action_id=candidate.action.action_id
+                )
             if landed_at != candidate.from_state_id:
                 # The same path led somewhere else: the app is non-deterministic
                 # or a fingerprint is unstable. Acting here would attribute the
@@ -271,18 +402,39 @@ def build_graph(
 
         base |= {"replays": replays, "replay_steps": replay_steps, "current_state_id": landed_at}
 
+        if ports.graph.is_visited(candidate.from_state_id, candidate.action.action_id):
+            return {
+                **base,
+                "current_path": path,
+                "skipped": skip(state, candidate, "pair already visited after replay"),
+            }
+
         # ADR-001 decision 3: claim before executing. A crash between here and
         # the edge in `observe` leaves a claimed pair with no edge, which resume
         # treats as done-but-unrecorded rather than re-firing the action.
         ports.graph.mark_visited(candidate.from_state_id, candidate.action.action_id)
         visited_pairs = state["visited_pairs"] + 1
 
+        if stats is not None and ports.network is not None:
+            ports.network.drain()  # auditing time may have produced background polling
         try:
-            next_bundle = ports.crawler.act(candidate.action)
+            try:
+                next_bundle = ports.crawler.act(candidate.action)
+            finally:
+                if stats is not None:
+                    record_calls(
+                        stats,
+                        ports.network,
+                        replay=False,
+                        click=candidate.action.kind == "click",
+                        source=candidate.from_state_id,
+                        action=candidate.action.action_id,
+                    )
         except CrawlerError as exc:
             return {
                 **base,
                 "visited_pairs": visited_pairs,
+                **({"current_state_id": None} if stats is not None else {}),
                 "skipped": skip(state, candidate, str(exc)),
             }
 
@@ -303,7 +455,16 @@ def build_graph(
         bundle = state["next_bundle"]
         assert candidate is not None and bundle is not None
 
-        to_state_id = ports.graph.fingerprint(bundle)
+        to_state_id = fingerprint(bundle)
+        stats = deepcopy(state["dynamic"])
+        if stats is not None:
+            observe_transition(
+                stats,
+                candidate.from_state_id,
+                candidate.action.action_id,
+                to_state_id,
+                replay=False,
+            )
         ports.graph.persist_edge(
             StateEdge(
                 from_state_id=candidate.from_state_id,
@@ -316,6 +477,7 @@ def build_graph(
         )
 
         return {
+            "dynamic": stats,
             "edges": state["edges"] + 1,
             "current_bundle": bundle,
             "next_bundle": None,
@@ -396,25 +558,31 @@ def explore(
             duration_ms=elapsed(),
         )
 
-    runner = build_graph(ports, policy, config, checkpointer, log)
-    start_state = initial_state(run_id, seed_url, role=config.role)
-    start_state["current_bundle"] = seed_bundle
+    try:
+        runner = build_graph(ports, policy, config, checkpointer, log)
+        start_state = initial_state(run_id, seed_url, role=config.role)
+        start_state["current_bundle"] = seed_bundle
+        if config.probabilistic_states:
+            start_state["dynamic"] = DynamicStats(network_available=ports.network is not None)
+            if ports.network is not None:
+                ports.network.drain()
 
-    # `invoke` is typed as returning the output schema loosely; the compiled
-    # graph is parameterised on ExplorationState, so this cast is a formality.
-    final = cast(
-        "ExplorationState",
-        runner.invoke(
-            start_state,
-            config={
-                "configurable": {"thread_id": run_id},
-                "recursion_limit": recursion_limit(config),
-            },
-        ),
-    )
+        # `invoke` is typed as returning the output schema loosely; the compiled
+        # graph is parameterised on ExplorationState, so this cast is a formality.
+        final = cast(
+            "ExplorationState",
+            runner.invoke(
+                start_state,
+                config={
+                    "configurable": {"thread_id": run_id},
+                    "recursion_limit": recursion_limit(config),
+                },
+            ),
+        )
+    finally:
+        ports.crawler.close()
 
     reason = _terminal_reason(final, config) or "frontier_exhausted"
-    ports.crawler.close()
     log.emit(
         "shutdown",
         "finished",
@@ -441,4 +609,5 @@ def explore(
         violations=tuple(final["violations"]),
         skipped=tuple(final["skipped"]),
         duration_ms=elapsed(),
+        dynamic=final["dynamic"],
     )
