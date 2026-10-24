@@ -301,6 +301,8 @@ async def start_scan(
         policy_text=policy,
         role=role,
         graph_store=graph,
+        probabilistic_states=request_body.probabilistic_states,
+        volatility_patterns=request_body.volatility_patterns,
         emit=_emit,
         stop_check=lambda: scan_id in _STOP_FLAGS,
     )
@@ -481,8 +483,15 @@ async def get_scan_report(scan_id: str) -> ScanReportResponse:
         for v in raw_violations
     ]
 
+    dynamic = None
+    with contextlib.suppress(Exception):
+        stored = app.state.graph.get_dynamic_report(scan_id)
+        if isinstance(stored, dict):
+            dynamic = stored
+
     return ScanReportResponse(
         scan_id=scan_id,
+        dynamic=dynamic,
         url_scanned="",  # Month 3: query from PolicyContext node
         policy="",  # Month 3: query from PolicyContext node
         total_states=counts["states_explored"],

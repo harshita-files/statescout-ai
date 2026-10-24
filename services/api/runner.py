@@ -31,6 +31,7 @@ from __future__ import annotations
 import contextlib
 import logging
 from collections.abc import Callable
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
 from apps.agent.graph.cache import VisitedCache
@@ -99,7 +100,9 @@ def build_scan_ports(scan_id: str, config: OrchestratorConfig) -> tuple[Ports, d
         )
         return ports, {"mode": "degraded", "crawler": "fake", "perception": "fake"}
 
-    ports = Ports(crawler=live.crawler, perception=live.perception, graph=graph)
+    ports = Ports(
+        crawler=live.crawler, perception=live.perception, graph=graph, network=live.network
+    )
     return ports, {"mode": "live", "crawler": "playwright", "perception": "vlm"}
 
 
@@ -150,6 +153,8 @@ def run_scan(
     graph_store: Any,
     emit: EmitFn,
     stop_check: StopCheck,
+    probabilistic_states: bool = False,
+    volatility_patterns: tuple[str, ...] = (),
 ) -> None:
     """Drive one crawl to completion. Runs in a worker thread; never raises."""
     from apps.agent.orchestrator import graph_runner
@@ -158,9 +163,12 @@ def run_scan(
     graph_store.update_scan_status(scan_id, "running")
     # Other knobs (depth_limit, max_states, perception_rate_per_min) come from
     # STATESCOUT_* env vars via pydantic-settings.
-    config = OrchestratorConfig(role=role)
-
     try:
+        config = OrchestratorConfig(
+            role=role,
+            probabilistic_states=probabilistic_states,
+            volatility_patterns=volatility_patterns,
+        )
         ports, tags = build_scan_ports(scan_id, config)
     except Exception as exc:  # ports failed to assemble — nothing to run
         logger.exception('"scan_ports_error" {"scan_id": "%s"}', scan_id)
@@ -195,6 +203,12 @@ def run_scan(
                 graph_close()
 
     if result is not None:
+        dynamic = getattr(result, "dynamic", None)
+        if dynamic is not None:
+            try:
+                graph_store.persist_dynamic_report(scan_id, asdict(dynamic))
+            except Exception:
+                logger.exception('"scan_dynamic_report_error" {"scan_id": "%s"}', scan_id)
         with contextlib.suppress(Exception):
             graph_store.record_scan_result(
                 scan_id,

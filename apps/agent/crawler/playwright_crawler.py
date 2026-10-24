@@ -15,14 +15,20 @@ ADR-001 decisions honoured
 from __future__ import annotations
 
 import hashlib
+import re
+import time
+from collections.abc import Callable
 from contextlib import suppress
-from typing import Any
+from typing import Any, Literal
+from urllib.parse import unquote, urlsplit
 
 from playwright.sync_api import (
     Error as PlaywrightError,
 )
 from playwright.sync_api import (
+    Frame,
     Page,
+    Request,
 )
 from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
@@ -152,7 +158,22 @@ class PlaywrightCrawler:
         *,
         output_dir: str = DEFAULT_OUTPUT_DIR,
         headless: bool = True,
+        probabilistic_states: bool = False,
     ) -> None:
+        # None means readiness was disabled or no outcome was reached.
+        self.last_capture_ready: bool | None = None
+        self._navigation_pending: tuple[int, set[int]] | None = None
+        self._probabilistic_states = probabilistic_states
+        self._labels: list[str] = []
+        self._pending: set[int] = set()
+        self._last_network_activity = 0.0
+        self._listeners: dict[
+            Literal["request", "requestfinished", "requestfailed"], Callable[[Request], None]
+        ] = {
+            "request": self._on_request,
+            "requestfinished": self._on_request_done,
+            "requestfailed": self._on_request_done,
+        }
         self.role = role
         self._output_dir = output_dir
         self._headless = headless
@@ -175,6 +196,104 @@ class PlaywrightCrawler:
         if self._session_ctx is None:
             self._session_ctx = launch_session(headless=self._headless)
             self._page = self._session_ctx.__enter__()
+            if self._probabilistic_states:
+                for event, handler in self._listeners.items():
+                    self._page.on(event, handler)
+                self._page.on("framenavigated", self._on_frame_navigated)
+
+    def _on_request(self, request: Request) -> None:
+        if (
+            request.resource_type == "document"
+            and request.is_navigation_request()
+            and self._page is not None
+            and request.frame == self._page.main_frame
+        ):
+            self._navigation_pending = (id(request), self._pending.copy())
+        if request.resource_type not in {"fetch", "xhr"}:
+            return
+        self._pending.add(id(request))
+        self._last_network_activity = time.monotonic()
+        try:
+            path = urlsplit(request.url).path or "/"
+        except ValueError:
+            path = "/"
+        segments = []
+        for segment in path.split("/"):
+            decoded = unquote(segment)
+            if re.fullmatch(r"[0-9]+", decoded):
+                segment = ":id"
+            elif re.fullmatch(
+                r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+                r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                decoded,
+            ):
+                segment = ":uuid"
+            segments.append(segment)
+        self._labels.append(f"{request.method.upper()} {'/'.join(segments)}")
+
+    def _on_frame_navigated(self, frame: Frame) -> None:
+        if (
+            self._page is not None
+            and frame == self._page.main_frame
+            and self._navigation_pending is not None
+        ):
+            # Drop only requests predating this committed document navigation.
+            self._pending.difference_update(self._navigation_pending[1])
+            self._navigation_pending = None
+            self._last_network_activity = time.monotonic()
+
+    def _on_request_done(self, request: Request) -> None:
+        if self._navigation_pending is not None and self._navigation_pending[0] == id(request):
+            self._navigation_pending = None
+        if id(request) in self._pending:
+            self._pending.discard(id(request))
+            self._last_network_activity = time.monotonic()
+
+    def drain(self) -> tuple[str, ...]:
+        """Consume fetch/XHR start labels, preserving order, duplicates and failures.
+
+        Drain before an action to discard earlier traffic, and after it to collect
+        the observed window. Late requests belong to the window in which they
+        start. Draining does not reset pending requests or readiness tracking.
+        Disabled instances return (). No headers or bodies are inspected.
+        """
+        labels = tuple(self._labels)
+        self._labels.clear()
+        return labels
+
+    def _wait_for_capture_ready(self) -> None:
+        """Best-effort 200 ms DOM/network quiet, with a shared 2 second budget.
+
+        Polling through Playwright dispatches request events. Each DOM read has
+        its own timeout capped by the remaining budget. Expiry permits capture.
+        """
+        self.last_capture_ready = None
+        page = self._ensure_page()
+        start = time.monotonic()
+        deadline = start + 2.0
+        stable_since = start
+        previous: str | None = None
+        while (remaining := deadline - time.monotonic()) > 0:
+            try:
+                dom = page.locator("html").inner_html(timeout=max(1, min(100, remaining * 1000)))
+            except PlaywrightTimeoutError:
+                dom = None
+            now = time.monotonic()
+            if dom is None or dom != previous:
+                previous = dom
+                stable_since = now
+            if (
+                dom is not None
+                and now - stable_since >= 0.2
+                and not self._pending
+                and now - max(start, self._last_network_activity) >= 0.2
+            ):
+                self.last_capture_ready = True
+                return
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                page.wait_for_timeout(min(50, remaining * 1000))
+        self.last_capture_ready = False
 
     def _bundle(self, state: dict[str, Any]) -> CaptureBundle:
         if not state.get("success"):
@@ -197,14 +316,18 @@ class PlaywrightCrawler:
         Raises:
             NavigationError: unreachable URL, timeout, or capture failure.
         """
+        self.last_capture_ready = None
         try:
             self._start_session()
             page = self._ensure_page()
             response = page.goto(url, wait_until="load", timeout=30_000)
             if response is None:
                 raise NavigationError(f"goto({url!r}) returned None")
-            with suppress(PlaywrightTimeoutError):
-                page.wait_for_load_state("networkidle", timeout=5_000)
+            if self._probabilistic_states:
+                self._wait_for_capture_ready()
+            else:
+                with suppress(PlaywrightTimeoutError):
+                    page.wait_for_load_state("networkidle", timeout=5_000)
             state = extract_page_state(page, url, self._output_dir)
             return self._bundle(state)
         except (NavigationError, ActionError):
@@ -223,6 +346,7 @@ class PlaywrightCrawler:
             ActionError: stale element, unknown action kind, execution failure.
             NavigationError: triggered navigation that then failed.
         """
+        self.last_capture_ready = None
         try:
             page = self._ensure_page()
             raw: dict[str, Any] = {
@@ -231,7 +355,12 @@ class PlaywrightCrawler:
                 "url": action.target if action.kind == "navigate" else None,
                 "text": action.value,
             }
-            result = execute_action(page, raw, self._output_dir)
+            if self._probabilistic_states:
+                result = execute_action(
+                    page, raw, self._output_dir, before_capture=self._wait_for_capture_ready
+                )
+            else:
+                result = execute_action(page, raw, self._output_dir)
             if not result.get("success"):
                 raise ActionError(f"execute_action failed: {result.get('error', 'unknown')}")
             state: dict[str, Any] = result.get("resulting_state") or {}
@@ -270,6 +399,14 @@ class PlaywrightCrawler:
         if self._closed:
             return
         self._closed = True
+        if self._page is not None and self._probabilistic_states:
+            for event, handler in self._listeners.items():
+                with suppress(Exception):
+                    self._page.remove_listener(event, handler)
+            with suppress(Exception):
+                self._page.remove_listener("framenavigated", self._on_frame_navigated)
+            self._navigation_pending = None
+            self._pending.clear()
         if self._session_ctx is not None:
             with suppress(Exception):
                 self._session_ctx.__exit__(None, None, None)

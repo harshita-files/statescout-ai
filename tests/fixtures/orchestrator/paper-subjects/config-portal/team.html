@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConfigHub - Team Management</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f8f9fa; }
+        .header { background: #667eea; color: white; padding: 20px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+        nav { background: white; border-bottom: 1px solid #eee; margin-bottom: 20px; }
+        nav a { display: inline-block; padding: 15px 20px; text-decoration: none; color: #667eea; border-bottom: 3px solid transparent; }
+        nav a:hover { border-bottom-color: #667eea; }
+        .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f0f0f0; font-weight: 600; }
+        button { background: #667eea; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        button.danger { background: #d32f2f; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Team Management</h1>
+        </div>
+    </div>
+
+    <nav>
+        <a href="home.html">Dashboard</a>
+        <a href="subscription.html">Subscription</a>
+        <a href="settings.html">Settings</a>
+        <a href="team.html">Team</a>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h3>Organization Settings</h3>
+            <label>Organization Name:</label>
+            <input type="text" value="Acme Corporation" style="width: 300px;">
+            <button>Update Organization</button>
+        </div>
+
+        <div class="card">
+            <h3>Single Sign-On Configuration</h3>
+            <label>SAML Endpoint URL:</label>
+            <input type="text" placeholder="https://identity.example.com/saml" style="width: 400px;">
+            <button>Test Connection</button>
+            <button>Enable SSO</button>
+        </div>
+
+        <div class="card">
+            <h3>Team Members</h3>
+            <table>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+                <tr>
+                    <td>Alex Johnson</td>
+                    <td>alex@example.com</td>
+                    <td>Admin</td>
+                    <td>Active</td>
+                    <td><button>Edit</button></td>
+                </tr>
+                <tr>
+                    <td>Jamie Lee</td>
+                    <td>jamie@example.com</td>
+                    <td>Member</td>
+                    <td>Active</td>
+                    <td><button>Edit</button><button>Remove</button></td>
+                </tr>
+                <tr>
+                    <td>Sam Chen</td>
+                    <td>sam@example.com</td>
+                    <td>Member</td>
+                    <td>Pending</td>
+                    <td><button>Resend Invite</button></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>Add New Member</h3>
+            <input type="email" placeholder="Email address">
+            <select>
+                <option>Member</option>
+                <option>Admin</option>
+            </select>
+            <button>Send Invite</button>
+        </div>
+    </div>
+</body>
+</html>

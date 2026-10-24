@@ -1,0 +1,72 @@
+\section{Introduction}
+\label{sec:intro}
+
+Broken access control heads the OWASP Top~10 \cite{owasp2021a01}, and research tools
+aimed at it mostly examine the \emph{server}: they test whether requests that
+should be refused are in fact refused
+\cite{sun2011static,li2014blackbox,noseevich2011detecting,monshizadeh2014mace,liu2025bacscan}.
+This paper concerns a neighbouring defect class. Consider a dashboard that renders
+an ``Admin'' link for every visitor while the backend rejects the request behind
+it. A request-level scanner has nothing to report, yet the link discloses that
+privileged functionality exists and where it lives. A debug panel left in a
+production build, or a destructive control that a guest reaches in a few clicks,
+is the same kind of defect. The converse also occurs: a page may \emph{lack}
+something the organisation requires, such as a skip-to-content link, a consent
+banner or a logout control.
+
+Workflow-style UI tests typically exercise what should happen, so such
+problems can go unnoticed. Crawlers that infer a model of the application
+\cite{mesbah2012crawljax,memon2003ripping,dallmeier2013webmate} reach many states
+but usually apply generic checks, and DOM invariants \cite{mesbah2012invariant}
+can assert presence or absence but are written in code, per application, with no
+notion of role. Agents built on language and
+vision-language models
+\cite{liu2024gptdroid,yoon2024droidagent,liu2024visiondroid,zheng2024seeact}
+explore and judge screens flexibly, but the model usually delivers the verdict,
+which is risky when the verdict is that something is \emph{absent}:
+vision-language models (VLMs) answer negated queries poorly on natural-image
+benchmarks \cite{alhamoud2025negation}.
+
+We present \sys{}, a design and prototype that treats this as a state-space auditing
+problem. Given a seed URL, a role and a policy such as ``a guest must never see the
+admin link; every page must offer a skip-to-content link'', it explores the
+application as that role, retains the full state graph, and checks every reached
+state against the policy. A finding names the clause it violates, the set
+operation that raised it and the evidence behind it.
+
+\medskip\noindent\textbf{Scope of the contribution.}
+Crawling into state graphs, checking invariants on crawled states, and using VLMs in
+GUI testing all have substantial prior art (Sect.~\ref{sec:related}), and we claim
+none of them. Accessibility checkers and web scanners already flag required and
+forbidden artifacts one rule at a time (Sect.~\ref{sec:related}). What we offer is
+a formulation and a prototype that combine these threads around one question:
+does the UI that a given role can reach conform to a declared policy of what must
+and must not exist? Concretely:
+\begin{enumerate}
+\item an oracle in which clause polarity is a typed field, so that
+\emph{forbidden-present} and \emph{required-absent} are two distinct set operations
+over a semantic description of each state (Sect.~\ref{sec:model});
+\item an elementary observation on error direction (Proposition~\ref{prop:asym}):
+the two operations are monotone and antitone in the perceived set, so a perceiver
+that under-reports can only miss forbidden elements and raise false alarms on
+required ones, and an over-reporter does the reverse. We use it to organise the
+evaluation per polarity and to motivate a design in which DOM and accessibility-tree
+evidence settles which \emph{elements} exist while a VLM only annotates them. That
+design is not evaluated here, and annotation errors remain possible
+(Sect.~\ref{sec:perception});
+\item a cyclic exploration loop that claims each (state, action) pair before
+executing it and restricts path replay by action kind
+(Sect.~\ref{sec:system}), together with measured loop-level counters and a
+simulated crash test whose outcome qualifies the crash-safety claim
+(Sect.~\ref{sec:rq1}); and
+\item a fixture-level evaluation that states, arm by arm, which components it
+exercises and which it replaces with fakes (Sect.~\ref{sec:eval}).
+\end{enumerate}
+\sys{} does not test whether the server enforces authorization. It audits what a
+role is shown, which is complementary. The browser-driven pipeline and the VLM channel are not evaluated here.
+
+\medskip\noindent\textbf{Organisation.}
+Sect.~\ref{sec:related} positions the work, Sect.~\ref{sec:model} gives the model,
+Sect.~\ref{sec:system} the prototype, Sect.~\ref{sec:eval} the experiments and
+their threats to validity, and Sect.~\ref{sec:discussion} and~\ref{sec:conclusion}
+discuss and conclude.

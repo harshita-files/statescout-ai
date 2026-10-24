@@ -1,0 +1,128 @@
+\section{Related Work}
+\label{sec:related}
+
+\begin{table*}[t]
+\centering\footnotesize
+\caption{Positioning against the closest prior work. \checkmark{} = stated
+capability, $\sim$ = partial or qualified, -- = not a goal or absent. Columns:
+AE autonomous exploration; CYC cyclic state graph kept; POL declarative or NL
+policy; NEG ``must-not-exist'' oracle; REQ ``required-absent'' oracle; ROLE
+role-scoped; MM multimodal perception; SAFE side-effect safety; GT ground truth
+scored for exact recall. Cells for prior work reflect the cited papers as read
+for this draft.}
+\label{tab:related}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llccccccccc@{}}
+\toprule
+Family & System & AE & CYC & POL & NEG & REQ & ROLE & MM & SAFE & GT \\
+\midrule
+\multirow{4}{*}{Model inference}
+ & Crawljax~\cite{mesbah2012crawljax}          & \checkmark & \checkmark & -- & $\sim$ & $\sim$ & -- & -- & -- & -- \\
+ & ATUSA invariants~\cite{mesbah2012invariant} & \checkmark & \checkmark & $\sim$ & \checkmark & \checkmark & -- & -- & -- & -- \\
+ & WebMate~\cite{dallmeier2013webmate}         & \checkmark & $\sim$ & -- & -- & -- & $\sim$ & -- & -- & -- \\
+ & Stoat / APE / DroidBot~\cite{su2017stoat,gu2019ape,li2017droidbot} & \checkmark & \checkmark & -- & -- & -- & -- & -- & -- & -- \\
+\midrule
+\multirow{2}{*}{Property / a11y}
+ & Kea~\cite{xiong2024kea}                     & \checkmark & $\sim$ & \checkmark & $\sim$ & $\sim$ & -- & -- & -- & $\sim$ \\
+ & MATE~\cite{eler2018mate}                    & \checkmark & $\sim$ & -- & $\sim$ & $\sim$ & -- & -- & -- & -- \\
+\midrule
+\multirow{3}{*}{Access control}
+ & Sun et al.~\cite{sun2011static}             & -- & -- & -- & $\sim$ & -- & \checkmark & -- & -- & -- \\
+ & Li et al.~\cite{li2014blackbox}             & \checkmark & $\sim$ & -- & $\sim$ & -- & \checkmark & -- & $\sim$ & -- \\
+ & BACScan~\cite{liu2025bacscan}               & \checkmark & $\sim$ & -- & $\sim$ & -- & \checkmark & -- & -- & $\sim$ \\
+\midrule
+\multirow{4}{*}{LLM/VLM testing}
+ & GPTDroid / DroidAgent~\cite{liu2024gptdroid,yoon2024droidagent} & \checkmark & $\sim$ & -- & -- & -- & -- & -- & -- & -- \\
+ & VisionDroid~\cite{liu2024visiondroid}       & \checkmark & $\sim$ & -- & -- & -- & -- & \checkmark & -- & $\sim$ \\
+ & AXNav~\cite{taeb2024axnav}                  & -- & -- & \checkmark & $\sim$ & $\sim$ & -- & \checkmark & -- & -- \\
+ & UIGuard~\cite{chen2023uiguard}              & -- & -- & $\sim$ & \checkmark & -- & -- & \checkmark & -- & $\sim$ \\
+\midrule
+Agent policy & ST-WebAgentBench~\cite{levy2026stwebagentbench} & -- & -- & \checkmark & $\sim$ & $\sim$ & -- & $\sim$ & $\sim$ & \checkmark \\
+\midrule
+\textbf{This work} & \textbf{\sys{}}                 & \checkmark & \checkmark & $\sim$ & \checkmark & \checkmark & \checkmark & $\sim$ & $\sim$ & $\sim$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\Cref{tab:related} summarises the positioning. No prior system combines
+autonomous cyclic exploration with a role-scoped oracle of both polarities.
+The closest neighbours are ATUSA~\cite{mesbah2012invariant} on the oracle side
+and BACScan~\cite{liu2025bacscan} on the role side.
+
+\paragraph{Web and GUI model inference.}
+GUI Ripping~\cite{memon2003ripping} and Crawljax~\cite{mesbah2012crawljax}
+reverse-engineer GUIs into event-flow and state-flow graphs. WebMate
+\cite{dallmeier2013webmate} generates tests for Web~2.0 applications. On
+Android, Sapienz~\cite{mao2016sapienz}, Stoat~\cite{su2017stoat},
+APE~\cite{gu2019ape}, DroidBot~\cite{li2017droidbot}, and
+Humanoid~\cite{li2019humanoid} explore with search, stochastic models, model
+refinement, or learned policies, mostly with crash oracles. These models are
+cyclic by construction, so we do \emph{not} claim the cyclic graph as novel.
+We claim only that the audit keeps it intact. State abstraction and
+near-duplicate detection are well studied~\cite{yandrapally2020nearduplicate}.
+Our fingerprint is a conventional instance, which we evaluate for stability
+and sensitivity but do not claim as a contribution. Doup\'e et
+al.~\cite{doupe2012enemy} infer server state machines while tracking
+state-changing requests. Our claim-before-execute rule addresses the related
+problem of not re-firing side effects in the auditor itself.
+
+\paragraph{Test oracles and invariants.}
+The oracle problem is surveyed by Barr et al.~\cite{barr2015oracle}. GUI
+oracles check expected state after each action~\cite{memon2000oracles}. ATUSA
+\cite{mesbah2012invariant} checks generic and application-specific DOM
+invariants on every crawled state, and can express both presence and absence.
+Expressively, then, \sys{}'s oracle adds nothing that a skilled user could not
+hand-write as ATUSA invariants. Our delta is that polarity is part of a typed
+policy schema, clauses range over a semantic vocabulary that is portable
+across pages and markup, clauses are role-scoped, and each violation is tagged
+with the operation that produced it. That tagging is what enables the
+per-polarity analysis of \cref{prop:asym}. Property-based Android testing
+(Kea~\cite{xiong2024kea}) and accessibility checkers (MATE~\cite{eler2018mate})
+check properties or fixed rules during exploration, but without roles or
+policy polarity.
+
+\paragraph{Access-control testing.}
+Sun et al.~\cite{sun2011static} derive per-role sitemaps statically. Li et
+al.~\cite{li2014blackbox}, Noseevich and Petukhov~\cite{noseevich2011detecting},
+MACE~\cite{monshizadeh2014mace}, BACScan~\cite{liu2025bacscan}, and
+BACFuzz~\cite{dharmaadi2025bacfuzz} detect broken access control by comparing
+or mutating requests across identities. These tools decide whether the
+\emph{server} enforces authorization. \sys{} decides whether the \emph{UI shown
+to a role} conforms to a declared policy, including a required-absent half
+that request-level tools do not model. UI exposure is not in itself an OWASP
+A01 vulnerability~\cite{owasp2021a01}, and we frame \sys{} as policy
+conformance and least-privilege UI, complementary to request-level scanning.
+
+\paragraph{LLM and VLM GUI agents and testers.}
+GPTDroid~\cite{liu2024gptdroid}, DroidAgent~\cite{yoon2024droidagent}, and
+AutoDroid~\cite{wen2024autodroid} use LLMs to explore or automate mobile apps.
+VisionDroid~\cite{liu2024visiondroid} uses multimodal LLMs to detect non-crash
+functional bugs. AXNav~\cite{taeb2024axnav} and
+AUITestAgent~\cite{hu2024auitestagent} turn natural-language test
+instructions or requirements into GUI interaction and verification, and
+WebTestPilot~\cite{teoh2026webtestpilot} infers oracles from
+natural-language specifications. UIGuard~\cite{chen2023uiguard} detects dark
+patterns, a fixed taxonomy of \emph{forbidden} UI. Web-agent benchmarks
+(WebArena~\cite{zhou2024webarena}, Mind2Web~\cite{deng2023mind2web},
+OSWorld~\cite{xie2024osworld}) and SeeAct~\cite{zheng2024seeact} show that
+grounding is the bottleneck for acting. ST-WebAgentBench
+\cite{levy2026stwebagentbench} evaluates whether \emph{agents} comply with
+policies. \sys{} instead uses policy to audit the \emph{application}. In
+these systems the model typically issues the verdict. \sys{} withholds
+existence and absence judgements from the model.
+
+\paragraph{Negation and compositionality in VLMs.}
+Alhamoud et al.~\cite{alhamoud2025negation} show that VLMs perform close to
+chance on negated queries. ARO~\cite{yuksekgonul2023aro} and
+CREPE~\cite{ma2023crepe} document bag-of-words behaviour and weak
+compositionality. \Cref{prop:asym} explains why this matters specifically for
+auditing. The damage a perception error does depends on the polarity of the
+clause it feeds, so negation weakness is not a uniform accuracy tax.
+
+\paragraph{From natural language to specifications.}
+nl2spec~\cite{cosler2023nl2spec} and NL2LTL~\cite{fuggitti2023nl2ltl}
+translate natural language into temporal logic with LLMs. \sys{}'s planned
+policy compiler targets a much simpler clause language
+$(\sigma,\rho,\pi)$ with a human confirmation gate. Extending it to
+path-sensitive properties over the cyclic graph is where this line of work
+becomes directly relevant.

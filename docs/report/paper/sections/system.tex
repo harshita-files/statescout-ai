@@ -1,0 +1,131 @@
+\section{The \sys{} System}
+\label{sec:system}
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\footnotesize,
+  box/.style={draw=acc,thick,rounded corners=2pt,fill=acc!6,minimum height=9mm,
+              minimum width=24mm,align=center},
+  port/.style={draw=mute,dashed,rounded corners=2pt,inner sep=5pt},
+  data/.style={draw=mute,fill=white,rounded corners=1pt,align=center,font=\scriptsize},
+  arr/.style={-{Stealth[length=2mm]},thick,draw=black!70},
+  lbl/.style={font=\scriptsize,fill=white,inner sep=1pt}]
+
+  \node[box] (scan)    {\textbf{scan}\\fingerprint $\phi$ · persist $v$\\enumerate actions};
+  \node[box,right=17mm of scan] (reason) {\textbf{reason}\\$\hat\Sigma(v)$ · audit\\$\mathit{Viol}_\mathcal F\cup\mathit{Viol}_\mathcal R$};
+  \node[box,right=17mm of reason] (act) {\textbf{act}\\pop frontier · replay path\\claim $(v,a)$ · execute};
+  \node[box,right=12mm of act] (obs) {\textbf{observe}\\persist edge $(v,a,v')$\\back-edge kept};
+
+  \draw[arr] (scan) -- (reason);
+  \draw[arr] (reason) -- node[lbl,above=1mm,align=center]{clean /\\violated} (act);
+  \draw[arr] (act) -- (obs);
+  \draw[arr] (obs.south) -- ++(0,-5mm) -| node[lbl,pos=0.25,above]{progressed} (scan.south);
+  \draw[arr] (obs.north) -- ++(0,4mm) -| node[lbl,pos=0.25,above]{skipped (unreplayable / stale)} (act.north);
+  \node[right=4mm of obs,font=\scriptsize,align=left] (end) {\textsc{end}\\(frontier exhausted,\\ state cap, stop)};
+  \draw[arr,dashed] (obs) -- (end);
+
+  \node[data,below=17mm of scan]   (crawl) {\textbf{CrawlerPort}\\Playwright: \texttt{open}, \texttt{act},\\\texttt{enumerate\_actions}};
+  \node[data,below=17mm of reason] (perc)  {\textbf{PerceptionPort}\\DOM/AX correlator · VLM\\\texttt{analyze}, \texttt{audit}};
+  \node[data,below=17mm of act]    (graph) {\textbf{GraphPort}\\claim set $C$ (Redis)\\cyclic graph (Neo4j)};
+  \node[data,below=17mm of obs]    (pol)   {\textbf{Policy}\\English $\to$ clauses\\$(\sigma,\rho,\pi)$};
+
+  \begin{scope}[on background layer]
+    \node[port,fit=(crawl)(perc)(graph)(pol),label={[font=\scriptsize,text=mute]below:typed, frozen contracts (\texttt{contracts.py}) --- injected, never imported}] {};
+  \end{scope}
+  \foreach \a/\b in {scan/crawl,reason/perc,act/graph} \draw[-,thin,draw=mute,dotted] (\a) -- (\b);
+  \draw[-,thin,draw=mute,dotted] (obs) -- (pol);
+\end{tikzpicture}}
+\caption{\sys{} architecture. A checkpointed LangGraph state machine of four
+nodes and two conditional edges drives the Scan$\to$Reason$\to$Act$\to$Observe
+loop. All I/O goes through three typed ports, so every component can be
+replaced by a deterministic fake for testing and by the live implementation in
+production without changing the loop.}
+\label{fig:arch}
+\end{figure*}
+
+\Cref{fig:arch} shows the architecture. The implementation consists of about
+5.8k lines of Python across five modules owned by four sub-teams, plus a
+FastAPI reporting service and a VS~Code extension front-end.
+
+\subsection{Orchestration}
+The explorer performs breadth-first search over $(v,a)$ pairs. A plain-Python
+reference loop, kept as a \emph{parity oracle}, is ported to a LangGraph
+\texttt{StateGraph} with four nodes (\texttt{scan}, \texttt{reason},
+\texttt{act}, \texttt{observe}) and two conditional edges. The whole
+exploration state (frontier, claimed pairs, discovery order, skips) is a
+single checkpointed \texttt{TypedDict}, so a crashed run can resume instead of
+restarting. Limits such as depth, state cap, and perception rate are
+configuration rather than state, so a resumed run cannot silently run under
+different rules. A separate conditional edge routes a skipped action back to
+\texttt{act} and not through \texttt{scan}. Otherwise an unchanged state would
+be re-audited and a phantom entry added to the discovery order, and the
+discovery order is the evidence for cycles. The same test suite runs against
+both implementations.
+
+\subsection{Capture and actions}
+A Playwright crawler captures DOM, the CDP full AX tree, and a screenshot. It
+derives candidate actions from actionable AX roles (link, button, tab,
+menuitem, \dots) and gives each one a content-addressed identifier. Navigation
+failures and action failures raise distinct exception types, so the
+orchestrator can retry the former with backoff and mark-and-skip the latter
+without type-sniffing.
+
+\subsection{State abstraction and persistence}
+$\phi$ removes known volatile attributes (\texttt{nonce},
+\texttt{data-session}, \texttt{data-csrf}, \dots), hex-like generated ids,
+prefixed tokens (\texttt{sess\_}, \texttt{csrf\_}, \texttt{tok\_}), 10+-digit
+timestamps, whitespace, and volatile CDP keys (\texttt{nodeId},
+\texttt{backendDOMNodeId}, \texttt{parentId}, \texttt{childIds}, focus). It
+then hashes URL, DOM, and canonical AX JSON together. The claim set lives in
+Redis. States, edges (including back-edges), and violations are stored in
+Neo4j, where the cyclic structure can be queried directly (for example, ``all
+paths from the seed to a violating state'').
+
+\subsection{Perception: grounding subjects in the UI}
+\label{sec:system:perception}
+Perception turns a capture into a \emph{Semantic UI Map}: elements with role,
+accessible name, tags, selector, visibility and enabled state, plus the
+capabilities the state exposes (\texttt{delete-user}, \texttt{export-data},
+\dots). The baseline channel is deterministic and fully reproducible. It
+correlates DOM elements and AX nodes by (i)~browser-provided identifiers,
+(ii)~role plus accessible name, and (iii)~name alone when unique. Ambiguous
+matches are never guessed. DOM-only elements are kept on purpose, because an
+element hidden from the AX tree can still be an exposure. A vision-language
+model channel (Gemini~2.5 Flash, behind a rate-limited provider interface)
+reads the screenshot and AX tree. It supplies judgements the DOM cannot make,
+such as a styled \texttt{<div>} with no ARIA role that \emph{looks like} a
+delete button. By design it may only \emph{annotate} elements the
+deterministic channel already found, adding tags and capabilities. It may never
+add or remove an element, so existence and absence (the polarity that VLMs are
+known to handle poorly~\cite{alhamoud2025negation}) are decided by evidence
+that cannot be hallucinated. In the current codebase this channel is
+implemented but not yet wired into the orchestrator, and it is not evaluated
+in this paper. A run without screenshots is labelled a smoke test, not an
+audit.
+
+\subsection{Negation engine}
+\label{sec:system:negation}
+The audit implements \cref{eq:forb,eq:req} deterministically. Clause
+applicability is checked against the run's role. Subjects are matched first
+against capabilities, which are stronger evidence, and then against element
+tags and accessible names. There is no substring matching, because an
+over-eager matcher is exactly the over-reporting bias of \cref{prop:asym}.
+Every violation carries its clause type, a severity, a plain-language
+rationale, and \emph{evidence} (selector, text, screenshot) that a human can
+check. The policy compiler that turns English sentences into clauses is
+\emph{in progress}. By design it reuses the perception port's text channel, so
+there is one model client and one rate limit, and it includes a confirmation
+gate on which the QA engineer approves the parse before the crawl. In this
+draft, policies are supplied in structured form next to their English source
+(\texttt{policy.json}).
+
+\subsection{Ground-truth test applications}
+Each test application ships three machine-readable files next to its HTML:
+\texttt{app.json} (pages and controls), \texttt{policy.json} (the English
+policy and its structured form), and \texttt{violations.json} (every planted
+defect with its page and clause). Evaluation asserts \emph{exact} set equality
+between found and planted violations. A miss is a regression, and an
+undocumented finding is a false positive. A consistency test fails if the HTML
+and \texttt{app.json} drift apart.

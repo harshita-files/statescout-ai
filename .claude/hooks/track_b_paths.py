@@ -84,6 +84,7 @@ SHARED_PATHS: tuple[str, ...] = (
     "tests/e2e/",
     "NOTES.md",
     "README.md",
+    ".claude/agents/",
 )
 
 # Cross-track files any track may draft until the team freezes them. Create the

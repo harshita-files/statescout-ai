@@ -1,5 +1,5 @@
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from typing import Any
 
@@ -30,7 +30,9 @@ def launch_session(headless: bool = True) -> Iterator[Page]:
             browser.close()
 
 
-def _perform_action(page: Page, action: dict[str, Any]) -> None:
+def _perform_action(
+    page: Page, action: dict[str, Any], *, wait_network_idle: bool = True
+) -> None:
     """Internal helper to actually run the Playwright commands."""
     action_type = action.get("type")
 
@@ -45,16 +47,18 @@ def _perform_action(page: Page, action: dict[str, Any]) -> None:
         response = page.goto(url, wait_until="load", timeout=30000)
         if response is None:
             raise Exception("Failed to get response from URL")
-        with suppress(PlaywrightTimeoutError):
-            page.wait_for_load_state("networkidle", timeout=short_timeout)
+        if wait_network_idle:
+            with suppress(PlaywrightTimeoutError):
+                page.wait_for_load_state("networkidle", timeout=short_timeout)
 
     elif action_type == "click":
         selector = action.get("selector")
         if not selector:
             raise ValueError("Click action missing 'selector'")
         page.click(selector, timeout=short_timeout)
-        with suppress(PlaywrightTimeoutError):
-            page.wait_for_load_state("networkidle", timeout=short_timeout)
+        if wait_network_idle:
+            with suppress(PlaywrightTimeoutError):
+                page.wait_for_load_state("networkidle", timeout=short_timeout)
 
     elif action_type == "type":
         selector = action.get("selector")
@@ -79,18 +83,29 @@ def _perform_action(page: Page, action: dict[str, Any]) -> None:
 
 
 def execute_action(
-    page: Page, action: dict[str, Any], output_dir: str = DEFAULT_OUTPUT_DIR
+    page: Page,
+    action: dict[str, Any],
+    output_dir: str = DEFAULT_OUTPUT_DIR,
+    *,
+    before_capture: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Executes a single action on the page and returns the resulting state."""
     max_retries = 2
 
     result = {"success": False, "action": action, "resulting_state": None, "error": None}
 
+    action_completed = False
     for attempt in range(max_retries + 1):
         try:
-            _perform_action(page, action)
+            if before_capture is None:
+                _perform_action(page, action)
+            else:
+                _perform_action(page, action, wait_network_idle=False)
+            action_completed = True
             # If we get here, the action succeeded.
             # Extract state and return.
+            if before_capture is not None:
+                before_capture()
             current_url = page.url
             state = extract_page_state(page, current_url, output_dir)
             result["success"] = True
@@ -98,6 +113,10 @@ def execute_action(
             return result
 
         except PlaywrightTimeoutError as e:
+            if before_capture is not None and action_completed:
+                # Observation failure must never replay a completed opt-in action.
+                result["error"] = f"Post-action timeout: {e!s}"
+                break
             # Transient error, we can retry
             last_error = str(e)
             if attempt < max_retries:
