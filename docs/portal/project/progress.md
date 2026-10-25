@@ -1,10 +1,8 @@
 # Project progress
 
-*Status as of 24 October 2026. Update this page at each review.*
+<!-- TODO(team): update the status column at every review. Keep each "done" claim
+     backed by something a reader can open: a merged PR, a test, or a document. -->
 
-<!-- TODO(team): update the status column and the date at every review. Keep each
-     "done" claim backed by something a reader can open: a merged PR, a test, or
-     a document. -->
 
 ## The four-month plan
 
