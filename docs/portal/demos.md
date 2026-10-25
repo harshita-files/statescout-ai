@@ -19,7 +19,19 @@ For a video committed to the repository, put the file in docs/portal/assets/ and
 | End-to-end audit | A policy, an autonomous crawl of `broken-admin`, and the four planted violations found | *Coming soon* |
 | The state graph | The cyclic exploration graph: deduplicated states and preserved back-edges | *Coming soon* |
 | Evidence chain | One violation traced from the report back to the clicks, screenshot and policy clause | *Coming soon* |
-| Dynamic applications | Exploration staying reliable on a page that changes between visits | *Coming soon* |
+| Dynamic applications | A live audit of a dynamic single-page application | [Watch](#live-audit-of-a-dynamic-application) |
+
+## Live audit of a dynamic application
+
+StateScout auditing a live single-page application, the Conduit demo app, as a
+guest user.
+
+<div class="video">
+  <iframe src="https://www.youtube-nocookie.com/embed/J1Andaxddr8"
+          title="StateScout Demo" loading="lazy"
+          allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen></iframe>
+</div>
 
 ## Exploration graph
 
