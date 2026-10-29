@@ -80,7 +80,7 @@ application-specific regex masks for volatile DOM/AX string content:
 ```python
 config = OrchestratorConfig(
     probabilistic_states=True,
-    volatility_patterns=(r'data-nonce="[^"]*"', r'noise-\d+'),
+    volatility_patterns=(r'data-nonce="[^"]*"', r"noise-\d+"),
 )
 ```
 

@@ -90,7 +90,7 @@ def render() -> str:
             f'width="{NODE_W}" height="{NODE_H}" rx="10"/>'
             f'<text x="{cx:.0f}" y="{cy - 4:.0f}" class="page">{html.escape(page)}</text>'
             f'<text x="{cx:.0f}" y="{cy + 14:.0f}" class="meta">depth {graph.states[sid].depth}'
-            f'{" · " + str(len(bad_pages[page])) + " violation(s)" if bad else ""}</text></g>'
+            f"{' · ' + str(len(bad_pages[page])) + ' violation(s)' if bad else ''}</text></g>"
         )
 
     rows = []
@@ -109,7 +109,9 @@ def render() -> str:
         ("Pairs executed / distinct", f"{result.visited_pairs} / {len(graph.visited)}"),
         ("Violations", f"{len(result.violations)} found / {len(app.expected)} planted"),
     ]
-    stat_html = "".join(f"<div><b>{html.escape(str(v))}</b><span>{k}</span></div>" for k, v in stats)
+    stat_html = "".join(
+        f"<div><b>{html.escape(str(v))}</b><span>{k}</span></div>" for k, v in stats
+    )
 
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -149,7 +151,11 @@ aria-label="Exploration graph of {len(pos)} states">
 
 
 def main() -> int:
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(tempfile.gettempdir()) / "statescout-demo.html"
+    out = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path(tempfile.gettempdir()) / "statescout-demo.html"
+    )
     out.write_text(render(), encoding="utf-8")
     print(out)
     return 0

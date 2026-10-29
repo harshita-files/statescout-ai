@@ -25,7 +25,7 @@ _NUMERIC = re.compile(r"^\d+$")
 _HEX = re.compile(r"^[0-9a-f]{16,}$", re.I)
 _UNSAFE = re.compile(r"[^A-Za-z0-9_.:-]")
 _PLACEHOLDERS = frozenset({"{id}", "{uuid}", "{date}", "{hex}", "{token}"})
-_OPAQUE_SCHEMES =frozenset({"data", "blob", "javascript", "about"})
+_OPAQUE_SCHEMES = frozenset({"data", "blob", "javascript", "about"})
 
 #: A segment this long that mixes letters and digits is an opaque token (session id,
 #: JWT fragment, base64 blob); so is a long run of letters with no separator, since
