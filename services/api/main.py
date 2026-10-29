@@ -157,6 +157,24 @@ app = FastAPI(
 )
 
 
+# Product API + single-page UI (no Neo4j needed for these routes).
+from pathlib import Path  # noqa: E402
+
+from fastapi.responses import FileResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+from services.api.audits import create_router  # noqa: E402
+
+_STATIC = Path(__file__).parent / "static"
+app.include_router(create_router())
+app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def ui_index() -> FileResponse:
+    return FileResponse(_STATIC / "index.html")
+
+
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
