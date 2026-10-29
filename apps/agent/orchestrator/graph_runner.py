@@ -55,6 +55,7 @@ in the termination reasoning, not in the constant.
 
 from __future__ import annotations
 
+import re
 import sys
 import time
 from copy import deepcopy
@@ -82,6 +83,7 @@ from apps.agent.orchestrator.dynamic import (
     DynamicStats,
     identity,
     observe_transition,
+    pair_key,
     priority,
     record_calls,
     record_capture,
@@ -95,8 +97,14 @@ from apps.agent.orchestrator.state import (
     SkippedAction,
     initial_state,
 )
+from apps.agent.orchestrator.stochastic.confidence import observation_confidence
+from apps.agent.orchestrator.stochastic.frontier_policy import ucb_priority
+from apps.agent.orchestrator.stochastic.insights import (
+    suggest_masks,
+    transition_model_from_stats,
+)
 
-__all__ = ["Route", "build_graph", "explore", "recursion_limit"]
+__all__ = ["Route", "build_graph", "explore", "learn_masks", "recursion_limit"]
 
 Route = Literal["clean", "violated", "terminal"]
 AfterAct = Literal["progressed", "skipped", "terminal"]
@@ -182,6 +190,15 @@ def build_graph(
             record_capture(
                 stats, state_id, bundle, getattr(ports.network, "last_capture_ready", None)
             )
+            stats.nodes.setdefault(
+                state_id,
+                {
+                    "url": bundle.url,
+                    "title": bundle.title,
+                    "depth": state["depth"],
+                    "screenshot": bundle.screenshot_path,
+                },
+            )
             update["dynamic"] = stats
         if not first_visit:
             # Everything below is idempotent by state. The revisit is already
@@ -246,6 +263,10 @@ def build_graph(
                 stats.recurrence[violation.violation_id] = recurrence
                 stats.reproducibility[violation.violation_id] = reproducibility
                 stats.confidence[violation.violation_id] = recurrence * reproducibility
+                audits = stats.audits[violation.state_id]
+                stats.labels[violation.violation_id] = observation_confidence(
+                    min(stats.hits.get(violation.violation_id, 0), audits), audits
+                ).label
             existing = {v.violation_id for v in previous}
             found = tuple(v for v in found if v.violation_id not in existing)
         for violation in found:
@@ -279,12 +300,22 @@ def build_graph(
         frontier = list(state["frontier"])
         stats = deepcopy(state["dynamic"])
         if stats is not None:
-            frontier.sort(
-                key=lambda item: (
-                    item.depth,
-                    -priority(stats, item.from_state_id, item.action.action_id),
+            if config.ucb_frontier:
+                # Reorder only: BFS depth stays primary, UCB novelty ranks within it.
+                model = transition_model_from_stats(stats)
+                ordered: list[PendingAction] = []
+                for depth in sorted({item.depth for item in frontier}):
+                    ordered.extend(
+                        ucb_priority([item for item in frontier if item.depth == depth], model)
+                    )
+                frontier = ordered
+            else:
+                frontier.sort(
+                    key=lambda item: (
+                        item.depth,
+                        -priority(stats, item.from_state_id, item.action.action_id),
+                    )
                 )
-            )
         candidate = frontier.pop(0)
         base: dict[str, object] = {"frontier": frontier, "pending": candidate, "acted": False}
 
@@ -465,6 +496,9 @@ def build_graph(
                 to_state_id,
                 replay=False,
             )
+            stats.edge_labels[pair_key(candidate.from_state_id, candidate.action.action_id)] = (
+                candidate.action.label
+            )
         ports.graph.persist_edge(
             StateEdge(
                 from_state_id=candidate.from_state_id,
@@ -519,6 +553,58 @@ def build_graph(
     return graph.compile(checkpointer=checkpointer or InMemorySaver())
 
 
+def learn_masks(
+    ports: Ports,
+    seed_url: str,
+    seed_bundle: CaptureBundle,
+    config: OrchestratorConfig,
+    stats: DynamicStats,
+    log: Logger,
+) -> OrchestratorConfig:
+    """Re-capture the seed, learn volatile regions, return a config that masks them.
+
+    Done once, before the first state id is minted: changing identity mid-run would
+    orphan visited `(state_id, action_id)` pairs. Learned regions are recorded in
+    `stats.masks`. Failures to re-open degrade to fewer samples, never to an error.
+    """
+    captures = [(seed_bundle.dom, seed_bundle.ax_tree)]
+    for _ in range(max(config.auto_mask_samples, 0) - 1):
+        try:
+            again = ports.crawler.open(seed_url)
+        except StateScoutError:
+            break
+        captures.append((again.dom, again.ax_tree))
+    if ports.network is not None:
+        ports.network.drain()  # re-captures are not caused by a click
+    if len(captures) < 2:
+        return config
+    known = set(config.volatility_patterns)
+    learned: list[str] = []
+    for suggestion in suggest_masks(captures):
+        if suggestion.pattern in known:
+            continue
+        try:
+            re.compile(suggestion.pattern)
+        except re.error:
+            continue
+        known.add(suggestion.pattern)
+        learned.append(suggestion.pattern)
+        stats.masks.append(
+            {
+                "path": suggestion.path,
+                "pattern": suggestion.pattern[:120],
+                "change_rate": suggestion.change_rate,
+                "samples": len(suggestion.samples),
+            }
+        )
+    log.emit("startup", "masks_learned", count=len(learned), captures=len(captures))
+    if not learned:
+        return config
+    return config.model_copy(
+        update={"volatility_patterns": (*config.volatility_patterns, *learned)}
+    )
+
+
 def explore(
     ports: Ports,
     seed_url: str,
@@ -559,11 +645,18 @@ def explore(
         )
 
     try:
+        dynamic = (
+            DynamicStats(network_available=ports.network is not None)
+            if config.probabilistic_states
+            else None
+        )
+        if dynamic is not None and config.auto_mask:
+            config = learn_masks(ports, seed_url, seed_bundle, config, dynamic, log)
         runner = build_graph(ports, policy, config, checkpointer, log)
         start_state = initial_state(run_id, seed_url, role=config.role)
         start_state["current_bundle"] = seed_bundle
-        if config.probabilistic_states:
-            start_state["dynamic"] = DynamicStats(network_available=ports.network is not None)
+        if dynamic is not None:
+            start_state["dynamic"] = dynamic
             if ports.network is not None:
                 ports.network.drain()
 

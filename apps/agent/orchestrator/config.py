@@ -75,6 +75,14 @@ class OrchestratorConfig(BaseSettings):
 
     probabilistic_states: bool = False
     volatility_patterns: tuple[str, ...] = ()
+    #: With `probabilistic_states`: learn volatile regions (tickers, clocks,
+    #: counters) from repeated seed captures and mask them out of state identity.
+    auto_mask: bool = False
+    #: Extra captures of the seed used to learn masks. Needs >= 2 to learn anything.
+    auto_mask_samples: int = Field(default=4, ge=0)
+    #: With `probabilistic_states`: order each depth's frontier by UCB novelty
+    #: (reorder only; never drops a pair).
+    ucb_frontier: bool = False
     replay_min_probability: float = Field(default=0.05, gt=0, le=1)
 
     role: Role = "guest"

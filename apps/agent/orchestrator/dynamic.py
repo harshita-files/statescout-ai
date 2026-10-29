@@ -12,7 +12,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Any, Protocol
 
 from apps.agent.contracts import Action, CaptureBundle, JSONValue
 from apps.agent.orchestrator.config import OrchestratorConfig
@@ -46,6 +46,14 @@ class DynamicStats:
         default_factory=lambda: {"ready": 0, "incomplete": 0, "unknown": 0}
     )
     network_available: bool = False
+    #: Per-violation `stable` / `flaky` / `insufficient_evidence` (Beta posterior).
+    labels: dict[str, str] = field(default_factory=dict)
+    #: Volatile regions learned and applied automatically (`auto_mask`).
+    masks: list[dict[str, Any]] = field(default_factory=list)
+    #: state_id -> {url, title, depth, screenshot}; for graph export.
+    nodes: dict[str, dict[str, Any]] = field(default_factory=dict)
+    #: pair_key -> action label; for graph export.
+    edge_labels: dict[str, str] = field(default_factory=dict)
 
 
 def pair_key(source: str, action: str) -> str:
