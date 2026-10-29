@@ -62,7 +62,7 @@ log = logging.getLogger(__name__)
 _PENDING_STATE_ID = "PENDING-STATE-ID-SEE-ADR-001-C3"
 
 #: Used only when no provider/model is injected and no env override is set.
-_DEFAULT_MODEL = "gemini-2.5-flash"
+_DEFAULT_MODEL = "gemini-3.6-flash"
 
 _PROMPT_TEMPLATE = """You are assisting a UI auditing tool. Below is a screenshot of a web \
 application state, plus a list of interactive elements already extracted \

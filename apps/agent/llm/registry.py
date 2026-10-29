@@ -20,8 +20,8 @@ _DEFAULT_MODELS: dict[str, dict[str, list[str]]] = {
         "vlm": ["claude-sonnet-4-5", "claude-haiku-4-5"],
     },
     "gemini": {
-        "llm": ["gemini-2.5-flash", "gemini-2.5-pro"],
-        "vlm": ["gemini-2.5-flash", "gemini-2.5-pro"],
+        "llm": ["gemini-3.6-flash"],
+        "vlm": ["gemini-3.6-flash"],
     },
 }
 _BASE_URLS: dict[str, str] = {
