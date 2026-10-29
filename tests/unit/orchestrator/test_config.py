@@ -10,6 +10,7 @@ to prove a four-second wait is a test somebody eventually deletes.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -333,6 +334,9 @@ def test_build_ports_passes_the_role_through() -> None:
     assert 'data-role="admin"' in bundle.dom
 
 
-def test_build_ports_live_still_reports_missing_implementations() -> None:
+def test_build_ports_live_still_reports_missing_implementations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(sys.modules, "apps.agent.crawler", None)
     with pytest.raises(NotImplementedError):
         build_ports(config(), live=True)
