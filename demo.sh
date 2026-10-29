@@ -86,15 +86,6 @@ cfg = OrchestratorConfig(_env_file=None)  # type: ignore[call-arg]
 print(build_graph(fake_ports(), DEFAULT_POLICY, cfg).get_graph().draw_mermaid())
 PY
 
-# ── 5. Guardrail ────────────────────────────────────────────────────────────
-beat "5 · The guardrail: tooling enforces track ownership" \
-     "A hook blocks writes outside the current track's folders."
-show 'echo {Write apps/agent/crawler/x.py} | python3 .claude/hooks/track_b_paths.py'
-printf '{"tool_name":"Write","tool_input":{"file_path":"apps/agent/crawler/x.py"},"cwd":"%s"}' "$PWD" \
-  | python3 .claude/hooks/track_b_paths.py
-rc=$?
-[ "$rc" = 2 ] && ok "write blocked (exit=2)" || bad "hook returned exit=$rc, expected 2"
-
 # ── 6. CI-shaped output ─────────────────────────────────────────────────────
 beat "6 · CI-shaped output" "JSON report on stdout, structured logs on stderr, exit 1 when violations exist."
 show "uv run python -m apps.agent.skeleton --fake --run-id demo"

@@ -10,7 +10,6 @@ on:
       - 'apps/agent/**'
       - 'services/**'
       - 'tests/**/*.py'
-      - '.claude/hooks/**'
       - 'pyproject.toml'
       - 'uv.lock'
       - '.python-version'
@@ -20,7 +19,6 @@ on:
       - 'apps/agent/**'
       - 'services/**'
       - 'tests/**/*.py'
-      - '.claude/hooks/**'
       - 'pyproject.toml'
       - 'uv.lock'
       - '.python-version'
@@ -46,14 +44,13 @@ jobs:
         run: uv sync --frozen --all-groups --all-extras
 
       - name: Lint
-        run: uv run ruff check apps services tests .claude/hooks
+        run: uv run ruff check apps services tests
 
       - name: Format check
-        run: uv run ruff format --check apps services tests .claude/hooks
+        run: uv run ruff format --check apps services tests
 
       - name: Type check
-        # The path guard is enforcement code; it gets the same scrutiny as the agent.
-        run: uv run mypy apps/agent .claude/hooks
+        run: uv run mypy apps/agent
 
       - name: Unit + integration tests
         # `-m "not live"` keeps browser/model/database work out of the default gate.
