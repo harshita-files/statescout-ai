@@ -133,11 +133,12 @@ def test_extract_cdp_skips_empty_name() -> None:
     assert all(a.label != 'click ""' for a in collected)
 
 
-def test_extract_cdp_uses_backend_node_id_selector() -> None:
+def test_extract_cdp_uses_reload_stable_role_name_selector() -> None:
     collected: list[Action] = []
     _extract_actions(CDP_AX, collected)
     admin = next(a for a in collected if "Admin panel" in a.label)
-    assert "42" in admin.target
+    assert admin.target == "role=link[name=/^Admin panel$/] >> nth=0"
+    assert "42" not in admin.target  # CDP node ids do not survive a reload
 
 
 # ---------------------------------------------------------------------------

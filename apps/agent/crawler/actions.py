@@ -33,9 +33,7 @@ def launch_session(headless: bool = True, user_agent: str | None = None) -> Iter
             browser.close()
 
 
-def _perform_action(
-    page: Page, action: dict[str, Any], *, wait_network_idle: bool = True
-) -> None:
+def _perform_action(page: Page, action: dict[str, Any], *, wait_network_idle: bool = True) -> None:
     """Internal helper to actually run the Playwright commands."""
     action_type = action.get("type")
 

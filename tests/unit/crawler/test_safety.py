@@ -204,3 +204,13 @@ def test_real_browser_walls_and_filtering(server: str, tmp_path: Any) -> None:
     finally:
         c.close()
     assert {n.reason for n in c.blocked_notes()} == {"captcha", "rate_limit", "robots"}
+
+
+def test_cap_counts_distinct_urls_not_replays() -> None:
+    p = pol(max_pages=2)
+    for u in ("http://a.test/", "http://a.test/", "http://a.test/#tab", "http://a.test/b"):
+        assert p.check_navigation(u) is None
+        p.record_page(u)
+    assert p.pages == 2
+    assert p.check_navigation("http://a.test/") is None  # revisit is not a new page
+    assert p.check_navigation("http://a.test/c") == "cap"

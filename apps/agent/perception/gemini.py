@@ -109,7 +109,9 @@ class VLMPerception:
         provider: LLMProvider | None = None,
         model: str | None = None,
         client: Any = None,
+        dom_only: bool = False,
     ) -> None:
+        self._dom_only = dom_only
         self._provider = provider
         self._model = model
         self._client = client
@@ -141,7 +143,7 @@ class VLMPerception:
         """
         semantic_map = build_semantic_map(bundle, role, _PENDING_STATE_ID)
 
-        if bundle.screenshot_path is None:
+        if self._dom_only or bundle.screenshot_path is None:
             log.info("analyze(): no screenshot_path, skipping Gemini (DOM-only smoke test)")
             return semantic_map
 

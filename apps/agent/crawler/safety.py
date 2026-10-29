@@ -81,6 +81,7 @@ class SafetyPolicy:
         self._robots: dict[str, RobotFileParser | None] = {}
         self._last_request: dict[str, float] = {}
         self._pages = 0
+        self._seen_urls: set[str] = set()
         self._started: float | None = None
         self._start_origin: str | None = None
         self._notes: list[BlockedNote] = []
@@ -143,7 +144,11 @@ class SafetyPolicy:
                 self._start_origin = _origin(url)
             if self.same_origin_only and _origin(url) != self._start_origin:
                 return "offsite"
-            if self._pages >= self.max_pages or now - self._started > self.max_seconds:
+            over_time = now - self._started > self.max_seconds
+            new_page_over_cap = (
+                self._pages >= self.max_pages and url.split("#")[0] not in self._seen_urls
+            )
+            if over_time or new_page_over_cap:
                 return self.block(url, "cap")
             if not self.robots_allows(url):
                 return self.block(url, "robots")
@@ -163,9 +168,16 @@ class SafetyPolicy:
         if wait:
             self.sleeper(wait)
 
-    def record_page(self) -> None:
+    def record_page(self, url: str | None = None) -> None:
+        """Count a page. With `url`, only distinct URLs count (replays re-open pages)."""
         with self._lock:
-            self._pages += 1
+            if url is None:
+                self._pages += 1
+                return
+            key = url.split("#")[0]
+            if key not in self._seen_urls:
+                self._seen_urls.add(key)
+                self._pages += 1
 
     @property
     def pages(self) -> int:

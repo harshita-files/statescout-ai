@@ -97,6 +97,7 @@ def live_ports(
     probabilistic_states: bool = False,
     safety: SafetyPolicy | None = None,
     graph: str = "auto",
+    perception: PerceptionPort | None = None,
 ) -> Ports:
     """Real ports from the other tracks' modules.
 
@@ -106,6 +107,7 @@ def live_ports(
     Args:
         safety: optional crawl politeness/safety policy for the crawler.
         graph: "neo4j", "memory", or "auto" (Neo4j if reachable, else memory).
+        perception: optional perception override (default: Gemini-backed VLMPerception).
 
     Raises:
         NotImplementedError: while a required module cannot be imported. The
@@ -145,6 +147,6 @@ def live_ports(
     return Ports(
         crawler=crawler,
         network=crawler if probabilistic_states else None,
-        perception=_throttled(VLMPerception(), limiter),
+        perception=_throttled(perception or VLMPerception(), limiter),
         graph=_make_graph(graph),
     )

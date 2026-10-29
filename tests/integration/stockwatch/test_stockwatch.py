@@ -30,8 +30,9 @@ def _get(base: str, path: str, headers: dict[str, str] | None = None) -> tuple[i
 
 
 def _post(base: str, path: str, data: dict) -> dict:
-    req = urllib.request.Request(base + path, data=json.dumps(data).encode(),
-                                 headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(
+        base + path, data=json.dumps(data).encode(), headers={"Content-Type": "application/json"}
+    )
     with urllib.request.urlopen(req, timeout=5) as r:
         return json.loads(r.read())
 
@@ -42,8 +43,20 @@ def base() -> Iterator[str]:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
     proc = subprocess.Popen(
-        [sys.executable, str(APP / "server.py"), "--port", str(port), "--seed", "7",
-         "--tick-interval", "0", "--debug"], stdout=subprocess.PIPE, text=True)
+        [
+            sys.executable,
+            str(APP / "server.py"),
+            "--port",
+            str(port),
+            "--seed",
+            "7",
+            "--tick-interval",
+            "0",
+            "--debug",
+        ],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
     url = f"http://127.0.0.1:{port}"
     try:
         for _ in range(50):
@@ -71,8 +84,21 @@ def test_expected_json_schema() -> None:
 
 
 def test_pages_are_reachable(base: str) -> None:
-    for p in ["/markets", "/watchlist", "/portfolio", "/trade", "/news", "/news/1", "/settings",
-              "/admin", "/login", "/about", "/stock/NVDA", "/static/app.js", "/static/app.css"]:
+    for p in [
+        "/markets",
+        "/watchlist",
+        "/portfolio",
+        "/trade",
+        "/news",
+        "/news/1",
+        "/settings",
+        "/admin",
+        "/login",
+        "/about",
+        "/stock/NVDA",
+        "/static/app.js",
+        "/static/app.css",
+    ]:
         assert _get(base, p)[0] == 200, p
 
 

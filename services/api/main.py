@@ -130,11 +130,18 @@ async def lifespan(app: FastAPI):
     _injected = hasattr(app.state, "graph") and app.state.graph is not None
     if not _injected:
         redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
-        app.state.graph = GraphStore()
-        app.state.redis = redis_lib.from_url(redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
+        try:
+            app.state.graph = GraphStore()
+            app.state.redis = redis_lib.from_url(redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
+        except Exception as exc:  # Neo4j/Redis down: audits and the UI still work in memory.
+            logger.warning(
+                '"Neo4j/Redis unavailable (%s); legacy /scan routes disabled"', type(exc).__name__
+            )
+            app.state.graph = None
+            app.state.redis = None
     logger.info('"StateScout API started"')
     yield
-    if not _injected:
+    if not _injected and app.state.graph is not None:
         app.state.graph.close()
     logger.info('"StateScout API shut down"')
 

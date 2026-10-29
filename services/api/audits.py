@@ -201,18 +201,40 @@ def default_runner(config: AuditConfig, ctx: RunContext) -> AuditReport:  # prag
     rules)``, ``live_ports(graph="memory", ...)`` and
     ``run_audit(config, ports, expectations, log, stop=..., progress=...)``.
     """
+    from apps.agent.crawler.safety import SafetyPolicy
     from apps.agent.llm.registry import build_provider
     from apps.agent.orchestrator.audit_runner import run_audit
     from apps.agent.orchestrator.deps import live_ports
+    from apps.agent.perception import VLMPerception
     from apps.agent.rules import generate_rules, parse_rules
 
     llm = build_provider(config.llm) if config.llm else None
+    # No VLM configured -> DOM-only perception (never silently falls back to a paid API).
+    perception = (
+        VLMPerception(provider=build_provider(config.vlm), dom_only=False)
+        if config.vlm
+        else VLMPerception(dom_only=True)
+    )
     texts: list[Any] = list(config.rules)
-    if config.auto_rules and not texts:
-        texts = list(generate_rules([config.url], llm))
+    if config.auto_rules:
+        generated = generate_rules([{"url": config.url, "text": _fetch_text(config.url)}], llm)
+        known = {getattr(t, "text", t) for t in texts}
+        texts += [r for r in generated if r.text not in known]
     expectations, parsed = parse_rules(texts, llm)
     config = dataclasses.replace(config, rules=tuple(parsed))
-    ports = live_ports(graph="memory", probabilistic_states=config.probabilistic)
+    safety = SafetyPolicy(
+        respect_robots=config.respect_robots,
+        requests_per_second=config.requests_per_second,
+        max_pages=config.max_states,
+        max_seconds=float(config.max_seconds),
+        allow_destructive=config.allow_destructive,
+    )
+    ports = live_ports(
+        graph="memory",
+        probabilistic_states=config.probabilistic,
+        safety=safety,
+        perception=perception,
+    )
     return run_audit(
         config, ports, expectations, ctx.log, stop=ctx.stop.is_set, progress=ctx.progress
     )

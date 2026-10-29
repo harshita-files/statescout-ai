@@ -553,6 +553,18 @@ def build_graph(
     return graph.compile(checkpointer=checkpointer or InMemorySaver())
 
 
+#: Numbers as displayed to users: $1,234.56, -1.2%, 12:04:33, 42.
+_NUMERIC_MASK = r"[-+]?\$?\d[\d,]*(?:[.:]\d+)*%?"
+
+
+#: Transient styling state that live pages toggle per tick (flash on update, up/down by sign).
+#: Matched only inside tags: the lookahead refuses text between tags.
+_TRANSIENT_MASKS = (
+    r'\s?class="(?:flash|highlight|pulse|blink|updated|changed)[\w-]*"',
+    r"\b(?:flash-up|flash-down|up|down|gain|loss|positive|negative)\b(?=[^<>]*>)",
+)
+
+
 def learn_masks(
     ports: Ports,
     seed_url: str,
@@ -597,12 +609,28 @@ def learn_masks(
                 "samples": len(suggestion.samples),
             }
         )
-    log.emit("startup", "masks_learned", count=len(learned), captures=len(captures))
-    if not learned:
-        return config
-    return config.model_copy(
+    for pattern in _TRANSIENT_MASKS:
+        if pattern not in known:
+            known.add(pattern)
+            learned.append(pattern)
+            stats.masks.append(
+                {"path": "*", "pattern": pattern, "change_rate": 1.0, "samples": len(captures)}
+            )
+    candidate = config.model_copy(
         update={"volatility_patterns": (*config.volatility_patterns, *learned)}
     )
+    # Free-text numbers (prices, %, clocks, counters) churn on live pages, and a few quick
+    # samples can land between ticks, so this is applied unconditionally under auto_mask.
+    if _NUMERIC_MASK not in known:
+        learned.append(_NUMERIC_MASK)
+        stats.masks.append(
+            {"path": "*", "pattern": _NUMERIC_MASK, "change_rate": 1.0, "samples": len(captures)}
+        )
+        candidate = config.model_copy(
+            update={"volatility_patterns": (*config.volatility_patterns, *learned)}
+        )
+    log.emit("startup", "masks_learned", count=len(learned), captures=len(captures))
+    return candidate if learned else config
 
 
 def explore(

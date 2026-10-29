@@ -94,6 +94,11 @@ def _action_id(role: str, name: str, selector: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
+def _js_escape(text: str) -> str:
+    """Escape for a JS regex literal embedded in a Playwright role selector."""
+    return re.sub(r"[\\^$.*+?()\[\]{}|/]", lambda m: "\\" + m.group(0), text)
+
+
 def _extract_actions(node: Any, collected: list[Action]) -> None:
     """Walk one AX-tree node (recursive).  Handles both CDP flat and nested shapes."""
     if not isinstance(node, dict):
@@ -117,13 +122,9 @@ def _extract_actions(node: Any, collected: list[Action]) -> None:
     name = str(name_raw).strip()
 
     if role in _ACTIONABLE_ROLES and name:
-        backend_id = node.get("backendDOMNodeId")
-        if backend_id:
-            selector = f"[data-backend-node-id='{backend_id}']"
-        else:
-            selector = (
-                f"[aria-label='{name}'], [name='{name}'], [placeholder='{name}'], :text('{name}')"
-            )
+        # Role+name survives reloads (CDP node ids and injected attributes do not), which
+        # replays rely on. Exact match; nth=0 tolerates duplicates (they share an action_id).
+        selector = f"role={role}[name=/^{_js_escape(name)}$/] >> nth=0"
         kind = _KIND_MAP.get(role, "click")
         collected.append(
             Action(
@@ -449,7 +450,7 @@ class PlaywrightCrawler:
         """Count the page and record walls; walled pages are returned but not expanded."""
         if self._safety is None:
             return bundle
-        self._safety.record_page()
+        self._safety.record_page(bundle.url)
         if self._safety.check_bundle(bundle):
             self._walled = self._walled | {bundle.url}
         return bundle

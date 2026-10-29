@@ -12,9 +12,10 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from apps.agent.contracts import Action, CaptureBundle, JSONValue
+from apps.agent.graph.fingerprint import _normalize_ax
 from apps.agent.orchestrator.config import OrchestratorConfig
 
 
@@ -72,7 +73,7 @@ def identity(bundle: CaptureBundle, config: OrchestratorConfig) -> str:
             return {key: mask(item) for key, item in value.items()}
         return value
 
-    material = [config.role, bundle.url, mask(bundle.dom), mask(bundle.ax_tree)]
+    material = [config.role, bundle.url, mask(bundle.dom), mask(cast(JSONValue, _normalize_ax(bundle.ax_tree)))]
     return "eq-" + hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()
 
 
