@@ -34,6 +34,7 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
+from apps.agent.audit_models import BlockedNote
 from apps.agent.contracts import (
     Action,
     ActionError,
@@ -43,6 +44,7 @@ from apps.agent.contracts import (
 )
 from apps.agent.crawler.actions import execute_action, launch_session
 from apps.agent.crawler.capture import DEFAULT_OUTPUT_DIR, extract_page_state
+from apps.agent.crawler.safety import USER_AGENT, SafetyPolicy
 
 __all__ = ["PlaywrightCrawler"]
 
@@ -79,6 +81,11 @@ _KIND_MAP: dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _origin(url: str) -> str:
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}".lower()
 
 
 def _action_id(role: str, name: str, selector: str) -> str:
@@ -152,6 +159,9 @@ class PlaywrightCrawler:
             crawler.close()
     """
 
+    _safety: SafetyPolicy | None = None
+    _walled: frozenset[str] = frozenset()
+
     def __init__(
         self,
         role: Role = "guest",
@@ -159,7 +169,10 @@ class PlaywrightCrawler:
         output_dir: str = DEFAULT_OUTPUT_DIR,
         headless: bool = True,
         probabilistic_states: bool = False,
+        safety: SafetyPolicy | None = None,
     ) -> None:
+        self._safety = safety
+        self._walled: frozenset[str] = frozenset()
         # None means readiness was disabled or no outcome was reached.
         self.last_capture_ready: bool | None = None
         self._navigation_pending: tuple[int, set[int]] | None = None
@@ -194,7 +207,9 @@ class PlaywrightCrawler:
 
     def _start_session(self) -> None:
         if self._session_ctx is None:
-            self._session_ctx = launch_session(headless=self._headless)
+            self._session_ctx = launch_session(
+                headless=self._headless, user_agent=USER_AGENT if self._safety else None
+            )
             self._page = self._session_ctx.__enter__()
             if self._probabilistic_states:
                 for event, handler in self._listeners.items():
@@ -318,18 +333,22 @@ class PlaywrightCrawler:
         """
         self.last_capture_ready = None
         try:
+            self._gate(url)
             self._start_session()
             page = self._ensure_page()
             response = page.goto(url, wait_until="load", timeout=30_000)
             if response is None:
                 raise NavigationError(f"goto({url!r}) returned None")
+            if self._safety is not None and response.status == 429:
+                self._safety.block(url, "rate_limit")
+                raise NavigationError(f"blocked (rate_limit): {url}")
             if self._probabilistic_states:
                 self._wait_for_capture_ready()
             else:
                 with suppress(PlaywrightTimeoutError):
                     page.wait_for_load_state("networkidle", timeout=5_000)
             state = extract_page_state(page, url, self._output_dir)
-            return self._bundle(state)
+            return self._screen(self._bundle(state))
         except (NavigationError, ActionError):
             raise
         except PlaywrightTimeoutError as exc:
@@ -349,6 +368,10 @@ class PlaywrightCrawler:
         self.last_capture_ready = None
         try:
             page = self._ensure_page()
+            if action.kind == "navigate":
+                self._gate(action.target)
+            elif self._safety is not None:
+                self._gate(page.url)
             raw: dict[str, Any] = {
                 "type": action.kind,
                 "selector": action.target,
@@ -364,7 +387,7 @@ class PlaywrightCrawler:
             if not result.get("success"):
                 raise ActionError(f"execute_action failed: {result.get('error', 'unknown')}")
             state: dict[str, Any] = result.get("resulting_state") or {}
-            return self._bundle(state)
+            return self._screen(self._bundle(state))
         except (NavigationError, ActionError):
             raise
         except PlaywrightTimeoutError as exc:
@@ -386,13 +409,50 @@ class PlaywrightCrawler:
         if bundle.ax_tree:
             _extract_actions(bundle.ax_tree, collected)
 
+        if self._safety is not None and (bundle.url in self._walled or self._off_scope(bundle.url)):
+            return ()
+
         seen: set[str] = set()
         unique: list[Action] = []
         for a in collected:
             if a.action_id not in seen:
                 seen.add(a.action_id)
                 unique.append(a)
+        if self._safety is not None:
+            return self._safety.filter_actions(tuple(unique))
         return tuple(unique)
+
+    # ------------------------------------------------------------------
+    # Safety (no-ops when ``safety`` is None)
+    # ------------------------------------------------------------------
+
+    def blocked_notes(self) -> tuple[BlockedNote, ...]:
+        """Pages not crawled (robots, captcha, login/consent wall, cap, 429)."""
+        return self._safety.blocked_notes() if self._safety else ()
+
+    def _off_scope(self, url: str) -> bool:
+        s = self._safety
+        return bool(
+            s and s.same_origin_only and s._start_origin and _origin(url) != s._start_origin
+        )
+
+    def _gate(self, url: str) -> None:
+        """Pre-navigation checks: scope, caps, robots, then per-host rate limit."""
+        if self._safety is None:
+            return
+        reason = self._safety.check_navigation(url)
+        if reason:
+            raise NavigationError(f"blocked ({reason}): {url}")
+        self._safety.throttle(url)
+
+    def _screen(self, bundle: CaptureBundle) -> CaptureBundle:
+        """Count the page and record walls; walled pages are returned but not expanded."""
+        if self._safety is None:
+            return bundle
+        self._safety.record_page()
+        if self._safety.check_bundle(bundle):
+            self._walled = self._walled | {bundle.url}
+        return bundle
 
     def close(self) -> None:
         """Release the browser. Safe to call more than once."""

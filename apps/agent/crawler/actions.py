@@ -18,11 +18,14 @@ from apps.agent.crawler.capture import DEFAULT_OUTPUT_DIR, extract_page_state
 
 
 @contextmanager
-def launch_session(headless: bool = True) -> Iterator[Page]:
+def launch_session(headless: bool = True, user_agent: str | None = None) -> Iterator[Page]:
     """Context manager that yields a Playwright Page object."""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
-        context = browser.new_context(viewport={"width": 1280, "height": 800})
+        ctx_args: dict[str, Any] = {"viewport": {"width": 1280, "height": 800}}
+        if user_agent:
+            ctx_args["user_agent"] = user_agent
+        context = browser.new_context(**ctx_args)
         page = context.new_page()
         try:
             yield page
