@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from apps.agent.contracts import Action, CaptureBundle, NavigationError
+from apps.agent.contracts import Action, ActionError, CaptureBundle, NavigationError
 from apps.agent.crawler.playwright_crawler import PlaywrightCrawler
 from apps.agent.crawler.safety import SafetyPolicy
 
@@ -214,3 +214,40 @@ def test_cap_counts_distinct_urls_not_replays() -> None:
     assert p.pages == 2
     assert p.check_navigation("http://a.test/") is None  # revisit is not a new page
     assert p.check_navigation("http://a.test/c") == "cap"
+
+
+class _Hop(BaseHTTPRequestHandler):
+    other = ""
+
+    def do_GET(self) -> None:
+        body = (
+            f"<title>home</title><button onclick=\"location='{self.other}/x'\">Leave</button>"
+            if self.server.server_port != int(self.other.rsplit(":", 1)[1])
+            else "<title>elsewhere</title><a href='/y'>deep</a>"
+        )
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html")
+        self.end_headers()
+        self.wfile.write(body.encode())
+
+    def log_message(self, *a: Any) -> None:
+        pass
+
+
+def test_click_that_lands_off_origin_is_refused_and_recorded(tmp_path: Any) -> None:
+    far = HTTPServer(("127.0.0.1", 0), _Hop)
+    near = HTTPServer(("127.0.0.1", 0), _Hop)
+    _Hop.other = f"http://127.0.0.1:{far.server_port}"
+    for s in (far, near):
+        threading.Thread(target=s.serve_forever, daemon=True).start()
+    c = PlaywrightCrawler(output_dir=str(tmp_path), safety=SafetyPolicy(requests_per_second=100))
+    try:
+        home = c.open(f"http://127.0.0.1:{near.server_port}/")
+        leave = next(a for a in c.enumerate_actions(home) if "Leave" in a.label)
+        with pytest.raises((NavigationError, ActionError)):
+            c.act(leave)
+        assert "offsite" in {n.reason for n in c.blocked_notes()}
+    finally:
+        c.close()
+        far.shutdown()
+        near.shutdown()

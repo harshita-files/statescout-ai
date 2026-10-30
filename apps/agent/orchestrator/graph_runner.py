@@ -58,6 +58,7 @@ from __future__ import annotations
 import re
 import sys
 import time
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import replace
 from typing import Literal, cast
@@ -124,7 +125,9 @@ def recursion_limit(config: OrchestratorConfig) -> int:
 
 
 def _terminal_reason(
-    state: ExplorationState, config: OrchestratorConfig
+    state: ExplorationState,
+    config: OrchestratorConfig,
+    should_stop: Callable[[], bool] | None = None,
 ) -> TerminationReason | None:
     """The `while` head of `explore.py`, verbatim.
 
@@ -132,6 +135,8 @@ def _terminal_reason(
     `frontier_exhausted` even when the state cap has been reached, because the
     run genuinely finished rather than being cut short.
     """
+    if should_stop is not None and should_stop():
+        return "stopped"  # a stop request or deadline ends the run now; no draining
     if not state["frontier"]:
         return "frontier_exhausted"
     if len(state["seen"]) >= config.max_states:
@@ -145,6 +150,7 @@ def build_graph(
     config: OrchestratorConfig,
     checkpointer: BaseCheckpointSaver[str] | None = None,
     log: Logger | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> Runner:
     """Compile the loop. Ports, policy, and config are closed over — never
     imported by the nodes, and never stored in the checkpointed state."""
@@ -531,14 +537,14 @@ def build_graph(
     # -- edges ------------------------------------------------------------
 
     def route(state: ExplorationState) -> Route:
-        if _terminal_reason(state, config) is not None:
+        if _terminal_reason(state, config, should_stop) is not None:
             return "terminal"
         return "violated" if state["verdict"] == "violated" else "clean"
 
     def route_after_act(state: ExplorationState) -> AfterAct:
         if state["acted"]:
             return "progressed"
-        return "terminal" if _terminal_reason(state, config) is not None else "skipped"
+        return "terminal" if _terminal_reason(state, config, should_stop) is not None else "skipped"
 
     graph: StateGraph[ExplorationState, None, ExplorationState, ExplorationState] = StateGraph(
         ExplorationState
@@ -656,6 +662,7 @@ def explore(
     run_id: str | None = None,
     log: Logger | None = None,
     checkpointer: BaseCheckpointSaver[str] | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> ExplorationResult:
     """Crawl breadth-first from `seed_url`, auditing every state once.
 
@@ -694,7 +701,7 @@ def explore(
         )
         if dynamic is not None and config.auto_mask:
             config = learn_masks(ports, seed_url, seed_bundle, config, dynamic, log)
-        runner = build_graph(ports, policy, config, checkpointer, log)
+        runner = build_graph(ports, policy, config, checkpointer, log, should_stop)
         start_state = initial_state(run_id, seed_url, role=config.role)
         start_state["current_bundle"] = seed_bundle
         if dynamic is not None:
@@ -717,7 +724,7 @@ def explore(
     finally:
         ports.crawler.close()
 
-    reason = _terminal_reason(final, config) or "frontier_exhausted"
+    reason = _terminal_reason(final, config, should_stop) or "frontier_exhausted"
     log.emit(
         "shutdown",
         "finished",

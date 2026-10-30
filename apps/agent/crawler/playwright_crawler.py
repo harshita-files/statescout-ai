@@ -496,6 +496,11 @@ class PlaywrightCrawler:
         """Count the page and record walls; walled pages are returned but not expanded."""
         if self._safety is None:
             return bundle
+        if self._off_scope(bundle.url):
+            # A click landed on another origin (links we could not resolve to an href):
+            # scope, not a finding. Record it and do not expand or count the page.
+            self._safety.block(bundle.url, "offsite")
+            raise NavigationError(f"blocked (offsite): {bundle.url}")
         self._safety.record_page(bundle.url)
         if self._safety.check_bundle(bundle):
             self._walled = self._walled | {bundle.url}

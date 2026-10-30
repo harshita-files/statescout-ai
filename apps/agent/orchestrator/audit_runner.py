@@ -59,13 +59,18 @@ class _Tap:
         if self._progress is not None:
             self._progress({"phase": phase, **self.counts, **fields})
 
-    def is_visited(self, state_id: str, action_id: str) -> bool:
+    def should_stop(self) -> bool:
+        """True once a stop was requested or the time budget is spent (sticky)."""
         if not (self.stopped or self.timed_out):
             if self._stop is not None and self._stop():
                 self.stopped = True
             elif time.monotonic() > self._deadline:
                 self.timed_out = True
-        if self.stopped or self.timed_out:
+        return self.stopped or self.timed_out
+
+    def is_visited(self, state_id: str, action_id: str) -> bool:
+        # Fallback only: the loop itself ends on `should_stop` before queued pairs drain.
+        if self.should_stop():
             return True
         return bool(self._inner.is_visited(state_id, action_id))
 
@@ -312,7 +317,13 @@ def run_audit(
         config = replace(config, rules=tuple(rules))
     try:
         result: ExplorationResult = explore(
-            wrapped, config.url, expectations, orch, run_id=audit_id, log=log
+            wrapped,
+            config.url,
+            expectations,
+            orch,
+            run_id=audit_id,
+            log=log,
+            should_stop=tap.should_stop,
         )
     except Exception as exc:
         return AuditReport(
