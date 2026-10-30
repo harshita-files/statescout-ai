@@ -7,7 +7,9 @@ model carries none, and ``api_key`` keys are stripped defensively.
 
 from __future__ import annotations
 
+import base64
 import dataclasses
+import hashlib
 import html
 import json
 import math
@@ -28,6 +30,37 @@ def _clean(obj: Any) -> Any:
     if isinstance(obj, (str, int, float, bool)) or obj is None:
         return obj
     return str(obj)
+
+
+IMAGE_SUFFIXES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
+_EMBED_MAX_BYTES = 400_000
+_EMBED_MAX_IMAGES = 12
+
+
+def shot_token(path: str) -> str:
+    """Opaque id for a screenshot path, so the API never exposes or accepts raw paths."""
+    return hashlib.sha256(path.encode()).hexdigest()[:16]
+
+
+def image_media_type(path: str) -> str | None:
+    """Media type for a servable screenshot file, else None (not an image / missing)."""
+    from pathlib import Path
+
+    p = Path(path)
+    return IMAGE_SUFFIXES.get(p.suffix.lower()) if p.is_file() else None
+
+
+def screenshot_paths(report: AuditReport) -> list[str]:
+    """Local screenshot files this audit references (findings + graph nodes)."""
+    raw = [f.screenshot for f in report.findings] + [
+        n.get("screenshot") for n in report.graph.get("nodes", []) if isinstance(n, dict)
+    ]
+    return sorted({r for r in raw if isinstance(r, str) and not r.startswith("data:")})
 
 
 def report_to_dict(report: AuditReport) -> dict[str, Any]:
@@ -232,19 +265,51 @@ h1{font-size:1.5rem}.muted{color:var(--mut)}table{border-collapse:collapse;width
 th,td{border-bottom:1px solid var(--bd);padding:8px;text-align:left;vertical-align:top}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:12px 0}
 .sev{color:#fff;border-radius:6px;padding:1px 8px;font-size:.8rem}svg.graph{width:100%;height:auto}
-img.shot{max-width:240px;border:1px solid var(--bd);border-radius:6px}
+img.shot,div.shot{width:240px;border:1px solid var(--bd);border-radius:6px}div.shot{height:150px;background-size:cover;background-position:top}
 """
+
+
+def _embed(path: str, embedded: dict[str, str]) -> str | None:
+    """CSS class of a small local screenshot, embedding each unique file only once."""
+    from pathlib import Path
+
+    if path in embedded:
+        return embedded[path]
+    media = image_media_type(path)
+    if media is None or len(embedded) >= _EMBED_MAX_IMAGES:
+        return None
+    p = Path(path)
+    if p.stat().st_size > _EMBED_MAX_BYTES:
+        return None
+    embedded[path] = f"s{len(embedded) + 1}"
+    return embedded[path]
+
+
+def _embed_css(embedded: dict[str, str]) -> str:
+    from pathlib import Path
+
+    rules = []
+    for path, cls in embedded.items():
+        data = base64.b64encode(Path(path).read_bytes()).decode()
+        rules.append(f".{cls}{{background-image:url(data:{image_media_type(path)};base64,{data})}}")
+    return "".join(rules)
 
 
 def to_html(report: AuditReport) -> str:
     e = html.escape
+    embedded: dict[str, str] = {}
     rows = []
     for f in report.findings:
         shot = ""
         if f.screenshot and f.screenshot.startswith("data:image/"):
             shot = f'<br><img class="shot" alt="screenshot" src="{e(f.screenshot, quote=True)}">'
         elif f.screenshot:
-            shot = f'<br><span class="muted">screenshot: {e(f.screenshot)}</span>'
+            cls = _embed(f.screenshot, embedded)
+            if cls:
+                shot = f'<br><div class="shot {cls}" role="img" aria-label="screenshot of the page"></div>'
+            else:
+                name = f.screenshot.replace("\\", "/").rsplit("/", 1)[-1]
+                shot = f'<br><span class="muted">screenshot not embedded: {e(name)}</span>'
         ev = "".join(f"<li>{e(x)}</li>" for x in f.evidence)
         rows.append(
             f'<tr><td><span class="sev" style="background:{SEV_COLOR.get(f.severity, "#555")}">'
@@ -276,7 +341,7 @@ def to_html(report: AuditReport) -> str:
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>StateScout report</title><style>{_CSS}</style></head><body>"
+        f"<title>StateScout report</title><style>{_CSS}{_embed_css(embedded)}</style></head><body>"
         f"<h1>StateScout audit</h1><p>{e(report.url)}<br><span class='muted'>"
         f"{e(report.audit_id)} &middot; {e(report.status)} &middot; {stats}</span></p>{err}"
         f"<h2>Violations ({len(report.findings)})</h2>"

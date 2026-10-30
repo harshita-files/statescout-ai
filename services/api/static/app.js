@@ -197,6 +197,19 @@
   }
 
   // ---- findings --------------------------------------------------------
+  // Screenshots need the API key header, which <img src> cannot send: fetch, then blob URL.
+  const shotCache = new Map();
+  function shotImg(url, title) {
+    const img = el("img", { class: "shot", alt: "Screenshot for " + title, loading: "lazy" });
+    if (!shotCache.has(url)) {
+      shotCache.set(url, api(url).then((r) => r.blob()).then((b) => URL.createObjectURL(b)));
+    }
+    shotCache.get(url).then(
+      (obj) => { img.src = obj; img.title = "Click to open full size"; img.addEventListener("click", () => window.open(obj, "_blank", "noopener")); },
+      () => { img.replaceWith(el("span", { class: "note" }, "screenshot unavailable")); shotCache.delete(url); }
+    );
+    return img;
+  }
   function renderFindings(rep) {
     const tb = $("#vtable tbody"); tb.replaceChildren(); $("#blocked").replaceChildren();
     if (!rep) return;
@@ -225,7 +238,8 @@
         const t4 = el("td"); const ul = el("ul"); f.evidence.slice(0, 4).forEach((x) => ul.appendChild(el("li", {}, short(x, 140)))); t4.appendChild(ul); tr.appendChild(t4);
         const t5 = el("td");
         if (f.screenshot && f.screenshot.startsWith("data:image/")) t5.appendChild(el("img", { class: "shot", alt: "Screenshot for " + f.title, src: f.screenshot }));
-        else if (f.screenshot) t5.appendChild(el("span", { class: "note" }, f.screenshot));
+        else if (f.screenshot && f.screenshot.startsWith("/audits/")) t5.appendChild(shotImg(f.screenshot, f.title));
+        else t5.appendChild(el("span", { class: "note" }, "no screenshot"));
         tr.appendChild(t5); tb.appendChild(tr);
         tr.addEventListener("mouseenter", () => highlight(f.state_id));
       });

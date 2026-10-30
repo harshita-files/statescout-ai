@@ -34,7 +34,7 @@ from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from apps.agent.audit_models import AuditConfig, AuditReport, Rule
@@ -511,7 +511,36 @@ def create_router(deps: ApiDeps | None = None) -> APIRouter:
 
     @router.get("/audits/{audit_id}", tags=["audits"])
     def get_audit(audit_id: str) -> Any:
-        return report_mod.report_to_dict(mgr.get(audit_id).current_report())
+        rep = mgr.get(audit_id).current_report()
+        data = report_mod.report_to_dict(rep)
+        servable = {p for p in report_mod.screenshot_paths(rep) if report_mod.image_media_type(p)}
+
+        def url_for(path: Any) -> Any:
+            if not isinstance(path, str) or path.startswith("data:"):
+                return path
+            if path in servable:
+                return f"/audits/{audit_id}/screenshots/{report_mod.shot_token(path)}"
+            return None  # not a servable image: never expose a raw local path
+
+        for f in data.get("findings", []):
+            f["screenshot"] = url_for(f.get("screenshot"))
+        for n in data.get("graph", {}).get("nodes", []):
+            if isinstance(n, dict) and "screenshot" in n:
+                n["screenshot"] = url_for(n["screenshot"])
+        return data
+
+    @router.get("/audits/{audit_id}/screenshots/{token}", tags=["audits"])
+    def audit_screenshot(audit_id: str, token: str) -> FileResponse:
+        """Serve one of THIS audit's own screenshots; anything else is a 404."""
+        rep = mgr.get(audit_id).current_report()
+        by_token = {report_mod.shot_token(p): p for p in report_mod.screenshot_paths(rep)}
+        path = by_token.get(token)
+        media = report_mod.image_media_type(path) if path else None
+        if path is None or media is None:
+            raise HTTPException(404, "screenshot not found")
+        return FileResponse(
+            path, media_type=media, headers={"Cache-Control": "private, max-age=3600"}
+        )
 
     @router.get("/audits/{audit_id}/events", tags=["audits"])
     def audit_events(audit_id: str) -> StreamingResponse:
