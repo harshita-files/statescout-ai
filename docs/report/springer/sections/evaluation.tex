@@ -1,0 +1,376 @@
+\section{Evaluation}
+\label{sec:eval}
+
+\subsection{Questions, Subject and Arms}
+
+We ask five questions, all at fixture level.
+\begin{description}
+\item[RQ1] (a) Do the production audit and the ground truth agree under oracle
+perception? (b) What does the exploration loop do: how many pairs does it execute,
+what does replay cost, are revisit edges kept, and what happens when a
+side-effecting step or a crash is injected?
+\item[RQ2] How does the match between policy vocabulary and perception output
+affect accuracy, and do the errors of a real channel and of perturbed perceivers
+follow Proposition~\ref{prop:asym}?
+\item[RQ3] Is the required-absent operation necessary? (Answered in the Table~\ref{tab:rq2} row ``$\mathcal R$ dropped'': an absence cannot intersect anything.)
+\item[RQ4] Does $\phi$ keep volatile noise out, and which targeted edits does it
+fail to separate?
+\item[RQ5] On programmatic variants of the fixture, per mutant family, how do the
+arms behave, and what do two hand-written invariant scripts, one reading the tag
+encoding and one independent of it, achieve?
+\end{description}
+
+\paragraph{Subject and arms.}
+\texttt{broken-admin} (Sect.~\ref{sec:example}) is a static six-page application
+audited as role \texttt{guest}; its ground-truth files list four planted
+violations (V-01 to V-04) and four named cycles. The policy has three forbidden
+clauses and one required clause. V-03 lies three actions from the seed (index,
+login, dashboard, admin). A violation is the triple (page, clause, clause type),
+scored against the planted triples. Table~\ref{tab:arms} lists the arms. The
+oracle arms use a fake perceiver that reads the \texttt{data-tag} annotations in
+which the ground truth is itself written, so their agreement concerns clause logic
+and encoding, not perception. No arm uses a browser, Neo4j or Redis, and the AX
+tree is used only in the fingerprint tests.
+
+\begin{table}[tbp]
+\caption{Experimental arms. \emph{Prod.} is the production negation engine;
+\emph{fake} is the in-memory fake's own set algebra. RQ4 uses E2 and E8.}
+\label{tab:arms}
+\setlength{\tabcolsep}{2.5pt}
+\footnotesize
+\begin{tabular}{@{}llll@{}}
+\toprule
+Arm & Perception & Audit & RQ: JSON key \\
+\midrule
+A1 oracle, fake algebra & fake, reads \texttt{data-tag} & fake & 1a, 3: E1\_E3 \\
+A2 oracle, production & fake, reads \texttt{data-tag} & prod. & 1a,3: E6; 5: E9 \\
+A3 DOM channel & rule-based builder & prod. & 2: E1\_E3; 5: E9 \\
+A4 DOM + lexical & A3, hyphen as space & patched & 2: E1\_E3 \\
+A5 perturbed oracle & A2 maps, perturbed & prod. & 2: E7 \\
+A6 tag script & HTML parse of \texttt{data-tag} & hand-written & 5: E9 \\
+A7 loop & fake, scripted crawler & fake & 1b: E5, E11 \\
+A8 XPath script & element types, text & hand-written & 5: E10, E12--E14 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Environment and artifact.}
+The script \path{experiments/run_experiments.py} writes
+\path{data/experiments.json} (both under \path{docs/report/}), which records Python
+3.13.13, LangGraph 1.2.10 and repository commit \texttt{4487574} (the code
+under \texttt{apps/}, \texttt{tests/} and \texttt{test-apps/} was unmodified, but the
+stored flag \texttt{code\_tree\_clean\_vs\_head} is false because the E14 fixtures,
+an untracked folder under \texttt{tests/}, exist) and a map from each RQ to its keys. Seed 7 drives all
+randomised parts. The script, data file and E14 fixtures are not committed and no archived
+release exists.
+
+\subsection{RQ1: Audit Agreement and Loop Behaviour}
+\label{sec:rq1}
+
+\paragraph{(a) Agreement under oracle perception.}
+Both oracle arms report exactly the four planted triples (P, R and F1 of 1.00;
+Table~\ref{tab:rq2}, rows 1--2) and agree page by page. Arm A2 sends the fake's
+semantic maps through the production \texttt{negation.audit.audit}, so the
+production operators are exercised. It remains a consistency check: both arms read the ground truth's tag encoding, so
+a perfect score is close to guaranteed, and it is neither a perception measurement
+nor an end-to-end result.
+
+\paragraph{(b) The exploration loop.}
+We ran the LangGraph loop over a scripted crawler built from \texttt{app.json}
+with the fake perceiver and graph (A7); the framework-free reference loop gave
+identical counters and graph. Table~\ref{tab:loop} gives the counters.
+\begin{table}[tbp]
+\caption{Loop counters (A7); the 25 shuffles give identical counts. ``Dup.'': pairs
+executed as a frontier action more than once; ``replay/steps'': re-navigations and
+re-fired actions; ``revisits'': revisit edges. In the last row the
+login-to-dashboard step is a side-effecting action.}
+\label{tab:loop}
+\setlength{\tabcolsep}{3.5pt}
+\footnotesize
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Scenario & States & Pairs & Dup. & Replay/steps & Revisits & Skipped \\
+\midrule
+Uninterrupted; 25 link orders & 6 & 11 & 0 & 9/21 & 6 & 0 \\
+Login step \texttt{submit} or \texttt{fill} & 4 & 4 & 0 & 2/3 & 1 & 3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The uninterrupted run ends by frontier exhaustion, reaches all 6 states, persists
+all 11 transitions (5 tree edges, 6 revisit edges), finds all four planted
+violations and executes no pair twice as a frontier action; violation sets are
+also identical across link orders. Replay is nonetheless the dominant cost: 21
+re-fired actions for 11 frontier executions (1.91 per pair; the bound of
+Proposition~\ref{prop:term} is $11\cdot3=33$, with $D=3$ the observed maximum
+depth and a configured limit of 10), and \emph{index $\to$ login} is executed 10
+times, once as a frontier action and nine times as a replay prefix. With
+\texttt{click} counted as replay-safe, that is harmless only if clicks are
+navigational.
+
+Making the login step a \texttt{submit} or \texttt{fill} shows the other side of
+the rule: every candidate behind it has an unreplayable path and is skipped with a
+recorded reason, so 4 states are reached, 3 actions are skipped and one of four
+planted violations (V-01) is found. The rule trades coverage for safety.
+
+\paragraph{Crash and resume.}
+Proposition~\ref{prop:term} excludes crashes. We injected an exception in the
+\texttt{act} node right after a claim, and separately in the edge write, at each of
+the 11 claims (13 on the variant below), using LangGraph's in-memory checkpointer, and resumed in three ways:
+from the checkpoint with the same fake browser, from it with a fresh crawler that
+has opened no page, and with no checkpoint, only the persisted claim set, as a new
+run on the same graph (Table~\ref{tab:resume}). The fake action fails before it has
+any effect, so we count \emph{attempts}; whether an attempt had an effect in a real
+AUT is unknowable here.
+\begin{table}[tbp]
+\caption{Simulated crash and resume at 11 positions. ``Twice'': positions at which
+a claimed pair was attempted again after resume. ``Graph equal'': positions at which
+the final graph equals the uninterrupted run's (a shortfall means exploration was
+lost).}
+\label{tab:resume}
+\setlength{\tabcolsep}{3.5pt}
+\footnotesize
+\begin{tabular}{@{}llcc@{}}
+\toprule
+Resume mechanism & Crash point & Twice & Graph equal \\
+\midrule
+Checkpoint, same browser & action, after claim & 11/11 & 11/11 \\
+Checkpoint, fresh browser & action, after claim & 11/11 & 9/11 \\
+Checkpoint, same browser & edge write & 0/11 & 11/11 \\
+Checkpoint, fresh browser & edge write & 0/11 & 10/11 \\
+Claim set only, new run & action, after claim & 0/11 & 0/11 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+LangGraph documents that a resumed node restarts from its beginning and that side
+effects should be idempotent or wrapped in tasks \cite{langgraph2026durable}, so the
+mechanism is the framework's documented behaviour. The finding is the gap between
+it and the claim handling intended in Sect.~\ref{sec:model}: resuming the
+checkpoint re-runs the interrupted \texttt{act} node, which does not consult the
+claim set again, so the in-flight pair is attempted twice at all 11 positions; a
+crash after the action but before the edge is written is handled correctly. A
+browser that is not where the checkpoint says it is leaves the graph incomplete in
+3 of 22 cases. Restarting from the claim set alone never repeats a claimed pair
+but never continues either: every action of the seed is already claimed, so the
+new run claims no pair, visits one state, and leaves 0 to 10 of the 11 transitions
+persisted. That last result is specific to this fixture, whose seed has one
+action. On a variant with a second seed action (an \texttt{About} page; 7 states, 13
+pairs; E11) the checkpoint results are the same (13/13 attempted twice after a
+claim, 0/13 after an edge write), but a claim-set restart now continues through the
+seed action that was not yet claimed: with a crash at the first claim the new run
+executes 2 pairs, and from the second claim on it executes none, leaving 1 to 12
+of 13 transitions persisted. The positions share one mechanism and are not samples. Claim-before-execute thus gives at-most-once only in the
+second mode, and only by giving up completeness.
+
+\subsection{RQ2: Vocabulary Match, Perception Error and Error Direction}
+\label{sec:rq2}
+
+\begin{table}[tbp]
+\caption{Accuracy on \texttt{broken-admin} by arm, with errors split by clause type
+($\mathcal F$: forbidden-present, $\mathcal R$: required-absent). Genuine TP excludes
+a required-absent hit when the clause also fires on pages that carry the element:
+it then fires everywhere and the hit is a coincidence.}
+\label{tab:rq2}
+\setlength{\tabcolsep}{2.2pt}
+\footnotesize
+\begin{tabular}{@{}lccccccccc@{}}
+\toprule
+Arm & P & R & F1 & Gen.\ TP & FN$_\mathcal F$ & FP$_\mathcal F$ & FN$_\mathcal R$ & FP$_\mathcal R$\\
+\midrule
+A1 oracle, fake algebra & 1.00 & 1.00 & 1.00 & 4 & 0 & 0 & 0 & 0 \\
+A2 oracle, production & 1.00 & 1.00 & 1.00 & 4 & 0 & 0 & 0 & 0 \\
+A1, $\mathcal R$ dropped (RQ3: loses V-04) & 1.00 & 0.75 & 0.86 & 3 & 0 & 0 & 1 & 0 \\
+A3 DOM channel & 0.29 & 0.50 & 0.36 & 1 & 2 & 0 & 0 & 5 \\
+A4 DOM + lexical & 1.00 & 0.50 & 0.67 & 2 & 2 & 0 & 0 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{A vocabulary-mismatch case study.}
+Arm A3 builds the semantic map from the HTML with rule-based tagging
+(Table~\ref{tab:rq2}). Its precision of 0.29 and recall of 0.50 do not measure
+perception quality; they follow from an inconsistency inside the prototype. The
+policy subjects are \texttt{admin-link}, \texttt{debug-panel} and
+\texttt{skip-to-content}, but the tagger emits shorter tags for the admin link and
+the debug section and none equal to the skip subject. V-01 and V-02 are missed,
+and the skip clause fires on all six pages: five false positives and one
+\emph{coincidental} hit on V-04. Only V-03 is detected for the right reason, via
+the delete-user capability, so genuine recall is 0.25, not 0.50.
+
+Arm A4 normalises hyphens inside the matcher (in-process patch). It was designed
+after seeing A3's errors, on the same four items, so it is an exploratory
+diagnosis, not a test. It removes the five false positives, so V-04 is now detected
+for the right reason; V-01 and V-02 stay missed, because deciding that a link
+labelled ``Admin'' is an \texttt{admin-link} is a semantic judgement. Whether to rename the policy subjects or let perception read the annotations is an
+unresolved design decision, on which the end-to-end result depends.
+
+\paragraph{A falsifiable test of the error direction.}
+A3 and A4 err in the direction that Proposition~\ref{prop:asym} reads off for
+under-reporting, but since a vocabulary mismatch counts as under-reporting by
+definition, they cannot refute it. We therefore perturbed the oracle maps (A5):
+under-reporting drops each policy-relevant element with probability $p$,
+over-reporting adds each absent policy subject as a spurious element with
+probability $p$, and the production audit runs on every perturbed state
+(200 trials for $p=0.25$ and $0.5$, one deterministic run for $p=1$; E7). For example, at $p=0.5$ under-reporting gives on average 1.57 forbidden misses and 2.58 required false alarms, over-reporting 7.79 forbidden false alarms and 0.47 required misses.
+In all 802 runs, under-reporting produced no forbidden false positive and no
+required false negative, and over-reporting produced no forbidden false negative
+and no required false positive. This confirms that the engine is monotone and antitone as Eqs.~(\ref{eq:forb}) and~(\ref{eq:req}) require. It says nothing about how a real VLM errs.
+
+\subsection{RQ4: Fingerprint Noise and Targeted Edits}
+\label{sec:fp}
+
+Each page is re-rendered 50 times (seed 7) with fresh session and CSRF attributes,
+a generated id, a request id, a 13-digit timestamp and a CDP-shaped AX tree with new
+node ids. A naive hash of URL, DOM and AX JSON gives 300 distinct ids for six
+logical pages, $\phi$ gives 6. This is a regression check against noise $N$ was written to remove.
+
+The informative part is twelve targeted edits to the \texttt{admin} page. Eight
+change the id (removing or adding a button, renaming a label, swapping links,
+changing the URL query or an AX name, and, debatably, adding a \texttt{hidden}
+element or editing a comment). Four do not: a whitespace change (by design) and three content
+changes that fall inside the normaliser's patterns, namely a visible 10-digit
+number, a visible word with a \texttt{req\_} prefix, and an identifier-like
+\texttt{id} value (\texttt{user-1234}). Those three are over-merges: states that
+differ only in such content are audited once, which matters when a policy subject
+depends on that content (not the case here), and the patterns are broad. The
+hidden-element and comment edits show the opposite risk of over-splitting on pages
+with hidden or generated markup. We did not measure how often either occurs on
+real pages.
+
+
+\subsection{RQ5: Mutants, Baselines and Further Apps}
+\label{sec:rq5}
+
+We generated variants of \texttt{broken-admin} in memory (nothing is written to
+the test applications): all 24 applicable single operations (remove or add
+forbidden elements, remove or restore the skip link), 40 seeded compound mutants,
+and label renames that keep the defects but change visible text. A generator
+ledger gives each variant's ground truth independently of the audit code. Two
+hand-written scripts, our own re-implementations and neither Crawljax nor ATUSA,
+serve as baselines. A6 reads \texttt{data-tag}, like the oracle arms. A8 does not:
+it has four invariants in the XPath subset of Python's ElementTree over element
+types, link targets and visible text (for instance, an \texttt{a} element whose
+text is ``Admin''), plus a 26-line shared HTML-to-tree helper. The authors knew the
+labels when writing it; it was written before its first run on stripped pages,
+which we state but cannot evidence, as the artifact has no history. Every variant
+is also run on a copy with the \texttt{data-tag} attributes removed.
+
+\begin{table}[tbp]
+\caption{Errors per mutant family, as FN$_\mathcal F$/FP$_\mathcal R$ summed over the
+family's $n$ variants (no arm produced FP$_\mathcal F$ or FN$_\mathcal R$ anywhere).
+``Planted'': forbidden/required violations in the family. A2 and A6 on intact
+tags make no error in any family, and A8 on stripped copies equals A8 on intact
+ones. A2s is the oracle perceiver run without its annotations (stripped copies),
+shown as a reference and not as a competitor. The label-rename row includes the
+combined variant, so its A8 totals double-count the singles.}
+\label{tab:mutants}
+\setlength{\tabcolsep}{3pt}
+\footnotesize
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Family & $n$ & Planted & A3 & A2s & A8 \\
+\midrule
+Remove planted forbidden & 3 & 6/3 & 4/15 & 6/15 & 0/0 \\
+Add forbidden element & 15 & 60/15 & 40/75 & 60/75 & 0/0 \\
+Remove or restore skip link & 6 & 18/10 & 12/26 & 18/26 & 0/0 \\
+Compound & 40 & 162/47 & 113/193 & 162/193 & 0/0 \\
+Label rename & 4 & 12/4 & 8/20 & 12/20 & 4/10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On the 64 shape-preserving variants A2, A6 and A8 report exactly the ledger and A3
+matches it on none. A2 and A6 agree because both read the tag spelling in which the
+mutants are written, so 64/64 shows consistency, not advantage. On unannotated pages
+the informative comparison is A3 against A8: a short label-based script beats the
+shipped DOM channel (stripped original fixture: A3 2 true and 5 false positives,
+A8 4 and 0), because A3's vocabulary does not match the policy subjects
+(Sect.~\ref{sec:rq2}). A8's exactness is not independent evidence, since the
+mutator inserts the label texts A8 was written against. When visible text changes
+it loses: of three independent renames, ``Admin'' and ``Delete user'' each cost A8
+one missed forbidden violation and ``Skip navigation'' makes the skip clause fire
+on five pages, while A2 and A6 are unaffected; tag-spelling renames (E9) are the
+mirror image. Each encoding fails where the other does not. The 68 variants
+rearrange the same six pages, so their counts are not independent samples.
+
+\paragraph{Three further apps.}
+The repository holds three more apps from the same project,
+\texttt{broken-rbac-demo}, \texttt{missing-consent-demo} and
+\texttt{broken-feature-flag-demo}: one to four static, unannotated pages and one
+documented defect each; we read them and modified nothing. Clauses and
+ground-truth triples were derived from each README sentence first (the ordering is
+an authorial statement the artifact cannot evidence), and the XPath invariants were
+written after reading the scored HTML, so A8's results are in-sample and say nothing
+about generalisation (E12). A8 finds all three defects with no false positive. A3,
+with README-derived subjects, finds only the consent one, vacuously: the clause
+fires on any page, since the tagger has no consent vocabulary, and still fires when
+a banner is inserted in memory; the consent row therefore does not discriminate for
+A8 either. A3 misses the other two for the vocabulary reason of RQ2; with subjects
+respelled in the tagger's vocabulary (post hoc) it finds both but also flags
+\texttt{admin.html}. The truth is narrower than the README text: the feature-flag
+policy sentence also names an analytics panel, which A8's exact-heading query
+misses (under a truth that includes it, A8 finds 1 of 2 and A3 0 of 2), and the RBAC
+dashboard leaks a delete button no clause covered.
+
+\paragraph{Four generated apps (E14).}
+Four apps (\texttt{shop-hub}, \texttt{med-clinic}, \texttt{hr-suite},
+\texttt{config-portal}; 7 unannotated pages each, three violations and clean-page
+lists each) were generated by an AI tool within the same project. They add variety
+and a more blind protocol, not independence. The A8 invariants were written from the
+policy files only, before opening any page, ground truth or README, and saved with
+their SHA-256 and a UTC timestamp (E14). The order is self-attested: the timestamp is
+a file time, all fixtures existed before it, and the hash shows only that the file
+was not edited afterwards. A3 uses the policy subjects verbatim, and nothing was
+changed after the results.
+
+The fixtures are weak. The ground truth is the generator's own assertion and is
+unvalidated. Six of the eight forbidden-violation pages have no inbound link, login
+pages link nowhere, and roles are nominal in static pages. Several clean-page labels
+contradict the policy wording or the HTML: the shop-hub admin clause speaks of a
+\emph{link} that exists nowhere; shop-3 holds app-wide through the Support link yet
+flags only the home page; med-3 lists \texttt{appointments.html} as clean although
+it lacks emergency information; cfg-3 lists \texttt{settings.html} as clean although
+it has an organisation field and a save button; and hr-3 flags the benefits page
+although the dashboard shows the status. False-positive counts are therefore only as
+meaningful as these lists.
+
+A3 finds none of the 8 forbidden violations. On required clauses it fires on every
+page, so its 4 hits are coincidental, with 19 false positives on listed clean pages
+and 33 hits on unlisted pages (neither truth nor clean, so not counted as false
+positives), because its vocabulary matches none of the subjects. A8 finds 3 of 8
+forbidden violations (checkout, staff-portal and team pages) with no false positive;
+it misses five, where the violation is a whole page reached without a link in the
+form it guessed or the label differs from its guess (``Run Payroll Calculation'').
+Its raw required tally is 3 of 4 with 4 false positives and 12 unlisted hits, but
+applying Table~\ref{tab:rq2}'s genuine-TP rule as for A3 removes two of the three
+hits (the clause also fires on listed pages that carry the element), and the third,
+on \texttt{config-portal}, is vacuous: no fixture page has an \texttt{id} attribute,
+so its \texttt{id} queries can never match. A8's genuine required recall is thus 0 of
+4 to 1 of 4, depending on how ``carry'' is read, and it misses the benefits-status
+violation because it tests for a link, not the status display. A8's invariants also
+carry page scope (``the home page'', ``not the login page'') that the engine lacks,
+which A3 cannot express. All of A8's false positives and 7 of A3's fall on the three
+double-negation clauses (``must not fail to find'', ``should never be unable to
+find''), encoded as required presence as the policy file does. A hand-written label
+script thus helps only where its author guessed the labels, a more modest result
+than on \texttt{broken-admin}.
+
+\subsection{Threats to Validity}
+\label{sec:threats}
+
+This is the single statement of the evidence's limits. \emph{External.} The
+evidence is one small, static, hand-built application with four planted defects
+and its variants, plus three tiny single-defect apps and four generated apps (untracked fixtures of weak soundness), all from the same project; it
+shows that the mechanisms behave as designed on these and is not independent
+validation. No genuinely independent subject and no real Crawljax-plus-ATUSA
+baseline were available; A8 is a partial, self-written substitute.
+\emph{Construct.} The oracle arms read the ground truth's own encoding; A3 and A4
+work on HTML with no AX tree; the loop experiments use fakes, and the crash test
+injects in-process exceptions with an in-memory checkpointer and a fake browser,
+so it probes loop logic and not Redis, Neo4j or Playwright behaviour. No
+browser-driven, VLM or hybrid result is reported. \emph{Internal.} The authors
+wrote the application, policy, tool, mutation operators and both baselines, knew
+the labels A8 queries on \texttt{broken-admin} (not on the E14 apps), and chose the rename variants; A4 was designed after
+inspecting A3's errors. \emph{Statistical.} Runs are deterministic or use one seed, without
+confidence intervals; positive counts are small.

@@ -11,9 +11,10 @@ field renames or type changes require cross-track coordination.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ---------------------------------------------------------------------------
 # Requests
@@ -28,6 +29,19 @@ class StartScanRequest(BaseModel):
     `project_id` instead. Exactly one of (url + policy) or project_id is required
     — enforced below, so a caller that omits both still gets a 422.
     """
+
+    probabilistic_states: bool = False
+    volatility_patterns: tuple[str, ...] = ()
+
+    @field_validator("volatility_patterns")
+    @classmethod
+    def _valid_patterns(cls, patterns: tuple[str, ...]) -> tuple[str, ...]:
+        for pattern in patterns:
+            try:
+                re.compile(pattern)
+            except re.error as exc:
+                raise ValueError(f"Invalid volatility pattern: {exc}") from exc
+        return patterns
 
     url: str = Field(
         default="",
@@ -201,6 +215,9 @@ class ViolationRecord(BaseModel):
 class ScanReportResponse(BaseModel):
     """Full report returned once a scan is completed."""
 
+    dynamic: dict[str, Any] | None = Field(
+        default=None, description="Probabilistic exploration statistics, when available."
+    )
     scan_id: str = Field(..., description="Scan run identifier")
     url_scanned: str = Field(..., description="The root URL that was crawled")
     policy: str = Field(..., description="The policy that was audited")

@@ -152,3 +152,71 @@ class TestRunScan:
                 stop_check=lambda: False,
             )
         assert graph_store.update_scan_status.call_args_list[-1].args[1] == "failed"
+
+
+@pytest.mark.parametrize("dynamic_kind", ["present", "none", "missing"])
+def test_dynamic_result_persistence_and_config(monkeypatch, dynamic_kind):
+    from dataclasses import asdict
+    from types import SimpleNamespace
+
+    from apps.agent.orchestrator.dynamic import DynamicStats
+
+    result = SimpleNamespace(
+        states=2,
+        edges=1,
+        visited_pairs=1,
+        violations=[],
+        skipped=[],
+        termination_reason="frontier_exhausted",
+        duration_ms=10,
+    )
+    if dynamic_kind != "missing":
+        result.dynamic = DynamicStats(audits={"s": 2}) if dynamic_kind == "present" else None
+    graph = MagicMock()
+    ports = MagicMock()
+    events = []
+    monkeypatch.setenv("STATESCOUT_PROBABILISTIC_STATES", "true")
+    with (
+        patch.object(runner, "build_scan_ports", return_value=(ports, {"mode": "live"})) as build,
+        patch("apps.agent.orchestrator.graph_runner.explore", return_value=result),
+        patch.object(runner, "set_visited_ttl"),
+    ):
+        options = (
+            {"probabilistic_states": True, "volatility_patterns": (r"nonce=\d+",)}
+            if dynamic_kind == "present"
+            else {}
+        )
+        runner.run_scan(
+            scan_id="scan-d",
+            seed_url="http://app.local",
+            policy_text="p",
+            role="guest",
+            graph_store=graph,
+            emit=_emit(events),
+            stop_check=lambda: False,
+            **options,
+        )
+    config = build.call_args.args[1]
+    assert config.probabilistic_states is (dynamic_kind == "present")
+    assert config.volatility_patterns == options.get("volatility_patterns", ())
+    if dynamic_kind == "present":
+        graph.persist_dynamic_report.assert_called_once_with("scan-d", asdict(result.dynamic))
+    else:
+        graph.persist_dynamic_report.assert_not_called()
+    graph.record_scan_result.assert_called_once()
+    assert events[-1][1] == "scan_completed"
+
+
+def test_build_scan_ports_preserves_network(mock_neo4j, fake_redis):
+    from apps.agent.orchestrator.config import OrchestratorConfig
+    from apps.agent.orchestrator.deps import Ports
+
+    live = Ports(
+        crawler=MagicMock(), perception=MagicMock(), graph=MagicMock(), network=MagicMock()
+    )
+    with patch("apps.agent.orchestrator.deps.build_ports", return_value=live):
+        ports, tags = runner.build_scan_ports("scan-network", OrchestratorConfig())
+    assert ports.network is live.network
+    assert ports.crawler is live.crawler
+    assert ports.graph is not live.graph
+    assert tags["mode"] == "live"

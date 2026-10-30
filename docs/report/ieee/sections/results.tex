@@ -1,0 +1,239 @@
+\section{Results and Discussion}
+\label{sec:eval}
+
+We ask four research questions:
+\begin{description}
+  \item[RQ1] Does the exploration loop reach every state, keep the graph
+    cyclic, avoid duplicate work, and report exactly the planted violations?
+  \item[RQ2] How does the perception channel's subject grounding affect audit
+    accuracy, and does the error follow \cref{prop:asym}?
+  \item[RQ3] Is the required-absent operation (\cref{eq:req}) necessary, or is
+    an intersection-only oracle enough?
+  \item[RQ4] Is the fingerprint $\phi$ stable under volatile content and still
+    sensitive to real UI changes?
+\end{description}
+
+
+
+\subsubsection{RQ1: End-to-end exploration}
+\label{sec:eval:rq1}
+
+We run the LangGraph loop on \texttt{broken-admin} with two stand-ins: an
+\emph{oracle perception} that reads the planted \texttt{data-tag} annotations,
+and a \emph{scripted crawler} generated from the application's
+\texttt{app.json}, not a live browser. This isolates exploration and audit
+logic from perception and browser behaviour. RQ1 therefore establishes the
+correctness of the loop and the audit algebra, not end-to-end accuracy. RQ2
+measures what happens when the oracle is removed. \Cref{tab:rq1} shows the results. The run
+ends by \emph{frontier exhaustion}, not by a cap. It finds all six states and
+records all 11 transitions, including 6 back-edges. The 11 executed
+$(v,a)$ pairs are exactly the 11 distinct claimed pairs, so there is no
+duplicate work. The four reported violations match the ground truth exactly,
+with no extras. Breadth with a single browser costs 9 path replays
+(21 replayed steps), a 1.9$\times$ overhead over the 11 executed actions,
+which is reported rather than hidden. The full suite (545 tests passing,
+4 skipped only because Neo4j and Redis were not running) checks these
+properties against both loop implementations.
+
+\begin{table}[t]
+\centering\small
+\caption{RQ1: end-to-end crawl of \texttt{broken-admin} (oracle perception).}
+\label{tab:rq1}
+\begin{tabular}{@{}lr@{}}
+\toprule
+Metric & Value \\
+\midrule
+Termination reason & frontier exhausted \\
+States discovered / expected & 6 / 6 \\
+Edges persisted (of which back-edges) & 11 (6) \\
+$(v,a)$ executed / distinct claimed & 11 / 11 \\
+Duplicate $(v,a)$ executions & 0 \\
+Path replays / replayed steps & 9 / 21 \\
+Actions skipped & 0 \\
+Violations found / planted & 4 / 4 \\
+Precision / recall & 1.00 / 1.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{RQ2: Perception grounding and error direction}
+\label{sec:eval:rq2}
+
+We keep the negation engine fixed and swap the perception channel on all six
+pages (\cref{tab:rq2}). The \emph{deterministic DOM channel} builds the
+Semantic UI Map from the HTML with rule-based tagging and no annotations. It
+reaches precision 0.29 and recall 0.50. The error pattern matches
+\cref{prop:asym}. The channel \emph{under-reports}: it grounds the admin link
+as the generic tag \texttt{admin} and the debug section as \texttt{debug}, not
+as the policy subjects \texttt{admin-link} and \texttt{debug-panel}. Both
+missed violations are therefore \textbf{forbidden-present false negatives}. The
+same under-reporting turns the required clause into \textbf{five
+required-absent false positives}: the link text ``Skip to content'' is never
+matched to the subject \texttt{skip-to-content}, so the clause fires on every
+page that does carry the link. The channel produces no forbidden false
+positives and no required false negatives, as the proposition predicts.
+
+The ablation \emph{+lexical grounding} normalizes hyphens and underscores in
+the matcher. It removes all five false positives (precision
+0.29$\to$1.00) but leaves recall at 0.50. The remaining misses are
+\emph{semantic}, not lexical: deciding that a link labelled ``Admin'' is an
+\texttt{admin-link}, or that a \texttt{<section>} whose heading reads
+``Debug'' is a \texttt{debug-panel}, requires the kind of judgement a VLM or a
+learned grounding model has to provide. This result pinpoints the research
+problem that remains: \emph{subject grounding} between the vocabulary of a
+policy and the vocabulary of a rendered interface.
+
+\begin{table}[t]
+\centering\small
+\caption{RQ2/RQ3: audit accuracy on \texttt{broken-admin} by perception
+channel and audit operator. $\text{FP}_\mathcal F/\text{FN}_\mathcal F$ and
+$\text{FP}_\mathcal R/\text{FN}_\mathcal R$ split errors by clause type.}
+\label{tab:rq2}
+\setlength{\tabcolsep}{2.4pt}\footnotesize
+\begin{tabular}{@{}lccccccc@{}}
+\toprule
+Configuration & P & R & F1 & $\text{FN}_\mathcal F$ & $\text{FP}_\mathcal F$ & $\text{FN}_\mathcal R$ & $\text{FP}_\mathcal R$\\
+\midrule
+Oracle, $\Forb\cup\Req$ & 1.00 & 1.00 & 1.00 & 0 & 0 & 0 & 0 \\
+Oracle, $\Forb$ only (RQ3) & 1.00 & 0.75 & 0.86 & 0 & 0 & 1 & -- \\
+DOM channel & 0.29 & 0.50 & 0.36 & 2 & 0 & 0 & 5 \\
+DOM + lexical grounding & 1.00 & 0.50 & 0.67 & 2 & 0 & 0 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  ybar, bar width=7pt, width=\columnwidth, height=4.6cm,
+  ymin=0, ymax=1.05, ylabel={score}, ylabel style={font=\scriptsize},
+  symbolic x coords={Oracle,F-only,DOM,DOM+lex},
+  xtick=data, tick label style={font=\scriptsize},
+  legend style={font=\scriptsize,at={(0.5,1.02)},anchor=south,legend columns=3,draw=none},
+  enlarge x limits=0.18]
+\addplot[fill=acc!70,draw=acc]   coordinates {(Oracle,1.00) (F-only,1.00) (DOM,0.286) (DOM+lex,1.00)};
+\addplot[fill=good!60,draw=good] coordinates {(Oracle,1.00) (F-only,0.75) (DOM,0.50) (DOM+lex,0.50)};
+\addplot[fill=mute!50,draw=mute] coordinates {(Oracle,1.00) (F-only,0.857) (DOM,0.364) (DOM+lex,0.667)};
+\legend{Precision,Recall,F1}
+\end{axis}
+\end{tikzpicture}
+\caption{Audit accuracy by configuration. Lexical grounding fixes precision
+(required-absent false alarms) but not recall (semantic grounding of
+forbidden subjects).}
+\label{fig:rq2}
+\end{figure}
+
+\subsubsection{RQ3: Is ``required absent'' necessary?}
+\label{sec:eval:rq3}
+Dropping $\Req$ and auditing with the intersection $S\cap\Forb$ alone keeps
+precision at 1.00 but loses V-04 (recall 0.75). No setting of the forbidden
+clauses can recover it, because an absence is not an element that can
+intersect anything. This is the empirical counterpart of the structural
+argument in \cref{sec:model}. Accessibility obligations, consent banners, and
+logout affordances are all required-absent properties.
+
+\subsubsection{RQ4: Fingerprint stability and sensitivity}
+\label{sec:eval:fp}
+We re-render each of the six pages 50 times and inject fresh per-request noise
+into every capture: \texttt{data-session}/\texttt{data-csrf} tokens, a
+generated hex \texttt{id}, a \texttt{data-request-id}, a 13-digit timestamp,
+and a CDP-shaped AX tree with new \texttt{nodeId}s. A naive hash of URL, DOM,
+and AX produces \textbf{300 distinct states} for 6 logical pages (one per
+load). $\phi$ produces exactly \textbf{6}, one per page (\cref{tab:fp}).
+Normalization does not over-merge: deleting the \emph{Delete user} button from
+the admin page changes its fingerprint, so a security-relevant difference
+still yields a distinct state.
+
+\begin{table}[t]
+\centering\small
+\caption{RQ4: distinct state ids over 50 noisy captures per page.}
+\label{tab:fp}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Page & naive hash & $\phi$ (normalized) \\
+\midrule
+\texttt{/index.html}            & 50 & 1 \\
+\texttt{/pages/login.html}      & 50 & 1 \\
+\texttt{/pages/register.html}   & 50 & 1 \\
+\texttt{/pages/dashboard.html}  & 50 & 1 \\
+\texttt{/pages/reports.html}    & 50 & 1 \\
+\texttt{/pages/admin.html}      & 50 & 1 \\
+\midrule
+Total (6 logical states) & 300 & 6 \\
+\multicolumn{2}{@{}l}{Real change (Delete button removed) detected?} & yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Threats to validity}
+\emph{External:} there is one small, static, hand-built application with four
+planted defects. The results show the mechanism works, not that it generalises,
+and \cref{sec:discussion} outlines a benchmark to address this.
+\emph{Construct:} RQ1 uses an oracle perception by design. RQ2 evaluates the
+deterministic channel on HTML without a live AX tree, and the VLM channel is
+implemented but not evaluated here. The RQ4 noise model covers known volatile
+patterns and not, for example, rotating advertisements or A/B variants.
+\emph{Internal:} the lexical-grounding ablation patches the matcher's normalizer in-process
+only. It measures an effect and is not a shipped change.
+
+\subsection{Discussion and Research Agenda}
+\label{sec:discussion}
+
+\paragraph{Subject grounding is the crux.}
+RQ2 shows that once exploration and the audit algebra are correct, accuracy
+depends on one mapping: from a policy \emph{subject} (``admin link'') to the
+elements and capabilities of a rendered state. Lexical normalization closes
+the easy half. The semantic half, deciding what an element \emph{is} and what
+it \emph{lets the user do}, is where a VLM earns its cost, and also where
+negation weakness and hallucination come in. \Cref{prop:asym} suggests
+evaluating grounding \emph{separately per polarity}. A single accuracy number
+hides whether a model fails in the direction that misses forbidden exposures
+or in the direction that raises false alarms on required ones.
+
+\paragraph{Proposed: three-valued, cross-checked verdicts.}
+Given the asymmetry, we propose extending the audit from $\{\textsf{clean},
+\textsf{violated}\}$ to a Kleene-style $\{\textsf{clean}, \textsf{violated},
+\textsf{indeterminate}\}$. The verdict is \textsf{indeterminate} when the
+deterministic DOM/AX channel and the VLM channel disagree on $\sigma\in\Sig(v)$.
+An indeterminate forbidden clause is escalated to a human with evidence from
+both channels and is never silently cleared. This turns the corollary of
+\cref{prop:asym} into a routing rule instead of a tuning problem.
+
+\paragraph{Scope predicates beyond roles.}
+Clauses are currently scoped by role only. The test application shows why this
+is not enough. ``Every \emph{signed-in} page must offer a logout control'' would
+fire on the login page, where a logout control is correctly absent. The fix is
+a page-scope predicate on clauses (for example, over URL patterns or state
+properties). In the limit, that means path-sensitive properties over the
+cyclic graph (``no state reachable from \emph{login} without authenticating
+exposes \texttt{delete-user}''). Such properties are exactly why back-edges
+must be kept.
+
+\paragraph{Replay safety beyond action kinds.}
+\Cref{prop:term} guarantees at-most-once per claimed pair, not per effect.
+Restricting replay to $\{\texttt{navigate},\texttt{click},\texttt{back}\}$
+excludes form fills and submissions, but it assumes that clicks are
+navigational. A one-click destructive control on a replay path violates that
+assumption. Candidate refinements are (i) classifying controls as mutating
+from their accessible name and capability tags before they are made
+replayable, (ii) snapshot-and-restore of the AUT between replays where the
+deployment allows it, and (iii) multi-browser exploration that parks one
+browser per frontier state, which reduces replay at the cost of memory.
+
+\paragraph{Cross-role differential auditing.}
+Because a role-gated element changes the DOM, and therefore the fingerprint,
+running \sys{} once per role yields one graph per role. Aligning these graphs
+by URL and action identity gives a \emph{differential} view (``what does a
+guest see at this URL that only an admin should?''). That view needs no
+hand-written forbidden list, and we plan to add it as a reporting-layer
+analysis.
+
+\paragraph{Towards a benchmark.}
+To move beyond one application, we propose \textsc{NegUI}, a benchmark of
+seeded applications. Each ships \texttt{app.json}, \texttt{policy.json}, and
+\texttt{violations.json}, and violations are stratified by clause type
+(forbidden-present vs.\ required-absent), by grounding difficulty (lexical,
+semantic, visual-only), and by depth. Planned seeds include the existing
+RBAC, feature-flag, and consent-banner demos in the repository. Scoring is
+exact-set agreement, reported per polarity.

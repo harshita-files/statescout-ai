@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRSuite - Payroll Calculation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        nav { background: #d32f2f; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        nav a { color: white; text-decoration: none; margin-right: 20px; font-size: 14px; }
+        nav a:hover { text-decoration: underline; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #d32f2f; }
+        .warning { background: #fff3cd; border-left: 4px solid #ff9800; padding: 10px; margin-bottom: 10px; }
+        input { padding: 8px; margin-right: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #d32f2f; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #b71c1c; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="pay-stubs.html">Pay Stubs</a>
+    </nav>
+
+    <div class="container">
+        <div class="warning">
+            Payroll Calculation System - Use with caution
+        </div>
+
+        <div class="card">
+            <h3>Payroll Processing</h3>
+            <p>Configure and execute payroll calculations.</p>
+        </div>
+
+        <div class="card">
+            <h3>Calculation Parameters</h3>
+            <p>
+                <label>Pay Period Start: </label>
+                <input type="date" value="2026-10-01">
+            </p>
+            <p>
+                <label>Pay Period End: </label>
+                <input type="date" value="2026-10-15">
+            </p>
+            <p>
+                <label>Include Overtime: </label>
+                <input type="checkbox">
+            </p>
+            <p>
+                <label>Tax Filing Status: </label>
+                <select style="padding: 8px;">
+                    <option>Single</option>
+                    <option>Married</option>
+                    <option>Head of Household</option>
+                </select>
+            </p>
+        </div>
+
+        <div class="card">
+            <h3>Execute Payroll</h3>
+            <p>Click the button below to trigger payroll calculation and disbursement for all employees.</p>
+            <button onclick="alert('Payroll processing initiated')">Run Payroll Calculation</button>
+        </div>
+
+        <div class="card">
+            <h3>Recent Runs</h3>
+            <p>Last calculated: Oct 15, 2026 - 247 employees processed</p>
+        </div>
+    </div>
+</body>
+</html>

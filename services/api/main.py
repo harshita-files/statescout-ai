@@ -130,11 +130,18 @@ async def lifespan(app: FastAPI):
     _injected = hasattr(app.state, "graph") and app.state.graph is not None
     if not _injected:
         redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
-        app.state.graph = GraphStore()
-        app.state.redis = redis_lib.from_url(redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
+        try:
+            app.state.graph = GraphStore()
+            app.state.redis = redis_lib.from_url(redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
+        except Exception as exc:  # Neo4j/Redis down: audits and the UI still work in memory.
+            logger.warning(
+                '"Neo4j/Redis unavailable (%s); legacy /scan routes disabled"', type(exc).__name__
+            )
+            app.state.graph = None
+            app.state.redis = None
     logger.info('"StateScout API started"')
     yield
-    if not _injected:
+    if not _injected and app.state.graph is not None:
         app.state.graph.close()
     logger.info('"StateScout API shut down"')
 
@@ -155,6 +162,24 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+# Product API + single-page UI (no Neo4j needed for these routes).
+from pathlib import Path  # noqa: E402
+
+from fastapi.responses import FileResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+from services.api.audits import create_router  # noqa: E402
+
+_STATIC = Path(__file__).parent / "static"
+app.include_router(create_router())
+app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def ui_index() -> FileResponse:
+    return FileResponse(_STATIC / "index.html")
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +326,8 @@ async def start_scan(
         policy_text=policy,
         role=role,
         graph_store=graph,
+        probabilistic_states=request_body.probabilistic_states,
+        volatility_patterns=request_body.volatility_patterns,
         emit=_emit,
         stop_check=lambda: scan_id in _STOP_FLAGS,
     )
@@ -481,8 +508,15 @@ async def get_scan_report(scan_id: str) -> ScanReportResponse:
         for v in raw_violations
     ]
 
+    dynamic = None
+    with contextlib.suppress(Exception):
+        stored = app.state.graph.get_dynamic_report(scan_id)
+        if isinstance(stored, dict):
+            dynamic = stored
+
     return ScanReportResponse(
         scan_id=scan_id,
+        dynamic=dynamic,
         url_scanned="",  # Month 3: query from PolicyContext node
         policy="",  # Month 3: query from PolicyContext node
         total_states=counts["states_explored"],

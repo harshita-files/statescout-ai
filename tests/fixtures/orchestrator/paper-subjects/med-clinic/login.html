@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedClinic - Patient Portal</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .login-container { max-width: 400px; margin: 100px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0052a3; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>MedClinic Patient Portal</h1>
+        <p>Please log in to access your medical records and appointments.</p>
+        <form>
+            <input type="text" placeholder="Patient ID or Email">
+            <input type="password" placeholder="Password">
+            <button onclick="location.href='dashboard.html'">Log In</button>
+        </form>
+    </div>
+</body>
+</html>

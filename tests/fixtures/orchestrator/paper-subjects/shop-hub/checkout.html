@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopHub - Checkout</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        nav { background: #f0f0f0; padding: 10px; margin-bottom: 20px; }
+        nav a { margin-right: 15px; text-decoration: none; color: #0066cc; }
+        a:hover { text-decoration: underline; }
+        .form-section { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; cursor: pointer; }
+        button:hover { background: #0052a3; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="cart.html">Back to Cart</a>
+    </nav>
+
+    <h1>Checkout</h1>
+
+    <div class="form-section">
+        <h3>Shipping Address</h3>
+        <input type="text" placeholder="Full Name">
+        <input type="text" placeholder="Street Address">
+        <input type="text" placeholder="City, State ZIP">
+    </div>
+
+    <div class="form-section">
+        <h3>Payment Method</h3>
+        <input type="text" placeholder="Card Number">
+        <input type="text" placeholder="Expiration Date">
+        <input type="text" placeholder="CVV">
+    </div>
+
+    <div class="form-section">
+        <button>Complete Purchase</button>
+    </div>
+</body>
+</html>

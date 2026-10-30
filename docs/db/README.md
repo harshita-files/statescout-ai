@@ -60,10 +60,8 @@ docs/db/
     └── migrations/001_init.sql            run_manifest, run_skip, views
 ```
 
-> **Location note.** These belong at `db/` in the repo root. They are in `docs/`
-> because the Track B path guard blocks writes outside Track B's directories and
-> `db/` is not on any allowlist. Moving them is a `git mv` plus one line in
-> `.claude/hooks/track_b_paths.py`.
+> **Location note.** These live in `docs/` for historical reasons; they can move to
+> `db/` at the repo root with a `git mv`.
 
 ## Applying them
 

@@ -96,6 +96,14 @@ class Neo4jGraph:
     def persist_violation(self, violation: Violation) -> None:
         self._store.persist_violation(violation)
 
+    def persist_dynamic_report(self, run_id: str, report: dict[str, object]) -> None:
+        """Persist an optional snapshot under the explicitly supplied run id."""
+        self._store.persist_dynamic_report(run_id, report)
+
+    def get_dynamic_report(self, run_id: str) -> dict[str, object] | None:
+        """Retrieve a dynamic snapshot; absent reports return None."""
+        return self._store.get_dynamic_report(run_id)
+
     # -- lifecycle --------------------------------------------------------
 
     def close(self) -> None:

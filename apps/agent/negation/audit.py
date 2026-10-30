@@ -12,7 +12,9 @@ The engine operates over both semantic element tags and capabilities.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 
+from apps.agent.audit_models import Rule
 from apps.agent.contracts import (
     ClauseType,
     Evidence,
@@ -172,3 +174,22 @@ def audit(
             )
 
     return tuple(violations)
+
+
+def audit_rules(
+    semantic_maps: Sequence[SemanticUIMap],
+    expectations: ExpectationSet,
+    rules: Sequence[Rule] = (),
+    texts: Mapping[str, str] | None = None,
+) -> tuple[Violation, ...]:
+    """Run ``audit`` per state, plus consistency/numeric/content/a11y rule checks.
+
+    Additive wrapper: ``audit`` itself is unchanged.
+    """
+    from apps.agent.negation.checks import check_rules
+
+    out: list[Violation] = []
+    for smap in semantic_maps:
+        out.extend(audit(smap, expectations))
+    out.extend(check_rules(rules, semantic_maps, texts))
+    return tuple(out)

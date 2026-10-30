@@ -1,0 +1,31 @@
+{
+  "violations": [
+    {
+      "page": "salary-view.html",
+      "role": "employee",
+      "expectation_id": "exp-hr-0",
+      "clause_type": "forbidden_present",
+      "description": "Salary information page displays annual salary data for all employees including James Rodriguez ($125k), Emily Zhang ($110k), and others"
+    },
+    {
+      "page": "payroll-calc.html",
+      "role": "employee",
+      "expectation_id": "exp-hr-2",
+      "clause_type": "forbidden_present",
+      "description": "Payroll calculation page provides 'Run Payroll Calculation' button enabling non-authorized employee to trigger payroll processing"
+    },
+    {
+      "page": "benefits.html",
+      "role": "employee",
+      "expectation_id": "exp-hr-3",
+      "clause_type": "required_absent",
+      "description": "Benefits page lacks display of current benefit enrollment status"
+    }
+  ],
+  "clean_pages": {
+    "exp-hr-0": ["login.html", "dashboard.html", "pay-stubs.html", "benefits.html", "payroll-calc.html", "team-directory.html"],
+    "exp-hr-1": ["pay-stubs.html", "dashboard.html"],
+    "exp-hr-2": ["login.html", "dashboard.html", "pay-stubs.html", "salary-view.html", "benefits.html", "team-directory.html"],
+    "exp-hr-3": ["dashboard.html", "pay-stubs.html", "team-directory.html"]
+  }
+}

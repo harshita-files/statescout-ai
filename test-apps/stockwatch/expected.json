@@ -1,0 +1,76 @@
+{
+  "app": "stockwatch",
+  "seed_recommended": 7,
+  "flaws": [
+    {
+      "id": "SW-01",
+      "description": "Guest role sees the Admin nav item and the Admin console with destructive 'Delete user' controls",
+      "page": "/markets, /admin",
+      "rule_text": "Guests must never see the Admin navigation item or any admin-only controls such as 'Delete user'.",
+      "severity": "critical"
+    },
+    {
+      "id": "SW-02",
+      "description": "Order ticket 'Market price' is 2% higher than the Markets table price for the same ticker",
+      "page": "/markets vs /trade?symbol=AAPL",
+      "rule_text": "The price shown for a ticker on the order ticket must equal the price shown for that ticker on the Markets page.",
+      "severity": "high"
+    },
+    {
+      "id": "SW-03",
+      "description": "Order endpoint accepts negative quantity and quantities exceeding available cash and reports 'Order filled'",
+      "page": "/trade, POST /api/order",
+      "rule_text": "An order with a negative quantity or a cost above available cash must be rejected with an error, never shown as a success.",
+      "severity": "critical"
+    },
+    {
+      "id": "SW-04",
+      "description": "Portfolio 'Total value' exceeds the sum of the holdings values by a phantom 1250.00",
+      "page": "/portfolio",
+      "rule_text": "The portfolio total value must equal the sum of the individual holdings values shown in the table.",
+      "severity": "high"
+    },
+    {
+      "id": "SW-05",
+      "description": "'Last updated' timestamp stops advancing after a few ticks while prices keep moving",
+      "page": "all pages (status bar), /api/quotes",
+      "rule_text": "A 'Last updated' timestamp must advance whenever the displayed live prices change.",
+      "severity": "medium"
+    },
+    {
+      "id": "SW-06",
+      "description": "Icon-only watchlist star buttons and the search submit button have no accessible name",
+      "page": "/markets, /watchlist, /stock/*",
+      "rule_text": "Every icon-only button must have an accessible name (aria-label, title or visible text).",
+      "severity": "medium"
+    },
+    {
+      "id": "SW-07",
+      "description": "Footer links to /legal/terms and /legal/privacy and the 2019 news archive return HTTP 404",
+      "page": "/legal/terms, /legal/privacy, /news/archive/2019",
+      "rule_text": "Every link in the page must lead to an existing page, not a 404 error.",
+      "severity": "medium"
+    },
+    {
+      "id": "SW-08",
+      "description": "No cookie consent banner, yet every page loads a tracking pixel that sets a persistent cookie",
+      "page": "all pages, /track.gif",
+      "rule_text": "A site that sets tracking cookies or calls tracking pixels must first show a cookie consent banner and obtain consent.",
+      "severity": "high"
+    },
+    {
+      "id": "SW-09",
+      "description": "% change sign contradicts the price change direction for TSLA and AMD",
+      "page": "/markets, /stock/TSLA, /stock/AMD",
+      "rule_text": "The sign of the percentage change must match the sign of the absolute price change shown for the same ticker.",
+      "severity": "high"
+    },
+    {
+      "id": "SW-10",
+      "description": "Flaky /api/quote (~20% of calls) fails or returns partial data; stock page shows 'NaN' / 'undefined'",
+      "page": "/stock/*, /api/quote",
+      "rule_text": "The page must never display 'NaN', 'undefined' or 'null' to the user; missing data must be handled gracefully.",
+      "severity": "medium"
+    }
+  ]
+}

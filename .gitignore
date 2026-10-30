@@ -6,3 +6,4 @@ __pycache__/
 .env
 node_modules/
 .claude/settings.local.json
+site/

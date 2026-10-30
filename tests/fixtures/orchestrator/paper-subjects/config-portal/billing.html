@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConfigHub - Billing</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f8f9fa; }
+        .header { background: #667eea; color: white; padding: 20px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+        nav { background: white; border-bottom: 1px solid #eee; margin-bottom: 20px; }
+        nav a { display: inline-block; padding: 15px 20px; text-decoration: none; color: #667eea; border-bottom: 3px solid transparent; }
+        nav a:hover { border-bottom-color: #667eea; }
+        .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f0f0f0; font-weight: 600; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        button { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Billing & Payment Methods</h1>
+        </div>
+    </div>
+
+    <nav>
+        <a href="home.html">Dashboard</a>
+        <a href="subscription.html">Subscription</a>
+        <a href="settings.html">Settings</a>
+        <a href="team.html">Team</a>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h3>Payment Methods</h3>
+            <p>Visa ending in 4242 - Expires 12/28</p>
+            <button>Update Payment Method</button>
+            <button>Add New Card</button>
+        </div>
+
+        <div class="card">
+            <h3>Billing Address</h3>
+            <p>456 Technology Drive</p>
+            <p>San Francisco, CA 94105</p>
+            <button>Edit Address</button>
+        </div>
+
+        <div class="card">
+            <h3>Invoice History</h3>
+            <table>
+                <tr>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+                <tr>
+                    <td>Jan 15, 2026</td>
+                    <td>$588.00</td>
+                    <td>Paid</td>
+                    <td><a href="#">Download</a></td>
+                </tr>
+                <tr>
+                    <td>Jan 15, 2025</td>
+                    <td>$588.00</td>
+                    <td>Paid</td>
+                    <td><a href="#">Download</a></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>Tax ID (Optional)</h3>
+            <input type="text" placeholder="VAT/Tax ID">
+            <button>Save</button>
+        </div>
+    </div>
+</body>
+</html>
