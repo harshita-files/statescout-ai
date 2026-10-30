@@ -112,6 +112,7 @@ class VLMPerception:
         dom_only: bool = False,
     ) -> None:
         self._dom_only = dom_only
+        self.degraded_calls = 0
         self._provider = provider
         self._model = model
         self._client = client
@@ -151,10 +152,12 @@ class VLMPerception:
             extra_capabilities = self._gemini_capabilities(
                 bundle.screenshot_path, semantic_map.elements
             )
-        except PerceptionError:
-            raise
-        except Exception as exc:  # pragma: no cover - defensive: never crash a crawl
-            raise PerceptionError(f"Gemini analyze() call failed: {exc}") from exc
+        except Exception as exc:
+            # A model outage or bad key must not abort a crawl: keep the deterministic
+            # map (still audited), count the miss so the report can say perception degraded.
+            self.degraded_calls += 1
+            log.warning("analyze(): VLM call failed, using DOM-only map (%s)", type(exc).__name__)
+            return semantic_map
 
         if not extra_capabilities:
             return semantic_map

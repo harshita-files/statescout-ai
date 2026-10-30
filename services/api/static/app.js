@@ -49,6 +49,7 @@
   const DEF_BASE = {};
   function provCfg(fs) {
     const provider = $(".p-provider", fs).value;
+    if (!provider) return null; // "None": built-in heuristics / DOM-only perception
     const model = $(".p-model", fs).value.trim();
     if (!model) return null;
     const c = { provider, model };
@@ -78,7 +79,9 @@
     $$(".prov").forEach((fs) => {
       const sel = $(".p-provider", fs);
       const names = state.providers.length ? state.providers.map((p) => p.name) : ["ollama", "gemini", "openai", "anthropic"];
+      sel.appendChild(el("option", { value: "" }, "None (built-in heuristics)"));
       names.forEach((n) => sel.appendChild(el("option", { value: n }, n)));
+      sel.value = "";
       sel.addEventListener("change", () => { $(".p-model", fs).value = ""; defaultModels(fs, sel.value); });
       defaultModels(fs, sel.value);
       $(".p-test", fs).addEventListener("click", async () => {
@@ -187,7 +190,10 @@
   function renderStats(rep) {
     const s = $("#stats"); s.replaceChildren();
     const items = { states: (rep.graph.nodes || []).length, transitions: (rep.graph.edges || []).length, violations: rep.findings.length, ...rep.stats };
-    for (const [k, v] of Object.entries(items)) { const sp = el("span"); sp.append(k + ": "); sp.appendChild(el("b", {}, String(v))); s.appendChild(sp); }
+    for (const [k, raw] of Object.entries(items)) {
+      const v = Array.isArray(raw) ? raw.length + " item(s)" : raw && typeof raw === "object" ? Object.keys(raw).length + " entries" : raw;
+      const sp = el("span"); sp.append(k + ": "); sp.appendChild(el("b", {}, String(v))); s.appendChild(sp);
+    }
   }
 
   // ---- findings --------------------------------------------------------
@@ -195,18 +201,34 @@
     const tb = $("#vtable tbody"); tb.replaceChildren(); $("#blocked").replaceChildren();
     if (!rep) return;
     if (!rep.findings.length) { const tr = el("tr"); const td = el("td", { colspan: 5 }, rep.status === "running" ? "Waiting for results..." : "No violations found."); tr.appendChild(td); tb.appendChild(tr); }
+    const SEV = { low: 0, medium: 1, high: 2, critical: 3 };
+    const groups = new Map();
     rep.findings.forEach((f) => {
-      const tr = el("tr");
-      const t1 = el("td"); t1.appendChild(el("span", { class: "sev " + f.severity }, f.severity)); tr.appendChild(t1);
-      tr.appendChild(el("td", {}, (f.confidence * 100).toFixed(0) + "%"));
-      const t3 = el("td"); t3.appendChild(el("strong", {}, f.title)); t3.appendChild(el("div", {}, f.rationale)); t3.appendChild(el("div", { class: "note" }, f.url)); tr.appendChild(t3);
-      const t4 = el("td"); const ul = el("ul"); f.evidence.forEach((x) => ul.appendChild(el("li", {}, x))); t4.appendChild(ul); tr.appendChild(t4);
-      const t5 = el("td");
-      if (f.screenshot && f.screenshot.startsWith("data:image/")) t5.appendChild(el("img", { class: "shot", alt: "Screenshot for " + f.title, src: f.screenshot }));
-      else if (f.screenshot) t5.appendChild(el("span", { class: "note" }, f.screenshot));
-      tr.appendChild(t5); tb.appendChild(tr);
-      tr.addEventListener("mouseenter", () => highlight(f.state_id));
+      const key = f.group_key || f.title + "|" + (f.evidence[0] || "");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(f);
     });
+    const short = (t, n) => (t.length > n ? t.slice(0, n) + "..." : t);
+    [...groups.values()]
+      .sort((x, y) => (SEV[y[0].severity] || 0) - (SEV[x[0].severity] || 0) || y.length - x.length)
+      .forEach((list) => {
+        const f = list.reduce((w, c) => ((SEV[c.severity] || 0) > (SEV[w.severity] || 0) ? c : w), list[0]);
+        const tr = el("tr");
+        const t1 = el("td"); t1.appendChild(el("span", { class: "sev " + f.severity }, f.severity)); tr.appendChild(t1);
+        tr.appendChild(el("td", {}, (Math.max(...list.map((x) => x.confidence)) * 100).toFixed(0) + "%"));
+        const t3 = el("td"); t3.appendChild(el("strong", {}, f.title));
+        if (list.length > 1) t3.appendChild(el("span", { class: "note" }, "  x" + list.length + " pages"));
+        t3.appendChild(el("div", {}, short(f.rationale, 240)));
+        const det = el("details"); det.appendChild(el("summary", { class: "note" }, list.length > 1 ? "Show all " + list.length + " pages" : f.url));
+        list.forEach((x) => det.appendChild(el("div", { class: "note" }, x.url)));
+        t3.appendChild(det); tr.appendChild(t3);
+        const t4 = el("td"); const ul = el("ul"); f.evidence.slice(0, 4).forEach((x) => ul.appendChild(el("li", {}, short(x, 140)))); t4.appendChild(ul); tr.appendChild(t4);
+        const t5 = el("td");
+        if (f.screenshot && f.screenshot.startsWith("data:image/")) t5.appendChild(el("img", { class: "shot", alt: "Screenshot for " + f.title, src: f.screenshot }));
+        else if (f.screenshot) t5.appendChild(el("span", { class: "note" }, f.screenshot));
+        tr.appendChild(t5); tb.appendChild(tr);
+        tr.addEventListener("mouseenter", () => highlight(f.state_id));
+      });
     rep.blocked.forEach((b) => $("#blocked").appendChild(el("div", { class: "blk" }, (BLOCK_TEXT[b.reason] || b.reason) + ": " + b.url)));
     if (rep.error) $("#blocked").appendChild(el("div", { class: "blk" }, "Error: " + rep.error));
   }

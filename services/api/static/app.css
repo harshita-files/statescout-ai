@@ -6,7 +6,7 @@ body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-appl
 .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:var(--panel);padding:8px;z-index:9}
 .top{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;padding:16px;max-width:1280px;margin:auto}
 .top h1{margin:0;font-size:1.5rem}.top h1 span{color:var(--acc)}.sub{margin:0;color:var(--mut);flex:1}
-.layout{display:grid;grid-template-columns:minmax(300px,440px) 1fr;gap:16px;max-width:1280px;margin:auto;padding:0 16px 32px}
+.layout{display:grid;grid-template-columns:minmax(300px,440px) minmax(0,1fr);gap:16px;max-width:1280px;margin:auto;padding:0 16px 32px}
 @media(max-width:900px){.layout{grid-template-columns:1fr}}
 .panel{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
 h2{font-size:1.05rem;margin:0 0 8px}h3{font-size:.95rem;margin:18px 0 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
@@ -41,7 +41,8 @@ fieldset{border:1px solid var(--bd);border-radius:10px;padding:8px 10px 12px;min
 #graph .node.sel{stroke:var(--fg)}#graph text{fill:var(--mut);font-size:10px;text-anchor:middle;pointer-events:none}
 .tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--bd);border-radius:8px;padding:4px 8px;font-size:.78rem;max-width:260px;box-shadow:0 2px 8px #0003}
 .tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:.88rem}
-th,td{border-bottom:1px solid var(--bd);padding:8px;text-align:left;vertical-align:top}th{color:var(--mut);font-weight:600}
+th,td{border-bottom:1px solid var(--bd);padding:8px;text-align:left;vertical-align:top}
+td:nth-child(n+3){overflow-wrap:anywhere}th:nth-child(-n+2),td:nth-child(-n+2){white-space:nowrap}th{color:var(--mut);font-weight:600}
 .sev{display:inline-block;padding:1px 8px;border-radius:6px;font-size:.75rem;font-weight:700;color:#fff}
 .sev.critical{background:#b42318}.sev.high{background:#d9480f}.sev.medium{background:#b7791f}.sev.low{background:#2f6fb0}
 .shot{max-width:120px;border-radius:6px;border:1px solid var(--bd)}

@@ -45,3 +45,38 @@ def test_no_key_raises_perception_error(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     with pytest.raises(PerceptionError):
         VLMPerception().complete_text("x")
+
+
+def test_provider_outage_degrades_to_dom_only_instead_of_aborting(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from apps.agent.contracts import CaptureBundle
+    from apps.agent.llm.base import ProviderConfig, ProviderError
+    from apps.agent.perception.gemini import VLMPerception
+
+    class Down:
+        config = ProviderConfig(provider="ollama", model="llava")
+
+        def complete(self, *a, **k):  # type: ignore[no-untyped-def]
+            raise ProviderError("cannot reach localhost:11434")
+
+        def list_models(self) -> list[str]:
+            return []
+
+        def ping(self) -> bool:
+            return False
+
+    shot = tmp_path / "s.png"
+    shot.write_bytes(b"\x89PNG\r\n")
+    perception = VLMPerception(provider=Down())
+    bundle = CaptureBundle(
+        url="http://a.test/",
+        dom="<html><body><a href='/x'>Admin</a></body></html>",
+        ax_tree={
+            "role": "RootWebArea",
+            "name": "p",
+            "children": [{"role": "link", "name": "Admin"}],
+        },
+        screenshot_path=str(shot),
+    )
+    ui_map = perception.analyze(bundle, "guest")
+    assert ui_map.elements  # the deterministic map survives
+    assert perception.degraded_calls == 1
