@@ -94,3 +94,18 @@ def test_generator_keeps_the_models_kind_when_text_is_not_a_known_check() -> Non
     sentence = "Guests must not see the admin link on any page"
     got = generate_rules(["page"], FakeLLM([_kinded(sentence, "absence")]))
     assert got[0].kind == "absence"
+
+
+def test_parser_does_not_let_the_model_reclassify_a_recognised_check() -> None:
+    """A 3B model answered 'presence / consent-banner' for the consent sentence, which made a
+    static page fail a required-element clause on every state."""
+    llm = FakeLLM([_clause("consent-banner")] * 3)
+    texts = [
+        "The site must show a cookie or privacy consent banner",
+        "Interactive controls must have an accessible label",
+        "Pages must not show broken-link or error content",
+    ]
+    exp, rules = parse_rules(texts, llm, "guest")
+    assert [r.kind for r in rules] == ["content", "a11y", "content"]
+    assert not exp.required and not exp.forbidden  # structured checks make no clauses
+    assert llm.calls == 0  # the deterministic classifier decided; the model was not asked

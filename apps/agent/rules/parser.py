@@ -318,7 +318,11 @@ def parse_rules(
         rule = item if isinstance(item, Rule) else Rule(rule_id=f"rule-{i}", text=item)
         if not rule.text.strip():
             continue
-        res = _via_llm(rule, llm) if llm is not None else None
+        # A sentence the deterministic classifier recognises as a structured check (consent,
+        # accessibility, NaN, totals...) is not the model's to reclassify: small models call
+        # these "presence" and turn them into must-exist clauses that fire on every page.
+        recognised = _infer_kind(" ".join(rule.text.split()).rstrip(".!")) is not None
+        res = _via_llm(rule, llm) if llm is not None and not recognised else None
         if res is None:
             res = _heuristic(rule, role)
         new, node, is_forb = res
