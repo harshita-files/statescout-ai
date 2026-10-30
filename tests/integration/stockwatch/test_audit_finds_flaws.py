@@ -134,6 +134,15 @@ def test_audit_finds_seeded_flaws(report: AuditReport) -> None:
         print(f"  missed {fid} ({n} raw findings): {desc}")
         for f in _by_rule(report, fid)[:3]:
             print(f"      unrelated hit: {f.url} {f.rationale[:140]}")
+    # Precision guard: the generic consistency check once reported other stocks' market caps and
+    # live bid/ask ticks as contradictions (100% confidence). StockWatch seeds no such flaw.
+    spurious = [
+        f
+        for f in report.findings
+        if "shows" in f.rationale
+        and ("elsewhere on the same page" in f.rationale or " in state eq-" in f.rationale)
+    ]
+    assert not spurious, [f"{f.url}: {f.rationale[:100]}" for f in spurious[:3]]
     assert len(detected) >= MIN_DETECTED
 
 

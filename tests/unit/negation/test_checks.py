@@ -10,15 +10,35 @@ def m(sid: str, summary: str = "", elements: tuple[UIElement, ...] = ()) -> Sema
 
 def test_consistency_ticker_mismatch() -> None:
     rule = Rule("c1", "t", kind="consistency", params={"subject": "AAPL"})
-    vs = check_rules([rule], [m("a", "AAPL $190.10"), m("b", "AAPL $191.00")])
+    vs = check_rules([rule], [m("a", "AAPL $190.10"), m("b", "AAPL $194.00")])
     assert len(vs) == 1 and vs[0].state_id == "b"
     assert "190.1" in vs[0].rationale and vs[0].evidence.text
 
 
-def test_consistency_generic_and_ok() -> None:
+def test_generic_consistency_flags_contradiction_within_one_page() -> None:
     rule = Rule("c1", "t", kind="consistency")
-    assert check_rules([rule], [m("a", "Total: $5.00"), m("b", "Total: $5.00")]) == ()
-    assert len(check_rules([rule], [m("a", "Total: $5.00"), m("b", "Total: $6.00")])) == 1
+    same = check_rules([rule], [m("a", "Total: $5.00\nTotal: $5.00")])
+    assert same == ()
+    vs = check_rules([rule], [m("a", "Total: $5.00\nTotal: $6.00")])
+    assert len(vs) == 1 and "total" in vs[0].rationale.lower()
+
+
+def test_generic_consistency_ignores_values_that_differ_between_pages() -> None:
+    """Different pages legitimately show different numbers (other stock, later tick)."""
+    rule = Rule("c1", "t", kind="consistency")
+    pages = [m("a", "Market cap $2,668.6"), m("b", "Market cap $2,511.7"), m("c", "Bid $187.91")]
+    assert check_rules([rule], pages) == ()
+
+
+def test_generic_consistency_tolerates_tick_drift_on_one_page() -> None:
+    rule = Rule("c1", "t", kind="consistency")
+    assert check_rules([rule], [m("a", "Price $187.91\nPrice $187.95")]) == ()
+
+
+def test_subject_consistency_uses_tolerance_across_pages() -> None:
+    rule = Rule("c1", "t", kind="consistency", params={"subject": "AAPL"})
+    assert check_rules([rule], [m("a", "AAPL $190.10"), m("b", "AAPL $190.30")]) == ()
+    assert len(check_rules([rule], [m("a", "AAPL $190.10"), m("b", "AAPL $194.00")])) == 1
 
 
 def test_numeric_negative() -> None:

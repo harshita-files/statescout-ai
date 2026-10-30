@@ -212,6 +212,14 @@ def _check_sum(
     return out
 
 
+#: Relative difference below which two readings of one value count as the same (live ticks).
+_TOLERANCE = 0.01
+
+
+def _close(a: float, b: float, tol: float) -> bool:
+    return abs(a - b) <= tol * max(abs(a), abs(b))
+
+
 _MODES = {"sign": _check_sign, "ticker": _check_ticker, "sum": _check_sum}
 
 
@@ -222,6 +230,7 @@ def check_consistency(
     if mode in _MODES:
         return _MODES[mode](rule, maps, texts)
     subject = str(rule.params.get("subject") or "").strip()
+    tol = float(rule.params.get("tolerance", _TOLERANCE))
     if subject:
         pair = re.compile(
             rf"(?P<label>{re.escape(subject)})\b[^\d\n$-]{{0,25}}\$?\s?(?P<num>{_NUM})", re.I
@@ -230,31 +239,39 @@ def check_consistency(
         pair = re.compile(
             r"(?P<label>[A-Za-z][A-Za-z0-9 ]{0,24}?)\s*[:\-]?\s*(?P<num>\$\s?\d[\d,]*(?:\.\d+)?)"
         )
-    seen: dict[str, tuple[float, str, str]] = {}  # label -> (value, state_id, snippet)
     out: list[Violation] = []
     reported: set[tuple[str, str]] = set()
+    # Explicit subject: the same named value is compared across pages. Without one, only a
+    # label that contradicts itself ON THE SAME PAGE counts: other pages legitimately show
+    # other entities (another stock's market cap) or a later tick of a live value.
+    seen: dict[str, tuple[float, str, str]] = {}  # key -> (value, state_id, snippet)
     for smap in maps:
         text = state_text(smap, texts)
+        if not subject:
+            seen = {}
         for m in pair.finditer(text):
-            label = " ".join(m.group("label").lower().split())
+            label = " ".join(m.group("label").lower().split()[-2:])
             val = _to_float(m.group("num"))
             if val is None or not label:
                 continue
             snip = _snippet(text, m.start(), m.end())
             if label not in seen:
                 seen[label] = (val, smap.state_id, snip)
-            elif seen[label][0] != val and (label, smap.state_id) not in reported:
-                reported.add((label, smap.state_id))
-                first = seen[label]
-                out.append(
-                    _v(
-                        rule,
-                        smap,
-                        re.sub(r"\W+", "-", label),
-                        f"'{label}' shows {val:g} here but {first[0]:g} in state {first[1]}.",
-                        Evidence(text=f"{snip} | vs ({first[1]}): {first[2]}"),
-                    )
+                continue
+            first = seen[label]
+            if _close(first[0], val, tol) or (label, smap.state_id) in reported:
+                continue
+            reported.add((label, smap.state_id))
+            where = f"in state {first[1]}" if subject else "elsewhere on the same page"
+            out.append(
+                _v(
+                    rule,
+                    smap,
+                    re.sub(r"\W+", "-", label),
+                    f"'{label}' shows {val:g} here but {first[0]:g} {where}.",
+                    Evidence(text=f"{snip} | vs ({first[1]}): {first[2]}"),
                 )
+            )
     return out
 
 
