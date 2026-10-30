@@ -30,11 +30,11 @@ pytestmark = pytest.mark.live
 
 APP = Path(__file__).resolve().parents[3] / "test-apps" / "stockwatch"
 FLAWS = json.loads((APP / "expected.json").read_text(encoding="utf-8"))["flaws"]
-# Measured floor (6/10), not the aspiration. Still missed: SW-02 (needs a /trade?symbol=...
-# state to compare against Markets), SW-03 (needs a POST order, which the crawler never
-# makes), SW-05 (needs time-ordered observations) and SW-10 (needs the flaky quote call to
-# fail at capture time).
-MIN_DETECTED = 6
+# Measured: 8/10 in 5 of 5 runs. The floor is 7 because SW-10 is a random 10%-per-load flaw:
+# with 20 reloads of the stock page the chance of seeing it is ~88% per audit, so it is
+# allowed to be missed occasionally without failing the test. Still undetected: SW-03 (needs
+# form submission) and SW-05 (needs time-ordered observations).
+MIN_DETECTED = 7
 #: `SW_TICK_INTERVAL=0` freezes prices (experiment: how much does live churn cost coverage?).
 TICK = (
     ["--tick-interval", os.environ["SW_TICK_INTERVAL"]] if "SW_TICK_INTERVAL" in os.environ else []

@@ -666,6 +666,7 @@ def explore(
     log: Logger | None = None,
     checkpointer: BaseCheckpointSaver[str] | None = None,
     should_stop: Callable[[], bool] | None = None,
+    close_crawler: bool = True,
 ) -> ExplorationResult:
     """Crawl breadth-first from `seed_url`, auditing every state once.
 
@@ -725,7 +726,8 @@ def explore(
             ),
         )
     finally:
-        ports.crawler.close()
+        if close_crawler:  # a caller that keeps probing afterwards closes it itself
+            ports.crawler.close()
 
     reason = _terminal_reason(final, config, should_stop) or "frontier_exhausted"
     log.emit(

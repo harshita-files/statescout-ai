@@ -154,6 +154,8 @@ class Caps(BaseModel):
     depth_limit: int = Field(default=3, ge=0, le=10)
     max_seconds: int = Field(default=300, ge=5, le=3600)
     requests_per_second: float = Field(default=1.0, gt=0, le=20)
+    resamples: int = Field(default=2, ge=0, le=10)
+    resamples_dynamic: int = Field(default=20, ge=0, le=60)
 
 
 class AuditRequest(BaseModel):
@@ -491,6 +493,8 @@ def create_router(deps: ApiDeps | None = None) -> APIRouter:
             depth_limit=body.caps.depth_limit,
             max_seconds=body.caps.max_seconds,
             requests_per_second=body.caps.requests_per_second,
+            resamples=body.caps.resamples,
+            resamples_dynamic=body.caps.resamples_dynamic,
             respect_robots=body.respect_robots,
             probabilistic=body.probabilistic,
         )

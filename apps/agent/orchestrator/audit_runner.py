@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import re
 import time
@@ -26,6 +27,11 @@ from apps.agent.orchestrator.deps import Ports
 from apps.agent.orchestrator.dynamic import DynamicStats, observe_transition, pair_key
 from apps.agent.orchestrator.export import export_graph
 from apps.agent.orchestrator.graph_runner import explore
+from apps.agent.orchestrator.probes import (
+    distinct_targets,
+    resample,
+    resample_violations,
+)
 from apps.agent.orchestrator.runlog import Logger
 from apps.agent.orchestrator.state import ExplorationResult
 
@@ -33,6 +39,15 @@ __all__ = ["run_audit"]
 
 Progress = Callable[[dict[str, Any]], None]
 Stop = Callable[[], bool]
+
+
+#: Most page reloads the resample phase may spend, whatever `resamples` says.
+RESAMPLE_CAP = 100
+
+
+def _close_quietly(crawler: Any) -> None:
+    with contextlib.suppress(Exception):  # releasing the browser must never fail a report
+        crawler.close()
 
 
 class _Tap:
@@ -326,8 +341,10 @@ def run_audit(
             run_id=audit_id,
             log=log,
             should_stop=tap.should_stop,
+            close_crawler=False,
         )
     except Exception as exc:
+        _close_quietly(ports.crawler)
         return AuditReport(
             audit_id=audit_id,
             url=config.url,
@@ -336,6 +353,23 @@ def run_audit(
             blocked=_blocked(ports.crawler),
             error=f"{type(exc).__name__}: {exc}",
         )
+
+    maps = list(observer.maps.values())
+    resampled: list[Violation] = []
+    rates: dict[str, float] = {}
+    try:
+        if config.resamples > 0 and not tap.should_stop():
+            observed = resample(
+                ports.crawler,
+                distinct_targets((m.state_id, m.url) for m in maps),
+                config.resamples,
+                dynamic_n=config.resamples_dynamic,
+                cap=RESAMPLE_CAP,
+                should_stop=tap.should_stop,
+            )
+            resampled, rates = resample_violations(rules, maps, observed)
+    finally:
+        _close_quietly(ports.crawler)  # explore() left it open for the probes above
 
     stats = result.dynamic or DynamicStats()
     # Fill graph metadata the dynamic path did not record (flag off).
@@ -347,10 +381,12 @@ def run_audit(
     for key, label in tap.stats.edge_labels.items():
         stats.edge_labels.setdefault(key, label)
 
-    maps = list(observer.maps.values())
+    for vid, rate in rates.items():
+        stats.confidence[vid] = rate
+        stats.labels[vid] = "stable" if rate >= 1.0 else "flaky"
     checked = check_rules(rules, maps, observer.texts, observer.markup)
     findings = _merge_findings(
-        [*result.violations, *checked],
+        [*result.violations, *checked, *resampled],
         stats,
         rules,
         expectations,

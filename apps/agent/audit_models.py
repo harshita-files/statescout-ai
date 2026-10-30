@@ -36,6 +36,10 @@ class AuditConfig:
     respect_robots: bool = True  # on by default; only owned/authorized sites should disable
     allow_destructive: bool = False
     probabilistic: bool = True
+    #: Extra loads of each kind of page after the crawl, to catch intermittent defects.
+    resamples: int = 2
+    #: Reloads for pages making background requests of their own (where flaky backends live).
+    resamples_dynamic: int = 20
     volatility_patterns: tuple[str, ...] = ()
 
 

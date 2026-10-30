@@ -364,6 +364,35 @@ class PlaywrightCrawler:
         except Exception as exc:
             raise NavigationError(str(exc)) from exc
 
+    def observe(self, url: str) -> tuple[str, str, str, tuple[str, ...]]:
+        """Lean reload for repeated observation: `(url, title, dom, background requests)`.
+
+        Same gating, navigation and readiness wait as `open`, but no screenshot, no
+        accessibility tree and no capture files, so it is cheap enough to repeat dozens of
+        times. The page is not walled/expanded: this is not a new state.
+        """
+        try:
+            self._gate(url)
+            self._start_session()
+            page = self._ensure_page()
+            self.drain()  # discard requests that predate this load
+            response = page.goto(url, wait_until="load", timeout=30_000)
+            if response is None:
+                raise NavigationError(f"goto({url!r}) returned None")
+            if self._safety is not None and response.status == 429:
+                self._safety.block(url, "rate_limit")
+                raise NavigationError(f"blocked (rate_limit): {url}")
+            if self._probabilistic_states:
+                self._wait_for_capture_ready()
+            else:
+                with suppress(PlaywrightTimeoutError):
+                    page.wait_for_load_state("networkidle", timeout=5_000)
+            return page.url, page.title(), page.content(), self.drain()
+        except NavigationError:
+            raise
+        except Exception as exc:
+            raise NavigationError(str(exc)) from exc
+
     def act(self, action: Action) -> CaptureBundle:
         """Execute *action* on the current page and capture what follows.
 
