@@ -38,8 +38,11 @@ def test_ollama_requests_set_an_explicit_context_window() -> None:
         OllamaProvider(cfg).complete("hi", images=(b"\x89PNG",))
     finally:
         srv.shutdown()
-    num_ctx = _Echo.bodies[0]["options"]["num_ctx"]
-    assert 4096 < num_ctx <= 32768  # above Ollama's 4096 default, below a VRAM-hungry value
+    options = _Echo.bodies[0]["options"]
+    assert 4096 < options["num_ctx"] <= 32768  # above Ollama's 4096 default, below a VRAM hog
+    # JSON-mode decoding on a small model can run on until the client times out (2 minutes
+    # per call); a generation cap makes it end.
+    assert 64 <= options["num_predict"] <= 4096
 
 
 class _Spy:

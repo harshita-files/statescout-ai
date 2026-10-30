@@ -10,6 +10,15 @@ from apps.agent.llm.base import ProviderConfig, ProviderError
 DEFAULT_BASE_URL = "http://localhost:11434"
 
 
+def _num_predict() -> int:
+    """Generation cap. Without one, JSON-mode decoding on a small model can run on until the
+    request times out. Our replies (rules, capability lists) are a few hundred tokens."""
+    try:
+        return max(64, int(os.environ.get("STATESCOUT_OLLAMA_NUM_PREDICT", "1024")))
+    except ValueError:
+        return 1024
+
+
 def _num_ctx() -> int:
     try:
         return max(2048, int(os.environ.get("STATESCOUT_OLLAMA_NUM_CTX", "8192")))
@@ -43,7 +52,7 @@ class OllamaProvider:
             "stream": False,
             # Ollama's default window is 4096 tokens: one screenshot plus an element list
             # overflows it (HTTP 400). Explicit, and small enough to leave VRAM for the model.
-            "options": {"num_ctx": _num_ctx()},
+            "options": {"num_ctx": _num_ctx(), "num_predict": _num_predict()},
         }
         if json_mode:
             body["format"] = "json"

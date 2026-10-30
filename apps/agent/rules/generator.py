@@ -131,6 +131,8 @@ _SYSTEM = (
 )
 
 
+_CHECK_KINDS = frozenset({"consistency", "numeric", "a11y", "content"})
+
 _MODAL = re.compile(
     r"\b(must|should|shall|never|always|ensure|verify|check|require[sd]?|cannot|not|no)\b", re.I
 )
@@ -159,13 +161,16 @@ def _from_llm(pages: Sequence[PageSummary], llm: LLMProvider) -> list[Rule] | No
                 if sev not in _SEVS or not isinstance(params, dict):
                     raise ValueError("bad severity/params")
                 text = str(it["text"]).strip()
-                if not params and it["kind"] in {"consistency", "numeric", "content"}:
-                    inferred = _infer_kind(text)  # fill the params the check needs
-                    if inferred and inferred[0] == it["kind"]:
-                        params = dict(inferred[1])
-                if it["kind"] == "content" and "require_pattern" in params and _is_consent(text):
+                kind = it["kind"]
+                # The model's kind label is unreliable (a 3B model called everything
+                # 'presence'). When the text is a recognised check, the text decides.
+                inferred = _infer_kind(text)
+                if inferred and inferred[0] in _CHECK_KINDS:
+                    kind = inferred[0]
+                    params = params or dict(inferred[1])
+                if kind == "content" and "require_pattern" in params and _is_consent(text):
                     params = {**params, "when_markup": TRACKER_MARKUP}
-                rules.append(Rule(f"gen-{i}", text, "generated", sev, it["kind"], params))
+                rules.append(Rule(f"gen-{i}", text, "generated", sev, kind, params))
             sentences = [r for r in rules if _is_policy_sentence(r.text)]
             if sentences:
                 return [

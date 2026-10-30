@@ -56,3 +56,41 @@ def test_parser_accepts_a_canonical_synonym_subject() -> None:
     llm = FakeLLM([_clause("logout")])
     exp, _ = parse_rules(["Users must always be able to sign out"], llm, "user")
     assert llm.calls == 1 and {n.subject for n in exp.required} == {"logout"}
+
+
+def _kinded(text: str, kind: str = "presence") -> str:
+    return json.dumps({"rules": [{"text": text, "kind": kind, "severity": "low", "params": {}}]})
+
+
+def test_generator_rederives_kind_from_text_instead_of_trusting_the_model() -> None:
+    """A 3B model labelled everything 'presence', which turns checks into 'must exist' clauses."""
+    from apps.agent.negation.checks import TRACKER_MARKUP
+
+    texts = [
+        "The site must show a cookie or privacy consent banner",
+        "Interactive controls must have an accessible label",
+        "Pages must not show broken-link or error content",
+    ]
+    llm = FakeLLM(
+        [
+            json.dumps(
+                {
+                    "rules": [
+                        {"text": t, "kind": "presence", "severity": "low", "params": {}}
+                        for t in texts
+                    ]
+                }
+            )
+        ]
+    )
+    by_text = {r.text: r for r in generate_rules(["page"], llm)}
+    consent = by_text[texts[0]]
+    assert consent.kind == "content" and consent.params.get("when_markup") == TRACKER_MARKUP
+    assert by_text[texts[1]].kind == "a11y"
+    assert by_text[texts[2]].kind == "content"
+
+
+def test_generator_keeps_the_models_kind_when_text_is_not_a_known_check() -> None:
+    sentence = "Guests must not see the admin link on any page"
+    got = generate_rules(["page"], FakeLLM([_kinded(sentence, "absence")]))
+    assert got[0].kind == "absence"

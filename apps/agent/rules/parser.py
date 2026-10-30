@@ -123,7 +123,9 @@ def _infer_kind(text: str) -> tuple[str, dict[str, Any]] | None:
         r"\b(price|total|amount|value|number|count|balance|view|page|across)\b", t
     ):
         return "consistency", {}
-    if re.search(r"\bbroken (link|image)|\b404\b|lead to an existing page", t):
+    if re.search(
+        r"\bbroken[- ](link|image)|\berror (content|page)|\b404\b|lead to an existing page", t
+    ):
         return "content", {"forbid_pattern": _NOT_FOUND_PATTERN}
     if re.search(r"\bconsent\b|\bcookie\b|\bbanner\b|tracking", t):
         return "content", {"require_pattern": _CONSENT_PATTERN}
