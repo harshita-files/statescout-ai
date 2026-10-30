@@ -56,8 +56,10 @@ def extract_page_state(
         except Exception as cdp_err:
             result["accessibility_tree"] = {"error": str(cdp_err)}
 
-        # Capture full-page screenshot
-        page.screenshot(path=screenshot_path, full_page=True)
+        # Viewport-sized by default: a full-page capture can be tens of thousands of pixels
+        # tall, which costs a VLM tens of thousands of tokens (or exhausts GPU memory).
+        full_page = os.environ.get("STATESCOUT_FULL_PAGE_SCREENSHOTS", "") == "1"
+        page.screenshot(path=screenshot_path, full_page=full_page)
         result["screenshot_path"] = screenshot_path.replace(os.sep, "/")
 
         # Save result JSON to captures folder

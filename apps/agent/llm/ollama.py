@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import os
+
 from apps.agent.llm._http import b64, request_json
 from apps.agent.llm.base import ProviderConfig, ProviderError
 
 DEFAULT_BASE_URL = "http://localhost:11434"
+
+
+def _num_ctx() -> int:
+    try:
+        return max(2048, int(os.environ.get("STATESCOUT_OLLAMA_NUM_CTX", "8192")))
+    except ValueError:
+        return 8192
 
 
 class OllamaProvider:
@@ -32,6 +41,9 @@ class OllamaProvider:
             "model": self.config.model,
             "messages": messages,
             "stream": False,
+            # Ollama's default window is 4096 tokens: one screenshot plus an element list
+            # overflows it (HTTP 400). Explicit, and small enough to leave VRAM for the model.
+            "options": {"num_ctx": _num_ctx()},
         }
         if json_mode:
             body["format"] = "json"

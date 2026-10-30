@@ -372,6 +372,9 @@ def run_audit(
         "finding_groups": _groups(findings),
         "deduplicated_rules": dropped,
     }
+    degraded = getattr(ports.perception, "degraded_calls", 0)
+    if isinstance(degraded, int) and degraded > 0:
+        report_stats["perception_degraded"] = degraded  # VLM calls that failed -> DOM-only
     if progress is not None:
         progress({"phase": "done", "status": status, **tap.counts})
     return AuditReport(

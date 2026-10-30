@@ -47,3 +47,17 @@ def test_run_audit_deadline_stops_promptly() -> None:
     assert report.status == "stopped"
     assert time.monotonic() - started < 5
     assert report.stats.get("skipped", 0) == 0
+
+
+def test_degraded_vlm_calls_are_reported_not_hidden() -> None:
+    """A VLM outage keeps the crawl alive, but the report must say perception degraded."""
+    from apps.agent.audit_models import AuditConfig
+    from apps.agent.orchestrator.audit_runner import run_audit
+
+    perception = FakePerception()
+    perception.degraded_calls = 7  # type: ignore[attr-defined]
+    ports = Ports(crawler=FakeCrawler(), perception=perception, graph=FakeGraph())
+    report = run_audit(
+        AuditConfig(url=LOGIN, auto_rules=False, probabilistic=False), ports, DEFAULT_POLICY
+    )
+    assert report.stats.get("perception_degraded") == 7

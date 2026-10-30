@@ -93,6 +93,26 @@ _CAPABILITY_HINTS = (
 )
 
 
+#: Elements listed in the capability prompt. A page can have hundreds (every table row's
+#: link); listing them all overflows small context windows and adds no signal.
+_MAX_PROMPT_ELEMENTS = 80
+
+
+def _prompt_elements(elements: tuple[UIElement, ...]) -> list[tuple[int, UIElement]]:
+    """Distinct (role, name) elements, tagged ones first, original index kept, capped."""
+    seen: set[tuple[str, str]] = set()
+    picked: list[tuple[int, UIElement]] = []
+    for i, e in sorted(enumerate(elements), key=lambda ie: (not ie[1].tags, ie[0])):
+        key = (e.role, e.name)
+        if key in seen:
+            continue
+        seen.add(key)
+        picked.append((i, e))
+        if len(picked) >= _MAX_PROMPT_ELEMENTS:
+            break
+    return sorted(picked, key=lambda ie: ie[0])
+
+
 class VLMPerception:
     """`PerceptionPort` backed by an injected `LLMProvider`, degrading gracefully.
 
@@ -181,7 +201,7 @@ class VLMPerception:
         provider = self._get_provider()
         element_list = "\n".join(
             f"{i}. role={e.role!r} name={e.name!r} tags={list(e.tags)}"
-            for i, e in enumerate(elements)
+            for i, e in _prompt_elements(elements)
         )
         prompt = _PROMPT_TEMPLATE.format(
             capability_hints="\n".join(f"- {hint}" for hint in _CAPABILITY_HINTS),
