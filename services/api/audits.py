@@ -35,7 +35,7 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from apps.agent.audit_models import AuditConfig, AuditReport, Rule
 from apps.agent.llm.base import ProviderConfig
@@ -133,6 +133,7 @@ def validate_url(url: str, *, allow_private: bool = False) -> str:
 
 
 class ProviderIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # a typo'd limit must fail, not silently default
     provider: Literal["ollama", "gemini", "openai", "anthropic"]
     model: str = Field(min_length=1, max_length=200)
     base_url: str | None = Field(default=None, max_length=500)
@@ -148,6 +149,7 @@ class ProviderIn(BaseModel):
 
 
 class Caps(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # a typo'd limit must fail, not silently default
     max_states: int = Field(default=40, ge=1, le=500)
     depth_limit: int = Field(default=3, ge=0, le=10)
     max_seconds: int = Field(default=300, ge=5, le=3600)
@@ -155,6 +157,7 @@ class Caps(BaseModel):
 
 
 class AuditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # a typo'd limit must fail, not silently default
     url: str
     rules: list[str] = Field(default_factory=list)
     auto_rules: bool = True
@@ -171,6 +174,7 @@ class ProviderTestRequest(ProviderIn):
 
 
 class GenerateRulesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # a typo'd limit must fail, not silently default
     url: str
     llm: ProviderIn | None = None
     allow_private: bool = False

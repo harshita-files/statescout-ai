@@ -255,3 +255,14 @@ def test_main_app_serves_ui_and_routes() -> None:
     assert c.get("/").status_code == 200
     paths = set(app.openapi()["paths"])
     assert {"/audits", "/providers", "/health"} <= paths
+
+
+def test_unknown_request_fields_are_rejected_not_silently_ignored() -> None:
+    """A flat `max_seconds` once ran with the default 300s cap; limits live under `caps`."""
+    c, _ = build()
+    flat = c.post("/audits", json={"url": "https://example.com", "max_seconds": 60})
+    assert flat.status_code == 422
+    nested = c.post("/audits", json={"url": "https://example.com", "caps": {"max_seconds": 60}})
+    assert nested.status_code == 202
+    typo = c.post("/audits", json={"url": "https://example.com", "caps": {"max_second": 60}})
+    assert typo.status_code == 422
