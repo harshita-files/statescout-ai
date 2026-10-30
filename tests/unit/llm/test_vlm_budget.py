@@ -74,3 +74,49 @@ def test_capability_prompt_dedupes_and_caps_the_element_list(tmp_path: Any) -> N
     VLMPerception(provider=spy)._gemini_capabilities(str(shot), many)
     listed = [ln for ln in spy.prompt.splitlines() if ln[:1].isdigit() and "role=" in ln]
     assert len(listed) <= 80
+
+
+def test_circuit_breaker_stops_calling_a_failing_vlm(tmp_path: Any) -> None:
+    """After 3 straight failures, stop paying the timeout on every remaining state."""
+    from apps.agent.contracts import CaptureBundle
+    from apps.agent.llm.base import ProviderError
+
+    class Broken(_Spy):
+        calls = 0
+
+        def complete(self, prompt: str, **_: Any) -> str:
+            Broken.calls += 1
+            raise ProviderError("500 out of memory")
+
+    shot = tmp_path / "s.png"
+    shot.write_bytes(b"\x89PNG")
+    ax = {"role": "RootWebArea", "name": "p", "children": [{"role": "link", "name": "Home"}]}
+    bundle = CaptureBundle("http://a.test/", "<a href='/'>Home</a>", ax, str(shot))
+    perception = VLMPerception(provider=Broken())
+    for _ in range(10):
+        assert perception.analyze(bundle, "guest").elements  # crawl continues, DOM-only
+    assert Broken.calls == 3
+    assert perception.degraded_calls == 10
+
+
+def test_a_success_resets_the_breaker(tmp_path: Any) -> None:
+    from apps.agent.contracts import CaptureBundle
+    from apps.agent.llm.base import ProviderError
+
+    class Flaky(_Spy):
+        n = 0
+
+        def complete(self, prompt: str, **_: Any) -> str:
+            Flaky.n += 1
+            if Flaky.n % 3 != 0:  # fail, fail, succeed, fail, fail, succeed ...
+                raise ProviderError("blip")
+            return "[]"
+
+    shot = tmp_path / "s.png"
+    shot.write_bytes(b"\x89PNG")
+    ax = {"role": "RootWebArea", "name": "p", "children": [{"role": "link", "name": "Home"}]}
+    bundle = CaptureBundle("http://a.test/", "<a href='/'>Home</a>", ax, str(shot))
+    perception = VLMPerception(provider=Flaky())
+    for _ in range(9):
+        perception.analyze(bundle, "guest")
+    assert Flaky.n == 9  # never tripped: no 3 consecutive failures

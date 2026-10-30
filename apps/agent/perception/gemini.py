@@ -93,6 +93,9 @@ _CAPABILITY_HINTS = (
 )
 
 
+#: Consecutive VLM failures after which the model is skipped for the rest of the run.
+_BREAKER_THRESHOLD = 3
+
 #: Elements listed in the capability prompt. A page can have hundreds (every table row's
 #: link); listing them all overflows small context windows and adds no signal.
 _MAX_PROMPT_ELEMENTS = 80
@@ -133,6 +136,7 @@ class VLMPerception:
     ) -> None:
         self._dom_only = dom_only
         self.degraded_calls = 0
+        self._failures = 0  # consecutive failed VLM calls
         self._provider = provider
         self._model = model
         self._client = client
@@ -168,6 +172,12 @@ class VLMPerception:
             log.info("analyze(): no screenshot_path, skipping Gemini (DOM-only smoke test)")
             return semantic_map
 
+        if self._failures >= _BREAKER_THRESHOLD:
+            # Circuit open: a model that keeps failing (out of memory, down) would otherwise
+            # cost one full timeout per remaining state. Stay DOM-only; the report says so.
+            self.degraded_calls += 1
+            return semantic_map
+
         try:
             extra_capabilities = self._gemini_capabilities(
                 bundle.screenshot_path, semantic_map.elements
@@ -176,8 +186,12 @@ class VLMPerception:
             # A model outage or bad key must not abort a crawl: keep the deterministic
             # map (still audited), count the miss so the report can say perception degraded.
             self.degraded_calls += 1
+            self._failures += 1
             log.warning("analyze(): VLM call failed, using DOM-only map (%s)", type(exc).__name__)
+            if self._failures == _BREAKER_THRESHOLD:
+                log.warning("analyze(): %d consecutive VLM failures, disabling it", self._failures)
             return semantic_map
+        self._failures = 0
 
         if not extra_capabilities:
             return semantic_map
