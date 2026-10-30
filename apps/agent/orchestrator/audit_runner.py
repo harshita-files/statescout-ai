@@ -127,6 +127,7 @@ class _Observer:
         self._bundle: CaptureBundle | None = None
         self.maps: dict[str, SemanticUIMap] = {}
         self.texts: dict[str, str] = {}
+        self.markup: dict[str, str] = {}
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._inner, name)
@@ -142,6 +143,7 @@ class _Observer:
                 self.texts[s_current.state_id] = (
                     f"{self._bundle.title}\n{visible_text(self._bundle.dom)}"
                 )
+                self.markup[s_current.state_id] = self._bundle.dom
         return self._inner.audit(s_current, expectations)
 
 
@@ -346,7 +348,7 @@ def run_audit(
         stats.edge_labels.setdefault(key, label)
 
     maps = list(observer.maps.values())
-    checked = check_rules(rules, maps, observer.texts)
+    checked = check_rules(rules, maps, observer.texts, observer.markup)
     findings = _merge_findings(
         [*result.violations, *checked],
         stats,

@@ -317,8 +317,22 @@ def check_numeric(
     return out
 
 
+#: Signs in raw markup that a page tracks visitors: known analytics/ad hosts, tracking pixels,
+#: and scripts that write cookies. Used to make "must show a consent notice" evidence-based.
+TRACKER_MARKUP = (
+    r"google-analytics|googletagmanager|gtag\(|/gtag/js|doubleclick|googlesyndication|"
+    r"connect\.facebook\.net|fbq\(|hotjar|segment\.(?:com|io)|mixpanel|amplitude\.com|"
+    r"clarity\.ms|taboola|criteo|scorecardresearch|quantserve|matomo|piwik|"
+    r"<img\b[^>]*\bsrc=[\"'][^\"']*(?:track|pixel|beacon|collect)[^\"']*|"
+    r"document\.cookie\s*="
+)
+
+
 def check_content(
-    rule: Rule, maps: Sequence[SemanticUIMap], texts: Mapping[str, str] | None = None
+    rule: Rule,
+    maps: Sequence[SemanticUIMap],
+    texts: Mapping[str, str] | None = None,
+    markup: Mapping[str, str] | None = None,
 ) -> list[Violation]:
     out: list[Violation] = []
     forbid = rule.params.get("forbid_pattern")
@@ -340,15 +354,30 @@ def check_content(
                 )
     if require and maps:
         pat = re.compile(str(require), re.I)
+        first, why, evidence = maps[0], "", Evidence()
+        when = rule.params.get("when_markup")
+        if when:
+            # Conditional requirement: only binds once the markup shows the trigger (e.g.
+            # tracking). No evidence of it, no finding: a static page needs no consent notice.
+            trigger = re.compile(str(when), re.I)
+            hit = next(
+                ((s, m) for s in maps if (m := trigger.search((markup or {}).get(s.state_id, "")))),
+                None,
+            )
+            if hit is None:
+                return out
+            first = hit[0]
+            raw = (markup or {})[first.state_id]
+            why = f" Tracking detected ({_snippet(raw, hit[1].start(), hit[1].end(), 20)!r})."
+            evidence = Evidence(text=_snippet(raw, hit[1].start(), hit[1].end(), 40))
         if not any(pat.search(state_text(s, texts)) for s in maps):
-            first = maps[0]
             out.append(
                 _v(
                     rule,
                     first,
                     "require",
-                    f"Required content /{require}/ never appears in any observed state.",
-                    Evidence(),
+                    f"Required content /{require}/ never appears in any observed state.{why}",
+                    evidence,
                     "required_absent",
                 )
             )
@@ -383,11 +412,21 @@ _CHECKS = {
 
 
 def check_rules(
-    rules: Iterable[Rule], maps: Sequence[SemanticUIMap], texts: Mapping[str, str] | None = None
+    rules: Iterable[Rule],
+    maps: Sequence[SemanticUIMap],
+    texts: Mapping[str, str] | None = None,
+    markup: Mapping[str, str] | None = None,
 ) -> tuple[Violation, ...]:
-    """Run every non presence/absence rule over all observed states."""
+    """Run every non presence/absence rule over all observed states.
+
+    `texts` is each state's visible text; `markup` its raw DOM (for rules that need to see
+    scripts or attributes, such as tracker detection).
+    """
     out: list[Violation] = []
     for rule in rules:
+        if rule.kind == "content":
+            out.extend(check_content(rule, maps, texts, markup))
+            continue
         fn = _CHECKS.get(rule.kind)
         if fn is not None:
             out.extend(fn(rule, maps, texts))

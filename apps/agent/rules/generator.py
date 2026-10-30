@@ -11,11 +11,17 @@ from typing import Any
 from apps.agent.audit_models import Rule
 from apps.agent.contracts import SemanticUIMap
 from apps.agent.llm.base import LLMProvider
-from apps.agent.negation.checks import state_text
+from apps.agent.negation.checks import TRACKER_MARKUP, state_text
 from apps.agent.rules.parser import _infer_kind
 
 PageSummary = SemanticUIMap | str | Mapping[str, Any]
 _KINDS = {"presence", "absence", "consistency", "numeric", "a11y", "content"}
+
+
+def _is_consent(text: str) -> bool:
+    return bool(re.search(r"\bconsent\b|\bcookie", text, re.I))
+
+
 _SEVS = {"low", "medium", "high", "critical"}
 
 
@@ -87,7 +93,7 @@ def _heuristic(pages: Sequence[PageSummary]) -> list[Rule]:
             "The site must show a cookie or privacy consent banner",
             "content",
             "low",
-            {"require_pattern": r"cookie|consent"},
+            {"require_pattern": r"cookie|consent", "when_markup": TRACKER_MARKUP},
         )
     )
     out.append(
@@ -145,6 +151,8 @@ def _from_llm(pages: Sequence[PageSummary], llm: LLMProvider) -> list[Rule] | No
                     inferred = _infer_kind(text)  # fill the params the check needs
                     if inferred and inferred[0] == it["kind"]:
                         params = dict(inferred[1])
+                if it["kind"] == "content" and "require_pattern" in params and _is_consent(text):
+                    params = {**params, "when_markup": TRACKER_MARKUP}
                 rules.append(Rule(f"gen-{i}", text, "generated", sev, it["kind"], params))
             if rules:
                 return rules
