@@ -218,3 +218,62 @@ def test_the_crawler_is_closed_even_when_the_probe_phase_fails() -> None:
         ExpectationSet((), ()),
     )
     assert crawler.closed
+
+
+# -- SW-05: a timestamp that stops advancing while the data keeps changing ------------------
+
+from apps.agent.contracts import SemanticUIMap  # noqa: E402
+from apps.agent.orchestrator.probes import Observation, liveness_violations  # noqa: E402
+
+LIVE_RULE = Rule(
+    "live",
+    "A 'Last updated' timestamp must advance whenever the displayed live prices change.",
+    "user",
+    "medium",
+    "liveness",
+)
+BASE = SemanticUIMap("s1", "http://a.test/markets", "guest")
+
+
+def _ob(ts: str, price: str) -> Observation:
+    dom = f"<p>Last updated: <time>{ts}</time></p><td>AAPL</td><td>{price}</td>"
+    return Observation("http://a.test/markets", "Markets", dom)
+
+
+def _live(*obs: Observation, base_text: str = "") -> list:  # type: ignore[type-arg]
+    return liveness_violations([LIVE_RULE], [BASE], {"s1": list(obs)}, {"s1": base_text})
+
+
+def test_a_frozen_timestamp_over_changing_prices_is_flagged() -> None:
+    got = _live(_ob("12:00:08", "190.10"), _ob("12:00:08", "190.55"), _ob("12:00:08", "191.02"))
+    assert len(got) == 1 and got[0].state_id == "s1"
+    assert "last updated" in (got[0].evidence.text or "").lower()
+    assert "12:00:08" in got[0].rationale
+
+
+def test_an_advancing_timestamp_is_fine() -> None:
+    assert (
+        _live(_ob("12:00:08", "190.10"), _ob("12:00:09", "190.55"), _ob("12:00:10", "191.02")) == []
+    )
+
+
+def test_a_timestamp_over_unchanged_prices_is_fine() -> None:
+    assert (
+        _live(_ob("12:00:08", "190.10"), _ob("12:00:08", "190.10"), _ob("12:00:08", "190.10")) == []
+    )
+
+
+def test_two_readings_are_not_enough_evidence() -> None:
+    assert _live(_ob("12:00:08", "190.10"), _ob("12:00:08", "190.55")) == []
+
+
+def test_the_crawls_own_capture_counts_as_the_earliest_observation() -> None:
+    base = "Last updated: 12:00:08\nAAPL 189.90"
+    got = _live(_ob("12:00:08", "190.10"), _ob("12:00:08", "190.55"), base_text=base)
+    assert len(got) == 1
+
+
+def test_pages_without_a_timestamp_are_ignored() -> None:
+    plain = Observation("http://a.test/x", "t", "<td>AAPL</td><td>190.10</td>")
+    other = Observation("http://a.test/x", "t", "<td>AAPL</td><td>191.10</td>")
+    assert _live(plain, other, plain) == []

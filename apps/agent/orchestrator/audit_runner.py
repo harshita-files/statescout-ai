@@ -29,6 +29,7 @@ from apps.agent.orchestrator.export import export_graph
 from apps.agent.orchestrator.graph_runner import explore
 from apps.agent.orchestrator.probes import (
     distinct_targets,
+    liveness_violations,
     resample,
     resample_violations,
 )
@@ -368,6 +369,7 @@ def run_audit(
                 should_stop=tap.should_stop,
             )
             resampled, rates = resample_violations(rules, maps, observed)
+            resampled += liveness_violations(rules, maps, observed, observer.texts)
     finally:
         _close_quietly(ports.crawler)  # explore() left it open for the probes above
 

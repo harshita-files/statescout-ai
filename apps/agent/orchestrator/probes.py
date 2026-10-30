@@ -9,11 +9,12 @@ often the defect showed up.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, replace
 
 from apps.agent.audit_models import Rule
-from apps.agent.contracts import SemanticUIMap, Violation
+from apps.agent.contracts import Evidence, SemanticUIMap, Violation
 from apps.agent.negation.checks import check_rules, visible_text
 from apps.agent.orchestrator.frontier_diversity import url_template
 
@@ -160,3 +161,67 @@ def resample_violations(
             )
             confidence[vid] = len(hits) / n
     return violations, confidence
+
+
+_TIMESTAMP = re.compile(
+    r"(?i)\b(?:last\s+updated|updated(?:\s+at)?|as\s+of)\b\W{0,4}"
+    r"(\d{4}-\d\d-\d\d[T ]\d\d:\d\d(?::\d\d)?|\d{1,2}:\d\d(?::\d\d)?)"
+)
+_VALUE = re.compile(r"\b\d{1,6}\.\d{2}\b")
+#: Readings needed before "the timestamp did not move" means anything.
+_MIN_LIVENESS_READINGS = 3
+
+
+def liveness_violations(
+    rules: Iterable[Rule],
+    maps: Sequence[SemanticUIMap],
+    observed: dict[str, list[Observation]],
+    base_texts: dict[str, str] | None = None,
+) -> list[Violation]:
+    """A 'last updated' stamp must move when the data it labels moves.
+
+    Readings of one page are ordered in time (the crawl's own capture first, then the
+    reloads). If several readings share one timestamp yet show different values, the stamp
+    is stale: the data is being refreshed behind an unchanged "last updated".
+    """
+    live_rules = [r for r in rules if r.kind == "liveness"]
+    by_id = {m.state_id: m for m in maps}
+    out: list[Violation] = []
+    for rule in live_rules:
+        for state_id, observations in observed.items():
+            smap = by_id.get(state_id)
+            if smap is None:
+                continue
+            texts = [t for t in [(base_texts or {}).get(state_id)] if t]
+            texts += [visible_text(ob.dom) for ob in observations]
+            groups: dict[str, list[tuple[str, ...]]] = {}
+            for text in texts:
+                m = _TIMESTAMP.search(text)
+                if m:
+                    values = tuple(sorted(set(_VALUE.findall(text.replace(m.group(1), " ")))))
+                    groups.setdefault(m.group(1), []).append(values)
+            for stamp, readings in groups.items():
+                distinct = set(readings)
+                if len(readings) >= _MIN_LIVENESS_READINGS and len(distinct) > 1:
+                    a, b = sorted(distinct)[0], sorted(distinct)[-1]
+                    out.append(
+                        Violation(
+                            violation_id=f"v-{state_id}-{rule.rule_id}-stale",
+                            state_id=state_id,
+                            expectation_id=rule.rule_id,
+                            clause_type="forbidden_present",
+                            severity=rule.severity,
+                            rationale=(
+                                f"'Last updated' still reads {stamp} across {len(readings)} "
+                                "readings while the displayed values changed."
+                            ),
+                            evidence=Evidence(
+                                text=(
+                                    f"Last updated: {stamp} unchanged over {len(readings)} "
+                                    f"readings; values moved, e.g. {', '.join(a[:3])} -> "
+                                    f"{', '.join(b[:3])}"
+                                )
+                            ),
+                        )
+                    )
+    return out

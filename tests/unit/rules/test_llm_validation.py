@@ -109,3 +109,11 @@ def test_parser_does_not_let_the_model_reclassify_a_recognised_check() -> None:
     assert [r.kind for r in rules] == ["content", "a11y", "content"]
     assert not exp.required and not exp.forbidden  # structured checks make no clauses
     assert llm.calls == 0  # the deterministic classifier decided; the model was not asked
+
+
+def test_the_liveness_sentence_is_recognised_and_never_sent_to_the_model() -> None:
+    llm = FakeLLM([_clause("last-updated")] * 2)
+    text = "A 'Last updated' timestamp must advance whenever the displayed live prices change."
+    exp, rules = parse_rules([text], llm, "guest")
+    assert rules[0].kind == "liveness" and llm.calls == 0
+    assert not exp.required and not exp.forbidden

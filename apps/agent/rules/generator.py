@@ -88,6 +88,15 @@ def _heuristic(pages: Sequence[PageSummary]) -> list[Rule]:
                 {"min": 0},
             )
         )
+    if re.search(r"last updated|updated at|\bas of\b", low):
+        out.append(
+            (
+                "A 'Last updated' timestamp must advance whenever the displayed values change",
+                "liveness",
+                "medium",
+                {},
+            )
+        )
     out.append(
         (
             "The site must show a cookie or privacy consent banner",
@@ -131,7 +140,7 @@ _SYSTEM = (
 )
 
 
-_CHECK_KINDS = frozenset({"consistency", "numeric", "a11y", "content"})
+_CHECK_KINDS = frozenset({"consistency", "numeric", "a11y", "content", "liveness"})
 
 _MODAL = re.compile(
     r"\b(must|should|shall|never|always|ensure|verify|check|require[sd]?|cannot|not|no)\b", re.I
