@@ -62,3 +62,45 @@ def test_numeric_ignores_negative_percentages() -> None:
     texts = {"s": "NVDA 840.82 -2.93%\nAMD 164 -1.11\n+0.67%\nCash -5.00"}
     out = check_rules([_rule("numeric", min=0)], [_smap("s")], texts)
     assert len(out) == 1 and "-5" in (out[0].evidence.text or "")
+
+
+# -- SW-02: the order ticket lives on another page than the Markets table -------------------
+
+
+def _run_ticker(*pages: tuple[str, str, str]) -> list:  # type: ignore[type-arg]
+    maps = [_smap(sid, url) for sid, url, _ in pages]
+    texts = {sid: text for sid, _, text in pages}
+    return list(check_rules([_rule("consistency", mode="ticker")], maps, texts))
+
+
+MARKETS = ("m", "http://x.test/markets", "Markets\nAAPL Apple Inc. 190.00 +1.00 +0.53% 1,000")
+
+
+def test_ticker_cross_page_flags_a_ticket_priced_off_the_markets_table() -> None:
+    trade = ("t", "http://x.test/trade?symbol=AAPL", "Order ticket\nMarket price\n193.80")
+    out = _run_ticker(MARKETS, trade)
+    assert len(out) == 1 and out[0].state_id == "t"
+    assert "AAPL" in out[0].rationale and "193.8" in out[0].rationale
+
+
+def test_ticker_cross_page_tolerates_price_drift() -> None:
+    trade = ("t", "http://x.test/trade?symbol=AAPL", "Market price\n190.50")
+    assert _run_ticker(MARKETS, trade) == []
+
+
+def test_ticker_cross_page_reads_the_symbol_from_the_view_details_link() -> None:
+    trade = ("t", "http://x.test/trade", "Market price\n193.80\nView AAPL details")
+    assert len(_run_ticker(MARKETS, trade)) == 1
+
+
+def test_ticker_cross_page_needs_a_market_observation_of_that_symbol() -> None:
+    trade = ("t", "http://x.test/trade?symbol=MSFT", "Market price\n999.00")
+    assert _run_ticker(MARKETS, trade) == []
+
+
+def test_ticker_cross_page_compares_with_the_nearest_observations_on_both_sides() -> None:
+    """Prices tick: an early 150.00 must not make an honest 190.40 ticket look wrong."""
+    early = ("e", "http://x.test/markets", "AAPL Apple Inc. 150.00 +1.00 +0.53% 1,000")
+    trade = ("t", "http://x.test/trade?symbol=AAPL", "Market price\n190.40")
+    late = ("l", "http://x.test/markets?x=1", "AAPL Apple Inc. 190.20 +1.00 +0.53% 1,000")
+    assert _run_ticker(early, trade, late) == []

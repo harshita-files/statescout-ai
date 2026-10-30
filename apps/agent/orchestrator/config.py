@@ -83,6 +83,9 @@ class OrchestratorConfig(BaseSettings):
     #: With `probabilistic_states`: order each depth's frontier by UCB novelty
     #: (reorder only; never drops a pair).
     ucb_frontier: bool = False
+    #: With `probabilistic_states`: visit unseen kinds of page (URL patterns) before more of a
+    #: kind already seen. Reorder only; never drops a pair.
+    diverse_frontier: bool = True
     replay_min_probability: float = Field(default=0.05, gt=0, le=1)
 
     role: Role = "guest"

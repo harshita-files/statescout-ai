@@ -91,6 +91,7 @@ from apps.agent.orchestrator.dynamic import (
     record_capture,
     replay_target_allowed,
 )
+from apps.agent.orchestrator.frontier_diversity import diversify
 from apps.agent.orchestrator.runlog import Logger
 from apps.agent.orchestrator.state import (
     ExplorationResult,
@@ -323,6 +324,8 @@ def build_graph(
                         -priority(stats, item.from_state_id, item.action.action_id),
                     )
                 )
+        if stats is not None and config.diverse_frontier:
+            frontier = diversify(frontier, (n.get("url", "") for n in stats.nodes.values()))
         candidate = frontier.pop(0)
         base: dict[str, object] = {"frontier": frontier, "pending": candidate, "acted": False}
 

@@ -126,17 +126,23 @@ def _check_sign(
 
 
 _SYMBOL_PRICE = re.compile(r"\b([A-Z]{2,5})\b[ \t][A-Za-z.&' -]{0,30}?(\d{1,6}\.\d{2})\b")
+_VIEW_DETAILS = re.compile(r"\bView ([A-Z]{1,5}) details\b")
 _TICKET_PRICE = re.compile(r"price[^\d\n]{0,20}\n?\s*\$?(\d{1,6}\.\d{2})\b", re.I)
 
 
 def _check_ticker(
     rule: Rule, maps: Sequence[SemanticUIMap], texts: Mapping[str, str] | None
 ) -> list[Violation]:
-    """Within one page, every price shown for a symbol (ticker tape, table row, order
-    ticket) must agree. Cross-page comparison is deliberately avoided: live prices
-    legitimately move between captures."""
+    """Every price shown for a symbol (ticker tape, table row, order ticket) must agree.
+
+    Within one page they are compared directly. A ticket on a page that shows no other
+    price for the symbol is compared across pages, but only against the nearest earlier and
+    nearest later observation of that symbol, and flagged only if it disagrees with both:
+    live prices legitimately move between captures, so one distant reading proves nothing.
+    """
     tol = float(rule.params.get("tolerance", 0.01))
     out: list[Violation] = []
+    per_state: list[dict[str, list[tuple[float, str, bool]]]] = []
     for smap in maps:
         text = state_text(smap, texts)
         seen: dict[str, list[tuple[float, str, bool]]] = defaultdict(list)
@@ -145,9 +151,12 @@ def _check_ticker(
                 (float(m.group(2)), _snippet(text, m.start(), m.end(), 10), False)
             )
         sym = (parse_qs(urlparse(smap.url).query).get("symbol") or [""])[0].upper()
+        if not sym and (vd := _VIEW_DETAILS.search(text)):
+            sym = vd.group(1)
         t = _TICKET_PRICE.search(text)
         if sym and t:
             seen[sym].append((float(t.group(1)), _snippet(text, t.start(), t.end(), 10), True))
+        per_state.append(seen)
         for sym, obs in seen.items():
             ticket = [o for o in obs if o[2]]
             others = [o for o in obs if not o[2]]
@@ -175,6 +184,42 @@ def _check_ticker(
                         f"{sym} is shown with different prices on the same page "
                         f"({min(prices):g} and {max(prices):g}).",
                         Evidence(text=f"{sym}: {others[0][1]}"),
+                    )
+                )
+    out.extend(_ticket_vs_other_pages(rule, maps, per_state, tol))
+    return out
+
+
+def _ticket_vs_other_pages(
+    rule: Rule,
+    maps: Sequence[SemanticUIMap],
+    per_state: list[dict[str, list[tuple[float, str, bool]]]],
+    tol: float,
+) -> list[Violation]:
+    out: list[Violation] = []
+    for i, seen in enumerate(per_state):
+        for sym, obs in seen.items():
+            tickets = [o for o in obs if o[2]]
+            if not tickets or any(not o[2] for o in obs):
+                continue  # no ticket, or the page itself shows the price (checked above)
+            refs: list[tuple[float, int]] = []
+            for rng in (range(i - 1, -1, -1), range(i + 1, len(per_state))):
+                for j in rng:
+                    others = [v for v, _, is_t in per_state[j].get(sym, []) if not is_t]
+                    if others:
+                        refs.append((median(others), j))
+                        break
+            val, snip, _ = tickets[0]
+            if refs and all(r and abs(val - r) / r > tol for r, _ in refs):
+                ref, j = refs[0]
+                out.append(
+                    _v(
+                        rule,
+                        maps[i],
+                        f"tk-{sym}",
+                        f"The order ticket prices {sym} at {val:g} but {maps[j].url} shows "
+                        f"{ref:g} for it.",
+                        Evidence(text=f"{sym}: {snip}"),
                     )
                 )
     return out
