@@ -2,18 +2,25 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import replace
 from typing import Any, Literal
 
-from apps.agent.audit_models import AuditConfig, AuditReport, BlockedNote, Finding
+from apps.agent.audit_models import AuditConfig, AuditReport, BlockedNote, Finding, Rule
 from apps.agent.contracts import (
+    CaptureBundle,
     ExpectationSet,
+    Role,
+    SemanticUIMap,
     StateEdge,
     StateNode,
     Violation,
 )
+from apps.agent.negation.checks import check_rules, visible_text
 from apps.agent.orchestrator.config import OrchestratorConfig
 from apps.agent.orchestrator.deps import Ports
 from apps.agent.orchestrator.dynamic import DynamicStats, observe_transition, pair_key
@@ -103,24 +110,172 @@ def _blocked(crawler: Any) -> tuple[BlockedNote, ...]:
     return tuple(dict.fromkeys(out))
 
 
-def _finding(v: Violation, stats: DynamicStats) -> Finding:
+class _Observer:
+    """Wraps the perception port and keeps what each state looked like (first sighting).
+
+    `audit` runs right after `analyze` on the same capture and receives the map with
+    the final state id, so that is where map and page text are paired up.
+    """
+
+    def __init__(self, inner: Any):
+        self._inner = inner
+        self._bundle: CaptureBundle | None = None
+        self.maps: dict[str, SemanticUIMap] = {}
+        self.texts: dict[str, str] = {}
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+    def analyze(self, bundle: CaptureBundle, role: Role) -> SemanticUIMap:
+        self._bundle = bundle
+        return self._inner.analyze(bundle, role)  # type: ignore[no-any-return]
+
+    def audit(self, s_current: SemanticUIMap, expectations: ExpectationSet) -> Any:
+        if s_current.state_id not in self.maps:
+            self.maps[s_current.state_id] = s_current
+            if self._bundle is not None:
+                self.texts[s_current.state_id] = (
+                    f"{self._bundle.title}\n{visible_text(self._bundle.dom)}"
+                )
+        return self._inner.audit(s_current, expectations)
+
+
+def _rule_key(rule: Rule) -> tuple[Any, ...]:
+    p = rule.params
+    if rule.kind in {"presence", "absence"}:
+        return (rule.kind, p.get("subject"), tuple(p.get("roles") or ()))
+    return (
+        rule.kind,
+        p.get("subject"),
+        p.get("mode"),
+        p.get("forbid_pattern"),
+        p.get("require_pattern"),
+        p.get("min"),
+        p.get("max"),
+        p.get("pattern"),
+    )
+
+
+def _drop_duplicate_rules(rules: Sequence[Rule]) -> tuple[list[Rule], list[str]]:
+    """Drop generated rules that repeat a user rule's clause (or an earlier generated one)."""
+    seen = {_rule_key(r) for r in rules if r.source == "user"}
+    kept: list[Rule] = []
+    dropped: list[str] = []
+    for r in rules:
+        if r.source == "user":
+            kept.append(r)
+            continue
+        key = _rule_key(r)
+        if key in seen:
+            dropped.append(r.rule_id)
+        else:
+            seen.add(key)
+            kept.append(r)
+    return kept, dropped
+
+
+def _norm(text: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"\d+", "#", text.lower())).strip()
+
+
+def _evidence_signature(v: Violation) -> str:
+    ev = v.evidence
+    if ev.selector:
+        return _norm(f"{ev.selector}")
+    return _norm((ev.text or "").split(" | vs ")[0])
+
+
+def _group_key(rule_id: str | None, signature: str) -> str:
+    return hashlib.sha1(f"{rule_id}|{signature}".encode()).hexdigest()[:12]
+
+
+def _describe(v: Violation) -> str:
+    ev = v.evidence
+    parts = [p for p in (ev.text and f"'{ev.text}'", ev.selector and f"[{ev.selector}]") if p]
+    return " ".join(parts)
+
+
+def _finding(
+    v: Violation,
+    stats: DynamicStats,
+    rule_text: dict[str, str],
+    smap_url: dict[str, str],
+) -> Finding:
     node = stats.nodes.get(v.state_id, {})
+    url = node.get("url") or smap_url.get(v.state_id, "")
     label = stats.labels.get(v.violation_id)
     evidence = [e for e in (v.evidence.selector, v.evidence.text) if e]
     if label:
         evidence.append(f"observation: {label}")
+    seen = _describe(v)
+    rationale = v.rationale
+    if seen and v.clause_type == "forbidden_present":
+        rationale = f"{rationale} Seen at {url}: {seen}."
+    rid = v.expectation_id
     return Finding(
         finding_id=v.violation_id,
-        rule_id=v.expectation_id,
+        rule_id=rid,
         state_id=v.state_id,
-        url=node.get("url", ""),
+        url=url,
         severity=v.severity,
-        title=f"{v.clause_type}: {v.expectation_id}",
-        rationale=v.rationale,
+        title=rule_text.get(rid) or f"{v.clause_type}: {rid}",
+        rationale=rationale,
         confidence=stats.confidence.get(v.violation_id, 1.0),
         screenshot=v.evidence.screenshot_path or node.get("screenshot"),
         evidence=tuple(evidence),
+        group_key=_group_key(rid, _evidence_signature(v) or v.clause_type),
     )
+
+
+def _merge_findings(
+    violations: Sequence[Violation],
+    stats: DynamicStats,
+    rules: Sequence[Rule],
+    expectations: ExpectationSet,
+    smap_url: dict[str, str],
+) -> tuple[Finding, ...]:
+    """Findings from every source: user rules win over generated ones that hit the same
+    element in the same state."""
+    rule_text = {
+        n.expectation_id: n.source_text
+        for n in (*expectations.forbidden, *expectations.required)
+        if n.source_text
+    }
+    rule_text.update({r.rule_id: r.text for r in rules})
+    source = {r.rule_id: r.source for r in rules}
+    ordered = sorted(
+        violations, key=lambda v: source.get(v.expectation_id, "user") != "user"
+    )  # stable: user rules first
+    out: list[Finding] = []
+    claimed: set[tuple[str, str]] = set()
+    for v in ordered:
+        sig = _evidence_signature(v)
+        if sig:
+            if (v.state_id, sig) in claimed:
+                continue
+            claimed.add((v.state_id, sig))
+        out.append(_finding(v, stats, rule_text, smap_url))
+    return tuple(out)
+
+
+def _groups(findings: Sequence[Finding]) -> list[dict[str, Any]]:
+    groups: dict[str, dict[str, Any]] = {}
+    for f in findings:
+        g = groups.setdefault(
+            f.group_key,
+            {
+                "group_key": f.group_key,
+                "rule_id": f.rule_id,
+                "title": f.title,
+                "severity": f.severity,
+                "evidence": f.evidence[:2],
+                "count": 0,
+                "state_ids": [],
+            },
+        )
+        g["count"] += 1
+        g["state_ids"].append(f.state_id)
+    return sorted(groups.values(), key=lambda g: -g["count"])
 
 
 def run_audit(
@@ -146,7 +301,15 @@ def run_audit(
         perception_rate_per_min=0,
     )
     tap = _Tap(ports.graph, stop, time.monotonic() + config.max_seconds, progress)
-    wrapped = Ports(ports.crawler, ports.perception, tap, ports.network)
+    observer = _Observer(ports.perception)
+    wrapped = Ports(ports.crawler, observer, tap, ports.network)
+    rules, dropped = _drop_duplicate_rules(config.rules)
+    if dropped:
+        expectations = ExpectationSet(
+            tuple(n for n in expectations.forbidden if n.expectation_id not in dropped),
+            tuple(n for n in expectations.required if n.expectation_id not in dropped),
+        )
+        config = replace(config, rules=tuple(rules))
     try:
         result: ExplorationResult = explore(
             wrapped, config.url, expectations, orch, run_id=audit_id, log=log
@@ -171,7 +334,15 @@ def run_audit(
     for key, label in tap.stats.edge_labels.items():
         stats.edge_labels.setdefault(key, label)
 
-    findings = tuple(_finding(v, stats) for v in result.violations)
+    maps = list(observer.maps.values())
+    checked = check_rules(rules, maps, observer.texts)
+    findings = _merge_findings(
+        [*result.violations, *checked],
+        stats,
+        rules,
+        expectations,
+        {m.state_id: m.url for m in maps},
+    )
     status: Literal["done", "error", "stopped"] = (
         "error"
         if result.termination_reason == "error"
@@ -185,6 +356,8 @@ def run_audit(
         "confidence_labels": dict(stats.labels),
         "timed_out": tap.timed_out,
         "duration_ms": result.duration_ms,
+        "finding_groups": _groups(findings),
+        "deduplicated_rules": dropped,
     }
     if progress is not None:
         progress({"phase": "done", "status": status, **tap.counts})

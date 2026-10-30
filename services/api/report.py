@@ -176,16 +176,30 @@ def _md(s: Any) -> str:
     return str(s).replace("|", "\\|").replace("\n", " ")
 
 
+_BULKY_STATS = {"finding_groups", "confidence_labels", "masks"}
+
+
+def _groups(report: AuditReport) -> list[dict[str, Any]]:
+    got = report.stats.get("finding_groups")
+    return [g for g in got if isinstance(g, dict)] if isinstance(got, list) else []
+
+
 def to_markdown(report: AuditReport) -> str:
     L = [f"# StateScout audit: {report.url}", ""]
     L.append(f"- Audit: `{report.audit_id}`  \n- Status: **{report.status}**")
     for k, v in sorted(report.stats.items()):
-        L.append(f"- {k}: {v}")
+        if k not in _BULKY_STATS:
+            L.append(f"- {k}: {v}")
     if report.error:
         L.append(f"- Error: {report.error}")
     L += ["", "## Rules", ""]
     L += [f"- ({r.source}, {r.severity}) {r.text}" for r in report.rules] or ["_None_"]
     L += ["", f"## Violations ({len(report.findings)})", ""]
+    groups = _groups(report)
+    if groups:
+        L += ["### Distinct issues", ""]
+        L += [f"- {g.get('count', 1)}x ({g.get('severity')}) {_md(g.get('title'))}" for g in groups]
+        L.append("")
     if report.findings:
         L += ["| Severity | Confidence | Title | URL | Rationale |", "|---|---|---|---|---|"]
         for f in report.findings:
@@ -248,7 +262,16 @@ def to_html(report: AuditReport) -> str:
         f"<li>{e(r.text)} <span class='muted'>({e(r.source)})</span></li>" for r in report.rules
     )
     blocked = "".join(f"<li>{e(b.reason)}: {e(b.url)}</li>" for b in report.blocked)
-    stats = " &middot; ".join(f"{e(str(k))}: {e(str(v))}" for k, v in sorted(report.stats.items()))
+    stats = " &middot; ".join(
+        f"{e(str(k))}: {e(str(v))}"
+        for k, v in sorted(report.stats.items())
+        if k not in _BULKY_STATS
+    )
+    issues = "".join(
+        f"<li>{e(str(g.get('count', 1)))}x <strong>{e(str(g.get('title')))}</strong> "
+        f"<span class='muted'>({e(str(g.get('severity')))})</span></li>"
+        for g in _groups(report)
+    )
     err = f'<p class="card">Error: {e(report.error)}</p>' if report.error else ""
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
@@ -256,7 +279,8 @@ def to_html(report: AuditReport) -> str:
         f"<title>StateScout report</title><style>{_CSS}</style></head><body>"
         f"<h1>StateScout audit</h1><p>{e(report.url)}<br><span class='muted'>"
         f"{e(report.audit_id)} &middot; {e(report.status)} &middot; {stats}</span></p>{err}"
-        f"<h2>Violations ({len(report.findings)})</h2>{table}"
+        f"<h2>Violations ({len(report.findings)})</h2>"
+        f"{'<h3>Distinct issues</h3><ul>' + issues + '</ul>' if issues else ''}{table}"
         f"<h2>Blocked pages</h2>{'<ul>' + blocked + '</ul>' if blocked else '<p class=muted>None</p>'}"
         f"<h2>Rules</h2>{'<ul>' + rules + '</ul>' if rules else '<p class=muted>None</p>'}"
         f"<h2>Exploration graph</h2><div class='card'>{graph_svg(report)}</div>"

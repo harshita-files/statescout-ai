@@ -77,6 +77,11 @@ def _clean_subject(raw: str) -> str:
     key = re.sub(r"\s+", " ", s.lower())
     if key in _SYNONYMS:
         return _SYNONYMS[key]
+    if len(key) > 24:  # long compound subjects: map the capability they name
+        if re.search(r"\badmin\b", key):
+            return "admin-access"
+        if re.search(r"\bdelete\b", key):
+            return "delete-user"
     return re.sub(r"[^a-z0-9]+", "-", key).strip("-")
 
 
@@ -96,21 +101,38 @@ def _ctx_roles(ctx: str) -> tuple[str, ...]:
     return _role_of(found[0]) if found else ()
 
 
-def _infer_kind(text: str) -> str | None:
+_NAN_PATTERN = r"\bNaN\b|\bundefined\b|\bnull\b"
+_NOT_FOUND_PATTERN = r"\b404\b|page not found"
+_CONSENT_PATTERN = r"cookie|consent"
+
+
+def _infer_kind(text: str) -> tuple[str, dict[str, Any]] | None:
+    """Map a sentence onto a structured check kind plus the params the check needs."""
     t = text.lower()
+    if re.search(r"\bnan\b|\bundefined\b|\bnull\b", t):
+        return "content", {"forbid_pattern": _NAN_PATTERN}
+    if re.search(r"\bsum of\b|\badd(?:s|ed)? up\b", t) and re.search(r"\btotal\b", t):
+        return "consistency", {"mode": "sum"}
+    if re.search(r"\bsign of\b", t) and re.search(r"%|percent", t):
+        return "consistency", {"mode": "sign"}
+    if re.search(r"\b(same|consistent|consistency|match|equal|differ)\b", t) and re.search(
+        r"\b(ticker|stock|symbol)s?\b", t
+    ):
+        return "consistency", {"mode": "ticker"}
     if re.search(r"\b(same|consistent|consistency|match|differ)\b", t) and re.search(
         r"\b(price|total|amount|value|number|count|balance|view|page|across)\b", t
     ):
-        return "consistency"
+        return "consistency", {}
+    if re.search(r"\bbroken (link|image)|\b404\b|lead to an existing page", t):
+        return "content", {"forbid_pattern": _NOT_FOUND_PATTERN}
+    if re.search(r"\bconsent\b|\bcookie\b|\bbanner\b|tracking", t):
+        return "content", {"require_pattern": _CONSENT_PATTERN}
     if re.search(
-        r"\bnegative\b|\binvalid (number|quantity|price)|\bnan\b|\bmust be (positive|non-negative)",
-        t,
+        r"\bnegative\b|\binvalid (number|quantity|price)|\bmust be (positive|non-negative)", t
     ):
-        return "numeric"
-    if re.search(r"\b(label|alt text|aria|accessib|a11y|unlabeled)\b", t):
-        return "a11y"
-    if re.search(r"\bbroken (link|image)|\b404\b|\bconsent|\bcookie\b|\bbanner\b", t):
-        return "content"
+        return "numeric", {"min": 0}
+    if re.search(r"\b(label|alt text|aria|a11y|unlabeled)\b|\baccessib", t):
+        return "a11y", {}
     return None
 
 
@@ -118,10 +140,18 @@ def _heuristic(rule: Rule, role: str) -> tuple[Rule, ExpectationNode | None, boo
     """Return (enriched rule, expectation, is_forbidden)."""
     text = " ".join(rule.text.split())
     body = text.rstrip(".!")
-    kind = _infer_kind(body)
-    if kind is not None:
+    inferred = _infer_kind(body)
+    if inferred is not None:
+        kind, defaults = inferred
         return (
-            Rule(rule.rule_id, rule.text, rule.source, rule.severity, kind, dict(rule.params)),
+            Rule(
+                rule.rule_id,
+                rule.text,
+                rule.source,
+                rule.severity,
+                kind,
+                {**defaults, **rule.params},
+            ),
             None,
             False,
         )

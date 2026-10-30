@@ -51,6 +51,8 @@ class Finding:
     confidence: float = 1.0  # recurrence x reproducibility in probabilistic mode
     screenshot: str | None = None
     evidence: tuple[str, ...] = ()
+    #: Same flaw on many states shares one key (rule + evidence signature).
+    group_key: str = ""
 
 
 @dataclass(frozen=True, slots=True)
