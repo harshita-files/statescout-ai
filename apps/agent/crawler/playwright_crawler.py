@@ -94,6 +94,11 @@ def _action_id(role: str, name: str, selector: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
+_ANCHOR_JS = """() => Array.from(document.querySelectorAll('a[href]')).map(a => ({
+  name: (a.getAttribute('aria-label') || a.innerText || a.title || '').trim(),
+  href: a.href }))"""
+
+
 def _js_escape(text: str) -> str:
     """Escape for a JS regex literal embedded in a Playwright role selector."""
     return re.sub(r"[\\^$.*+?()\[\]{}|/]", lambda m: "\\" + m.group(0), text)
@@ -413,6 +418,8 @@ class PlaywrightCrawler:
         if self._safety is not None and (bundle.url in self._walled or self._off_scope(bundle.url)):
             return ()
 
+        collected = self._direct_links(bundle, collected)
+
         seen: set[str] = set()
         unique: list[Action] = []
         for a in collected:
@@ -422,6 +429,45 @@ class PlaywrightCrawler:
         if self._safety is not None:
             return self._safety.filter_actions(tuple(unique))
         return tuple(unique)
+
+    def _direct_links(self, bundle: CaptureBundle, actions: list[Action]) -> list[Action]:
+        """Turn real same-document-external links into `navigate` actions.
+
+        A link's destination does not depend on page state, so the orchestrator can reach
+        it with one `goto` instead of re-opening the seed and replaying a click path.
+        Off-scope links are dropped (they are scope, not findings). Anything that cannot
+        be matched to an `<a href>` stays a click.
+        """
+        if not any(a.target.startswith("role=link[") for a in actions):
+            return actions
+        try:
+            anchors = self._ensure_page().evaluate(_ANCHOR_JS)
+        except Exception:  # page gone / closed: keep clicks
+            return actions
+        hrefs: dict[str, str] = {}
+        for item in anchors:
+            name = " ".join(str(item.get("name", "")).split())
+            href = str(item.get("href", ""))
+            if name and href.startswith(("http://", "https://")):
+                hrefs.setdefault(name, href)
+        here = bundle.url.split("#")[0]
+        out: list[Action] = []
+        for a in actions:
+            if a.target.startswith("role=link[") and a.label.startswith('click "'):
+                dest = hrefs.get(" ".join(a.label[7:-1].split()))
+                if dest is not None:
+                    if dest.split("#")[0] == here and "#" in dest:
+                        continue  # in-page anchor: not a new state
+                    if self._off_scope(dest):
+                        continue
+                    a = Action(
+                        action_id=a.action_id,
+                        kind="navigate",
+                        target=dest,
+                        label=a.label.replace("click", "navigate", 1),
+                    )
+            out.append(a)
+        return out
 
     # ------------------------------------------------------------------
     # Safety (no-ops when ``safety`` is None)

@@ -56,6 +56,9 @@ def _perform_action(page: Page, action: dict[str, Any], *, wait_network_idle: bo
         selector = action.get("selector")
         if not selector:
             raise ValueError("Click action missing 'selector'")
+        if page.locator(selector).count() == 0:
+            # Permanent, not transient: skip the 3 x 5s of retry timeouts.
+            raise ValueError(f"element not found: {selector}")
         page.click(selector, timeout=short_timeout)
         if wait_network_idle:
             with suppress(PlaywrightTimeoutError):

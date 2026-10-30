@@ -30,11 +30,11 @@ pytestmark = pytest.mark.live
 
 APP = Path(__file__).resolve().parents[3] / "test-apps" / "stockwatch"
 FLAWS = json.loads((APP / "expected.json").read_text(encoding="utf-8"))["flaws"]
-# Measured floor (5/10), not the aspiration. Misses are coverage, not check, failures: in the
-# 240s budget the crawler (replay-heavy on live pages) never reaches /portfolio or
-# /trade?symbol=..., SW-03 needs a POST the crawler does not make, SW-05 needs time-ordered
-# observations and SW-10 needs the flaky quote call to fail at capture time.
-MIN_DETECTED = 5
+# Measured floor (6/10), not the aspiration. Still missed: SW-02 (needs a /trade?symbol=...
+# state to compare against Markets), SW-03 (needs a POST order, which the crawler never
+# makes), SW-05 (needs time-ordered observations) and SW-10 (needs the flaky quote call to
+# fail at capture time).
+MIN_DETECTED = 6
 #: `SW_TICK_INTERVAL=0` freezes prices (experiment: how much does live churn cost coverage?).
 TICK = (
     ["--tick-interval", os.environ["SW_TICK_INTERVAL"]] if "SW_TICK_INTERVAL" in os.environ else []

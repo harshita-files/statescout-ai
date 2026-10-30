@@ -68,6 +68,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from apps.agent.contracts import (
+    Action,
     CaptureBundle,
     CrawlerError,
     ExpectationSet,
@@ -344,7 +345,7 @@ def build_graph(
         replays = state["replays"]
         replay_steps = state["replay_steps"]
 
-        if landed_at != candidate.from_state_id:
+        if landed_at != candidate.from_state_id and not is_direct(candidate.action):
             if not candidate.replayable:
                 return {
                     **base,
@@ -355,19 +356,24 @@ def build_graph(
                     ),
                 }
             try:
-                bundle = ports.crawler.open(state["seed_url"])
-                if stats is not None:
-                    if ports.network is not None:
-                        ports.network.drain()  # seed traffic is not caused by a click
-                    audit_replay(bundle)
-                for step in candidate.path:
-                    source = fingerprint(bundle)
+                # An absolute navigate step replaces the seed load: start from the last one.
+                start = max((i for i, st in enumerate(candidate.path) if is_direct(st)), default=-1)
+                bundle: CaptureBundle | None = None
+                if start < 0:
+                    bundle = ports.crawler.open(state["seed_url"])
+                    if stats is not None:
+                        if ports.network is not None:
+                            ports.network.drain()  # seed traffic is not caused by a click
+                        audit_replay(bundle)
+                for step in candidate.path[max(start, 0) :]:
+                    # No source when the replay began at a direct navigate (no prior page).
+                    source = fingerprint(bundle) if bundle is not None else None
                     if stats is not None and ports.network is not None:
                         ports.network.drain()  # discard traffic outside the action window
                     try:
                         bundle = ports.crawler.act(step)
                     finally:
-                        if stats is not None:
+                        if stats is not None and source is not None:
                             record_calls(
                                 stats,
                                 ports.network,
@@ -378,8 +384,9 @@ def build_graph(
                             )
                     replay_steps += 1
                     if stats is not None:
-                        target = fingerprint(bundle)
-                        observe_transition(stats, source, step.action_id, target, replay=True)
+                        if source is not None:
+                            target = fingerprint(bundle)
+                            observe_transition(stats, source, step.action_id, target, replay=True)
                         audit_replay(bundle)
             except StateScoutError as exc:
                 return {
@@ -389,6 +396,7 @@ def build_graph(
                     "skipped": skip(state, candidate, f"replay failed: {exc}"),
                 }
 
+            assert bundle is not None  # opened above, or set by the first replayed step
             replays += 1
             landed_at = fingerprint(bundle)
             path = candidate.path
@@ -397,6 +405,7 @@ def build_graph(
                 and stats is not None
                 and state["dynamic"] is not None
                 and candidate.path
+                and source is not None
                 and replay_target_allowed(
                     state["dynamic"],
                     source,
@@ -555,6 +564,11 @@ def build_graph(
 
 #: Numbers as displayed to users: $1,234.56, -1.2%, 12:04:33, 42.
 _NUMERIC_MASK = r"[-+]?\$?\d[\d,]*(?:[.:]\d+)*%?"
+
+
+def is_direct(action: Action) -> bool:
+    """A navigate to an absolute URL is valid from anywhere: no replay needed to act."""
+    return action.kind == "navigate" and action.target.startswith(("http://", "https://"))
 
 
 #: Transient styling state that live pages toggle per tick (flash on update, up/down by sign).
