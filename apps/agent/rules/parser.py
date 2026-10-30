@@ -16,7 +16,16 @@ from apps.agent.audit_models import Rule
 from apps.agent.contracts import ExpectationNode, ExpectationSet
 from apps.agent.llm.base import LLMProvider
 
-_KINDS = {"presence", "absence", "consistency", "numeric", "a11y", "content", "liveness"}
+_KINDS = {
+    "presence",
+    "absence",
+    "consistency",
+    "numeric",
+    "a11y",
+    "content",
+    "liveness",
+    "validation",
+}
 _SEVERITIES = {"low", "medium", "high", "critical"}
 _ROLES = ("guest", "anonymous", "user", "admin", "customer", "member", "visitor")
 
@@ -115,6 +124,10 @@ def _infer_kind(text: str) -> tuple[str, dict[str, Any]] | None:
         r"\badvance|\bstale\b|\brefresh|\bchange|\bmove\b|\bfresh", t
     ):
         return "liveness", {}
+    if re.search(r"\b(rejected|refused|declined)\b", t) and re.search(
+        r"\b(error|success|invalid|negative|exceed|above|reject)", t
+    ):
+        return "validation", {}
     if re.search(r"\bsum of\b|\badd(?:s|ed)? up\b", t) and re.search(r"\btotal\b", t):
         return "consistency", {"mode": "sum"}
     if re.search(r"\bsign of\b", t) and re.search(r"%|percent", t):

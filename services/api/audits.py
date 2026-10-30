@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Str
 from pydantic import BaseModel, ConfigDict, Field
 
 from apps.agent.audit_models import AuditConfig, AuditReport, Rule
+from apps.agent.crawler.safety import is_local_target
 from apps.agent.llm.base import ProviderConfig
 from services.api import report as report_mod
 from services.api.auth import require_api_key
@@ -169,6 +170,8 @@ class AuditRequest(BaseModel):
     respect_robots: bool = True
     probabilistic: bool = True
     allow_private: bool = False
+    #: Submit invalid values to eligible forms. Refused unless the target is local/private.
+    probe_forms: bool = False
 
 
 class ProviderTestRequest(ProviderIn):
@@ -483,6 +486,12 @@ def create_router(deps: ApiDeps | None = None) -> APIRouter:
         texts = [t.strip() for t in body.rules if t and t.strip()]
         if len(texts) > MAX_RULES or any(len(t) > MAX_RULE_LEN for t in texts):
             raise HTTPException(422, f"at most {MAX_RULES} rules of {MAX_RULE_LEN} chars")
+        if body.probe_forms and not is_local_target(url):
+            raise HTTPException(
+                422,
+                "Form probing submits data and is limited to local/private targets "
+                "(localhost or your own network), never public sites.",
+            )
         config = AuditConfig(
             url=url,
             rules=tuple(Rule(rule_id=f"user-{i}", text=t) for i, t in enumerate(texts, 1)),
@@ -497,6 +506,7 @@ def create_router(deps: ApiDeps | None = None) -> APIRouter:
             resamples_dynamic=body.caps.resamples_dynamic,
             respect_robots=body.respect_robots,
             probabilistic=body.probabilistic,
+            probe_forms=body.probe_forms,
         )
         rec = mgr.start(config)
         return {"audit_id": rec.audit_id}

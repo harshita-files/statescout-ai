@@ -139,6 +139,7 @@
       caps: { max_states: +$("#max_states").value, depth_limit: +$("#depth_limit").value,
         max_seconds: +$("#max_seconds").value, requests_per_second: +$("#rps").value },
       respect_robots: $("#robots").checked, probabilistic: $("#prob").checked,
+      probe_forms: $("#probe_forms").checked,
       allow_private: $("#allow_private").checked,
     };
     const llm = provCfg($('.prov[data-kind="llm"]')), vlm = provCfg($('.prov[data-kind="vlm"]'));

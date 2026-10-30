@@ -30,11 +30,10 @@ pytestmark = pytest.mark.live
 
 APP = Path(__file__).resolve().parents[3] / "test-apps" / "stockwatch"
 FLAWS = json.loads((APP / "expected.json").read_text(encoding="utf-8"))["flaws"]
-# Measured: 9/10 in 3 of 3 runs. The floor is 8 because SW-10 is a random 10%-per-load flaw:
+# Measured: 10/10 in 3 of 3 runs. The floor is 9 because SW-10 is a random 10%-per-load flaw:
 # with 20 reloads of the stock page the chance of seeing it is ~88% per audit, so it is
-# allowed to be missed occasionally without failing the test. Still undetected: SW-03 (needs
-# form submission).
-MIN_DETECTED = 8
+# allowed to be missed occasionally without failing the test.
+MIN_DETECTED = 9
 #: `SW_TICK_INTERVAL=0` freezes prices (experiment: how much does live churn cost coverage?).
 TICK = (
     ["--tick-interval", os.environ["SW_TICK_INTERVAL"]] if "SW_TICK_INTERVAL" in os.environ else []
@@ -81,6 +80,7 @@ def report(base: str) -> AuditReport:
         requests_per_second=20,
         respect_robots=False,
         probabilistic=True,
+        probe_forms=True,  # StockWatch is local; SW-03 needs a form submitted
     )
     ports = live_ports(
         graph="memory",

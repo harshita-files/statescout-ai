@@ -13,12 +13,22 @@ import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, replace
 
-from apps.agent.audit_models import Rule
+from apps.agent.audit_models import FormProbe, Rule
 from apps.agent.contracts import Evidence, SemanticUIMap, Violation
 from apps.agent.negation.checks import check_rules, visible_text
 from apps.agent.orchestrator.frontier_diversity import url_template
 
 log = logging.getLogger(__name__)
+
+__all__ = [
+    "FormProbe",
+    "Observation",
+    "distinct_targets",
+    "form_probe_violations",
+    "liveness_violations",
+    "resample",
+    "resample_violations",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,4 +234,63 @@ def liveness_violations(
                             ),
                         )
                     )
+    return out
+
+
+_SUCCESS = re.compile(
+    r"(?i)\b(filled|success(?:ful(?:ly)?)?|confirmed|placed|accepted|complete[d]?|saved|"
+    r"thank you|created|submitted)\b"
+)
+_ERROR = re.compile(
+    r"(?i)\b(error|invalid|rejected|declined|refused|must be|cannot|can't|not allowed|"
+    r"insufficient|failed|denied|negative|too (?:large|many|high|big)|exceeds?)\b"
+)
+
+
+def _new_lines(before: str, after: str) -> list[str]:
+    """Visible lines present after submitting that were not there before."""
+    seen = set(visible_text(before).splitlines())
+    return [ln for ln in visible_text(after).splitlines() if ln and ln not in seen]
+
+
+def form_probe_violations(
+    rules: Iterable[Rule],
+    maps: Sequence[SemanticUIMap],
+    probes: dict[str, list[FormProbe]],
+) -> list[Violation]:
+    """A form given a value it must refuse may not answer with a success message.
+
+    Only text that appeared in response to the submission counts, so success wording
+    already on the page is ignored, and any error wording in the response clears it.
+    """
+    validation = [r for r in rules if r.kind == "validation"]
+    by_id = {m.state_id: m for m in maps}
+    out: list[Violation] = []
+    for rule in validation:
+        for state_id, results in probes.items():
+            if state_id not in by_id:
+                continue
+            for p in results:
+                new = _new_lines(p.before_dom, p.after_dom)
+                response = " ".join(new)
+                # Quote the line that reads as success: other lines (live prices that moved
+                # between the two captures) are not the form's answer.
+                said = [ln for ln in new if _SUCCESS.search(ln)]
+                if not said or _ERROR.search(response):
+                    continue
+                tag = re.sub(r"\W+", "", f"{p.field}{p.value}")
+                out.append(
+                    Violation(
+                        violation_id=f"v-{state_id}-{rule.rule_id}-{tag}",
+                        state_id=state_id,
+                        expectation_id=rule.rule_id,
+                        clause_type="forbidden_present",
+                        severity=rule.severity,
+                        rationale=(
+                            f"The form accepted {p.field}={p.value}, a value it must refuse, "
+                            "and answered as if it had succeeded."
+                        ),
+                        evidence=Evidence(text=f"{p.field}={p.value} -> {' | '.join(said)[:160]}"),
+                    )
+                )
     return out

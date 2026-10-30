@@ -117,3 +117,14 @@ def test_the_liveness_sentence_is_recognised_and_never_sent_to_the_model() -> No
     exp, rules = parse_rules([text], llm, "guest")
     assert rules[0].kind == "liveness" and llm.calls == 0
     assert not exp.required and not exp.forbidden
+
+
+def test_the_must_be_rejected_sentence_is_a_validation_rule_not_a_numeric_one() -> None:
+    text = (
+        "An order with a negative quantity or a cost above available cash must be rejected "
+        "with an error, never shown as a success."
+    )
+    _, rules = parse_rules([text], None, "guest")
+    assert rules[0].kind == "validation"
+    _, numeric = parse_rules(["Numbers such as prices must never be negative"], None, "guest")
+    assert numeric[0].kind == "numeric"  # the existing numeric classification is untouched

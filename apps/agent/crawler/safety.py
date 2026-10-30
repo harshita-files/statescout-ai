@@ -8,7 +8,9 @@ get past them. There is no evasion of any kind here.
 
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
 import threading
 import time
 import urllib.error
@@ -218,3 +220,35 @@ class SafetyPolicy:
         if reason:
             self.block(bundle.url, reason)
         return reason
+
+
+def _resolve(host: str) -> list[str]:
+    try:
+        return [str(i[4][0]) for i in socket.getaddrinfo(host, None)]
+    except OSError:
+        return []
+
+
+def is_local_target(url: str, resolver: Callable[[str], list[str]] | None = None) -> bool:
+    """True only for loopback / private-network targets (your own dev or test environment).
+
+    Used to gate anything that submits forms: it must never run against a public site.
+    Names that cannot be resolved are not local.
+    """
+    try:
+        host = (urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return False
+    if not host:
+        return False
+    if host == "localhost" or host.endswith((".localhost", ".test")):
+        return True
+    try:
+        addrs = [ipaddress.ip_address(host)]
+    except ValueError:
+        resolved = (resolver or _resolve)(host)
+        try:
+            addrs = [ipaddress.ip_address(a) for a in resolved]
+        except ValueError:
+            return False
+    return bool(addrs) and all(a.is_loopback or a.is_private or a.is_link_local for a in addrs)

@@ -12,7 +12,7 @@ from apps.agent.audit_models import Rule
 from apps.agent.contracts import SemanticUIMap
 from apps.agent.llm.base import LLMProvider
 from apps.agent.negation.checks import TRACKER_MARKUP, state_text
-from apps.agent.rules.parser import _infer_kind
+from apps.agent.rules.parser import _NAN_PATTERN, _infer_kind
 
 PageSummary = SemanticUIMap | str | Mapping[str, Any]
 _KINDS = {"presence", "absence", "consistency", "numeric", "a11y", "content"}
@@ -79,6 +79,16 @@ def _heuristic(pages: Sequence[PageSummary]) -> list[Rule]:
                 {},
             )
         )
+    if re.search(r"\b[A-Z]{2,5}\b[ \t][A-Za-z.&' -]{0,30}?\d{1,6}\.\d{2}\b", blob):
+        out.append(  # symbols listed with prices: an order ticket elsewhere must agree
+            (
+                "The price shown for a ticker on the order ticket must equal the price shown "
+                "for that ticker on the Markets page",
+                "consistency",
+                "high",
+                {"mode": "ticker"},
+            )
+        )
     if re.search(r"\d", blob):
         out.append(
             (
@@ -86,6 +96,24 @@ def _heuristic(pages: Sequence[PageSummary]) -> list[Rule]:
                 "numeric",
                 "high",
                 {"min": 0},
+            )
+        )
+    out.append(
+        (
+            "Pages must never display 'NaN', 'undefined' or 'null' to the user",
+            "content",
+            "medium",
+            {"forbid_pattern": _NAN_PATTERN},
+        )
+    )
+    if re.search(r"\b(quantity|qty|place order|buy|sell|amount)\b", low):
+        out.append(
+            (
+                "A form given a negative or absurdly large quantity must be rejected with an "
+                "error, never shown as a success",
+                "validation",
+                "high",
+                {},
             )
         )
     if re.search(r"last updated|updated at|\bas of\b", low):
@@ -140,7 +168,7 @@ _SYSTEM = (
 )
 
 
-_CHECK_KINDS = frozenset({"consistency", "numeric", "a11y", "content", "liveness"})
+_CHECK_KINDS = frozenset({"consistency", "numeric", "a11y", "content", "liveness", "validation"})
 
 _MODAL = re.compile(
     r"\b(must|should|shall|never|always|ensure|verify|check|require[sd]?|cannot|not|no)\b", re.I

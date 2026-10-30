@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from apps.agent.audit_models import AuditConfig, Rule
 from apps.agent.contracts import Action, CaptureBundle, ExpectationSet
 from apps.agent.orchestrator.audit_runner import run_audit
@@ -277,3 +279,197 @@ def test_pages_without_a_timestamp_are_ignored() -> None:
     plain = Observation("http://a.test/x", "t", "<td>AAPL</td><td>190.10</td>")
     other = Observation("http://a.test/x", "t", "<td>AAPL</td><td>191.10</td>")
     assert _live(plain, other, plain) == []
+
+
+# -- SW-03: an invalid value submitted to a form must be rejected, not reported as success ----
+
+from apps.agent.orchestrator.probes import FormProbe, form_probe_violations  # noqa: E402
+
+VALID_RULE = Rule(
+    "valid",
+    "An order with a negative quantity must be rejected with an error, never shown as a success.",
+    "user",
+    "critical",
+    "validation",
+)
+FORM = "<form><input name=qty type=number><button>Place order</button></form>"
+
+
+def _probe(value: str, after_msg: str) -> FormProbe:
+    before = f"<h1>Trade</h1>{FORM}"
+    after = f"<h1>Trade</h1>{FORM}<div role=status>{after_msg}</div>"
+    return FormProbe("http://a.test/trade", "qty", value, before, after)
+
+
+def _valid(*probes: FormProbe) -> list:  # type: ignore[type-arg]
+    return form_probe_violations([VALID_RULE], [BASE], {"s1": list(probes)})
+
+
+def test_an_invalid_value_reported_as_success_is_flagged() -> None:
+    got = _valid(_probe("-5", "Order filled: BUY -5 AAPL"))
+    assert len(got) == 1 and got[0].state_id == "s1"
+    assert "Order filled" in (got[0].evidence.text or "") and "-5" in got[0].rationale
+
+
+def test_an_invalid_value_rejected_with_an_error_is_fine() -> None:
+    assert _valid(_probe("-5", "Error: quantity must be positive")) == []
+
+
+def test_a_response_that_says_nothing_new_is_not_a_finding() -> None:
+    assert _valid(_probe("-5", "")) == []
+
+
+def test_success_words_already_on_the_page_do_not_count() -> None:
+    before = "<h1>Trade</h1><p>Order filled instantly or your money back</p>"
+    probe = FormProbe("http://a.test/trade", "qty", "-5", before, before)
+    assert _valid(probe) == []
+
+
+def test_a_response_with_both_success_and_error_wording_is_not_flagged() -> None:
+    assert _valid(_probe("-5", "Order filled? No: invalid quantity")) == []
+
+
+def test_validation_rules_only() -> None:
+    other = Rule("x", "t", "user", "high", "content", {"forbid_pattern": "zzz"})
+    assert form_probe_violations([other], [BASE], {"s1": [_probe("-5", "Order filled")]}) == []
+
+
+class FormCrawler(FlakyCrawler):
+    """A page with an order form; `probe_forms` records calls and answers like a flawed app."""
+
+    def __init__(self, url: str) -> None:
+        super().__init__(flaky_every=10_000, url=url)
+        self.probed: list[str] = []
+
+    def open(self, url: str) -> CaptureBundle:
+        self.n += 1
+        dom = f"<html><body><h1>Trade</h1>{FORM}</body></html>"
+        return CaptureBundle(self.url, dom, {}, None, "Trade")
+
+    def probe_forms(self, url: str, values: Any) -> list[FormProbe]:
+        self.probed.append(url)
+        return [_probe(v, "Order filled") for v in values]
+
+
+def _audit_forms(url: str, probe: bool) -> tuple[FormCrawler, Any]:
+    crawler = FormCrawler(url)
+    report = run_audit(
+        AuditConfig(
+            url=url,
+            rules=(VALID_RULE,),
+            auto_rules=False,
+            probabilistic=False,
+            resamples=0,
+            probe_forms=probe,
+        ),
+        _ports(crawler),
+        ExpectationSet((), ()),
+    )
+    return crawler, report
+
+
+def test_an_accepted_invalid_value_becomes_a_critical_finding_on_a_local_target() -> None:
+    crawler, report = _audit_forms("http://localhost:8765/trade", probe=True)
+    hits = [f for f in report.findings if f.rule_id == "valid"]
+    assert crawler.probed == ["http://localhost:8765/trade"]
+    assert hits and hits[0].severity == "critical" and "Order filled" in " ".join(hits[0].evidence)
+
+
+def test_form_probing_is_off_by_default() -> None:
+    crawler, report = _audit_forms("http://localhost:8765/trade", probe=False)
+    assert crawler.probed == [] and not report.findings
+
+
+@pytest.mark.parametrize("url", ["https://example.com/trade", "http://8.8.8.8/trade"])
+def test_form_probing_never_runs_against_a_public_site(url: str) -> None:
+    crawler, report = _audit_forms(url, probe=True)
+    assert crawler.probed == [] and not [f for f in report.findings if f.rule_id == "valid"]
+
+
+def test_a_failing_probe_does_not_fail_the_audit() -> None:
+    class Down(FormCrawler):
+        def probe_forms(self, url: str, values: Any) -> list[FormProbe]:
+            raise RuntimeError("browser died")
+
+    crawler = Down("http://localhost:8765/trade")
+    report = run_audit(
+        AuditConfig(
+            url=crawler.url,
+            rules=(VALID_RULE,),
+            auto_rules=False,
+            probabilistic=False,
+            resamples=0,
+            probe_forms=True,
+        ),
+        _ports(crawler),
+        ExpectationSet((), ()),
+    )
+    assert report.status == "done"
+
+
+def test_the_evidence_quotes_the_success_line_not_unrelated_changes() -> None:
+    """Live prices change between the before/after captures; they must not crowd the quote."""
+    before = "<h1>Trade</h1><p>AAPL 190.10</p><p>MSFT 410.20</p>"
+    after = (
+        "<h1>Trade</h1><p>AAPL 190.55</p><p>MSFT 410.80</p>"
+        "<p>GOOGL 140.00 +0.5%</p><div role=status>Order filled: BUY -5 AAPL</div>"
+    )
+    got = _valid(FormProbe("http://a.test/trade", "qty", "-5", before, after))
+    assert len(got) == 1
+    assert "Order filled" in (got[0].evidence.text or "")
+    assert "190.55" not in (got[0].evidence.text or "")
+
+
+def test_a_validation_rule_is_proposed_once_a_numeric_form_has_been_seen() -> None:
+    """Auto-rules are made before the crawl; the form only shows up during it."""
+    crawler = FormCrawler("http://localhost:8765/trade")
+    report = run_audit(
+        AuditConfig(
+            url=crawler.url,
+            rules=(),
+            auto_rules=True,
+            probabilistic=False,
+            resamples=0,
+            probe_forms=True,
+        ),
+        _ports(crawler),
+        ExpectationSet((), ()),
+    )
+    proposed = [r for r in report.rules if r.kind == "validation"]
+    assert len(proposed) == 1 and proposed[0].source == "generated"
+    assert any(f.rule_id == proposed[0].rule_id for f in report.findings)
+
+
+def test_no_validation_rule_is_proposed_when_auto_rules_is_off_or_probing_is_off() -> None:
+    for auto, probe in ((False, True), (True, False)):
+        crawler = FormCrawler("http://localhost:8765/trade")
+        report = run_audit(
+            AuditConfig(
+                url=crawler.url,
+                rules=(),
+                auto_rules=auto,
+                probabilistic=False,
+                resamples=0,
+                probe_forms=probe,
+            ),
+            _ports(crawler),
+            ExpectationSet((), ()),
+        )
+        assert not [r for r in report.rules if r.kind == "validation"]
+
+
+def test_an_existing_validation_rule_is_not_duplicated() -> None:
+    crawler = FormCrawler("http://localhost:8765/trade")
+    report = run_audit(
+        AuditConfig(
+            url=crawler.url,
+            rules=(VALID_RULE,),
+            auto_rules=True,
+            probabilistic=False,
+            resamples=0,
+            probe_forms=True,
+        ),
+        _ports(crawler),
+        ExpectationSet((), ()),
+    )
+    assert len([r for r in report.rules if r.kind == "validation"]) == 1

@@ -40,6 +40,8 @@ class AuditConfig:
     resamples: int = 2
     #: Reloads for pages making background requests of their own (where flaky backends live).
     resamples_dynamic: int = 20
+    #: Submit invalid values to eligible forms. Local/private targets only; off by default.
+    probe_forms: bool = False
     volatility_patterns: tuple[str, ...] = ()
 
 
@@ -76,3 +78,14 @@ class AuditReport:
     graph: dict[str, Any] = field(default_factory=dict)  # {"nodes":[...],"edges":[...]}
     stats: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class FormProbe:
+    """One invalid value submitted to one form: the page before and after submitting."""
+
+    url: str
+    field: str
+    value: str
+    before_dom: str
+    after_dom: str

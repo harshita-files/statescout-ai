@@ -11,7 +11,14 @@ from collections.abc import Callable, Sequence
 from dataclasses import replace
 from typing import Any, Literal
 
-from apps.agent.audit_models import AuditConfig, AuditReport, BlockedNote, Finding, Rule
+from apps.agent.audit_models import (
+    AuditConfig,
+    AuditReport,
+    BlockedNote,
+    Finding,
+    FormProbe,
+    Rule,
+)
 from apps.agent.contracts import (
     CaptureBundle,
     ExpectationSet,
@@ -21,6 +28,7 @@ from apps.agent.contracts import (
     StateNode,
     Violation,
 )
+from apps.agent.crawler.safety import is_local_target
 from apps.agent.negation.checks import check_rules, visible_text
 from apps.agent.orchestrator.config import OrchestratorConfig
 from apps.agent.orchestrator.deps import Ports
@@ -29,6 +37,7 @@ from apps.agent.orchestrator.export import export_graph
 from apps.agent.orchestrator.graph_runner import explore
 from apps.agent.orchestrator.probes import (
     distinct_targets,
+    form_probe_violations,
     liveness_violations,
     resample,
     resample_violations,
@@ -44,6 +53,61 @@ Stop = Callable[[], bool]
 
 #: Most page reloads the resample phase may spend, whatever `resamples` says.
 RESAMPLE_CAP = 100
+
+
+#: Values every sane form refuses: a negative amount and an absurdly large one.
+_PROBE_VALUES = ("-5", "1000000000")
+_MAX_PROBED_PAGES = 3
+_HAS_NUMERIC_FORM = re.compile(
+    r"(?is)<form\b.*?(?:type=[\"']?number|name=[\"']?(?:qty|quantity|amount|count|units|shares)\b)"
+)
+
+
+def _probe_forms(
+    crawler: Any,
+    config: AuditConfig,
+    maps: Sequence[SemanticUIMap],
+    markup: dict[str, str],
+) -> dict[str, list[FormProbe]]:
+    """Submit invalid values to eligible forms, on local/private targets only."""
+    if not is_local_target(config.url) or not hasattr(crawler, "probe_forms"):
+        return {}  # never submit forms on a site the user does not run
+    pages = [
+        (m.state_id, m.url) for m in maps if _HAS_NUMERIC_FORM.search(markup.get(m.state_id, ""))
+    ]
+    out: dict[str, list[FormProbe]] = {}
+    for state_id, url in distinct_targets(pages)[:_MAX_PROBED_PAGES]:
+        try:
+            out[state_id] = crawler.probe_forms(url, _PROBE_VALUES)
+        except Exception:  # a failed probe must not fail the audit
+            out[state_id] = []
+    return out
+
+
+AUTO_VALIDATION_TEXT = (
+    "A form given a negative or absurdly large quantity must be rejected with an error, "
+    "never shown as a success"
+)
+
+
+def _with_observed_form_rule(
+    rules: Sequence[Rule], config: AuditConfig, markup: dict[str, str]
+) -> list[Rule]:
+    """Auto-rules are made before the crawl; a form is only known once a page was seen.
+
+    When probing is on (local targets only) and the crawl met a numeric form, propose the
+    rule that makes the probe's outcome a finding, unless one is already there.
+    """
+    out = list(rules)
+    if (
+        config.probe_forms
+        and config.auto_rules
+        and is_local_target(config.url)
+        and not any(r.kind == "validation" for r in out)
+        and any(_HAS_NUMERIC_FORM.search(m) for m in markup.values())
+    ):
+        out.append(Rule("auto-validation", AUTO_VALIDATION_TEXT, "generated", "high", "validation"))
+    return out
 
 
 def _close_quietly(crawler: Any) -> None:
@@ -356,6 +420,8 @@ def run_audit(
         )
 
     maps = list(observer.maps.values())
+    rules = _with_observed_form_rule(rules, config, observer.markup)
+    config = replace(config, rules=tuple(rules))
     resampled: list[Violation] = []
     rates: dict[str, float] = {}
     try:
@@ -370,6 +436,9 @@ def run_audit(
             )
             resampled, rates = resample_violations(rules, maps, observed)
             resampled += liveness_violations(rules, maps, observed, observer.texts)
+        if config.probe_forms and not tap.should_stop():
+            probed = _probe_forms(ports.crawler, config, maps, observer.markup)
+            resampled += form_probe_violations(rules, maps, probed)
     finally:
         _close_quietly(ports.crawler)  # explore() left it open for the probes above
 

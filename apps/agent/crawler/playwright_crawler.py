@@ -15,9 +15,10 @@ ADR-001 decisions honoured
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from contextlib import suppress
 from typing import Any, Literal
 from urllib.parse import unquote, urlsplit
@@ -34,7 +35,7 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-from apps.agent.audit_models import BlockedNote
+from apps.agent.audit_models import BlockedNote, FormProbe
 from apps.agent.contracts import (
     Action,
     ActionError,
@@ -93,6 +94,36 @@ def _action_id(role: str, name: str, selector: str) -> str:
     raw = f"{role.strip().lower()}|{name.strip().lower()}|{selector.strip()}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
+
+log = logging.getLogger(__name__)
+
+_FORM_JS = """(i) => {
+  const f = document.forms[i]; if (!f) return null;
+  const inputs = Array.from(f.querySelectorAll('input,textarea,select'));
+  const risky = /(card|cvv|cvc|iban|ssn|passw|secret|token)/i;
+  const bad = inputs.some(e => /^(password|file)$/i.test(e.type)
+    || /^cc-/.test(e.autocomplete || '')
+    || (e.type !== 'hidden' && risky.test((e.name || '') + ' ' + (e.id || ''))));
+  const num = inputs.find(e => e.type === 'number'
+    || /^(qty|quantity|amount|count|units|shares)$/i.test(e.name || ''));
+  const btn = f.querySelector('button[type=submit], button:not([type]), input[type=submit]');
+  let sameOrigin = true;
+  try { sameOrigin = new URL(f.action || location.href, location.href).origin === location.origin; }
+  catch (e) { sameOrigin = false; }
+  document.querySelectorAll('[data-ss-field],[data-ss-submit]').forEach(e => {
+    e.removeAttribute('data-ss-field'); e.removeAttribute('data-ss-submit'); });
+  if (num) num.setAttribute('data-ss-field', '1');
+  if (btn) btn.setAttribute('data-ss-submit', '1');
+  return {bad, hasNum: !!num, hasBtn: !!btn, sameOrigin,
+          label: ((btn && (btn.innerText || btn.value)) || '').trim(),
+          field: (num && (num.name || num.id)) || ''};
+}"""
+
+#: A submit button that does something irreversible or sensitive: never probed.
+_RISKY_BUTTON = re.compile(
+    r"(?i)\b(pay|purchase|checkout|delete|remove|transfer|withdraw|donate|subscribe|"
+    r"unsubscribe|sign ?up|register|log ?in|log ?out|send)\b"
+)
 
 _ANCHOR_JS = """() => Array.from(document.querySelectorAll('a[href]')).map(a => ({
   name: (a.getAttribute('aria-label') || a.innerText || a.title || '').trim(),
@@ -392,6 +423,48 @@ class PlaywrightCrawler:
             raise
         except Exception as exc:
             raise NavigationError(str(exc)) from exc
+
+    def probe_forms(self, url: str, values: Sequence[str]) -> list[FormProbe]:
+        """Submit each invalid `value` to each eligible form on `url`; return what happened.
+
+        Eligible: a numeric field, a submit button, a same-origin action, and none of: a
+        password/file/card-like field or a button that pays, deletes, sends, signs in...
+        The caller must only use this on targets the user owns (see `is_local_target`).
+        """
+        out: list[FormProbe] = []
+        try:
+            self._gate(url)
+            self._start_session()
+            page = self._ensure_page()
+            page.goto(url, wait_until="load", timeout=30_000)
+            count = int(page.evaluate("document.forms.length"))
+        except Exception as exc:
+            raise NavigationError(str(exc)) from exc
+        for i in range(count):
+            for value in values:
+                try:
+                    self._gate(url)
+                    page.goto(url, wait_until="load", timeout=30_000)
+                    spec = page.evaluate(_FORM_JS, i)
+                    if (
+                        not spec
+                        or spec["bad"]
+                        or not spec["hasNum"]
+                        or not spec["hasBtn"]
+                        or not spec["sameOrigin"]
+                        or _RISKY_BUTTON.search(spec["label"])
+                    ):
+                        break  # this form is ineligible for every value
+                    before = page.content()
+                    page.fill("[data-ss-field]", value, timeout=3_000)
+                    page.click("[data-ss-submit]", timeout=3_000)
+                    with suppress(PlaywrightTimeoutError):
+                        page.wait_for_load_state("networkidle", timeout=3_000)
+                    page.wait_for_timeout(300)
+                    out.append(FormProbe(url, spec["field"], value, before, page.content()))
+                except Exception as exc:
+                    log.warning("form probe on %s failed (%s)", url, type(exc).__name__)
+        return out
 
     def act(self, action: Action) -> CaptureBundle:
         """Execute *action* on the current page and capture what follows.

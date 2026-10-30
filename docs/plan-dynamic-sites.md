@@ -36,6 +36,21 @@ Masks are recorded in the report (`stats.masks`) so a reviewer can see exactly w
 treated as noise. Masking numbers means two pages that differ only by a number share a
 state (their URL still separates them); disable `auto_mask` if that matters for a target.
 
+## After the crawl: probes
+
+A crawl visits each page once. Some defects only show up with more than one look, so the
+audit runner has post-crawl phases (`orchestrator/probes.py`), all run while the browser
+is still open:
+
+| Phase | Catches | How |
+| --- | --- | --- |
+| Resample | intermittent defects (an endpoint that fails 1 load in 10) | reload each kind of page a few times; pages making background requests of their own get many more (`resamples`, `resamples_dynamic`). A finding's confidence is the share of re-observations that showed it. |
+| Liveness | a "Last updated" stamp that stays put while the data moves | readings of one page in time order: several readings sharing a timestamp but showing different values |
+| Form probing | forms that accept a value they must refuse | submit a negative and a huge number to eligible forms and read the response. **Opt-in, local/private targets only** (the API rejects it for public sites). Never touches password/file/card fields, off-origin actions, or buttons that pay, delete, send or sign in. |
+
+The crawl itself also prefers unseen *kinds* of page (URL patterns) over more of a kind
+already seen, so ten `/stock/*` pages do not use up the budget before `/trade`.
+
 ## Real sites (google.com, youtube.com, ...)
 
 Polite and bounded by default: robots.txt respected, per-host rate limit, page/time caps

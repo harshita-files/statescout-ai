@@ -266,3 +266,38 @@ def test_unknown_request_fields_are_rejected_not_silently_ignored() -> None:
     assert nested.status_code == 202
     typo = c.post("/audits", json={"url": "https://example.com", "caps": {"max_second": 60}})
     assert typo.status_code == 422
+
+
+def test_form_probing_is_refused_for_a_public_target() -> None:
+    """Submitting forms must never be aimed at a site the user does not run."""
+    c, _ = build()
+    r = c.post("/audits", json={"url": "https://example.com", "probe_forms": True})
+    assert r.status_code == 422 and "local" in r.text.lower()
+
+
+def test_form_probing_reaches_the_runner_for_a_local_target() -> None:
+    seen: list[bool] = []
+
+    def runner(cfg: Any, ctx: Any) -> AuditReport:
+        seen.append(cfg.probe_forms)
+        return make_report(cfg.url)
+
+    c, _ = build(runner)
+    aid = c.post("/audits", json={"url": "http://localhost:8765/", "probe_forms": True}).json()[
+        "audit_id"
+    ]
+    wait(c, aid, {"done"})
+    assert seen == [True]
+
+
+def test_form_probing_defaults_to_off() -> None:
+    seen: list[bool] = []
+
+    def runner(cfg: Any, ctx: Any) -> AuditReport:
+        seen.append(cfg.probe_forms)
+        return make_report(cfg.url)
+
+    c, _ = build(runner)
+    aid = c.post("/audits", json={"url": "http://localhost:8765/"}).json()["audit_id"]
+    wait(c, aid, {"done"})
+    assert seen == [False]

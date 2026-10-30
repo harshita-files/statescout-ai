@@ -63,6 +63,8 @@
     <label class="check"><input id="robots" type="checkbox" checked> Respect robots.txt</label>
     <p class="note warn">Only audit sites you own or are authorized to test. Disabling robots.txt is for those sites only.</p>
     <label class="check"><input id="prob" type="checkbox" checked> Probabilistic mode (transition probabilities and confidence)</label>
+    <label class="check"><input id="probe_forms" type="checkbox"> Submit invalid values to forms</label>
+    <p class="note warn">Sends a negative and a huge number to numeric forms to check they are rejected. It submits data, so it only runs against localhost or your own network, never public sites.</p>
 
     <div class="row">
       <button id="start" type="submit">Start audit</button>
