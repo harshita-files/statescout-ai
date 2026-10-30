@@ -69,7 +69,7 @@ def test_llm_path_valid() -> None:
         }
     )
     llm = FakeLLM([reply])
-    exp, rules = parse_rules(["whatever"], llm, "guest")
+    exp, rules = parse_rules(["Guests must not see the Admin Link"], llm, "guest")
     assert exp.forbidden[0].subject == "admin-access"
     assert rules[0].severity == "critical" and llm.calls == 1
 

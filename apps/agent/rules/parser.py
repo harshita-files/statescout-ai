@@ -222,7 +222,27 @@ def _extract_json(raw: str) -> dict[str, Any]:
     return data
 
 
-def _validate(data: dict[str, Any]) -> dict[str, Any]:
+_PLACEHOLDER_SUBJECT = "short-hyphenated-ui-element-or-capability"  # the schema example in _SYSTEM
+
+
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", text.lower()))
+
+
+def _subject_is_plausible(subject: str, text: str) -> bool:
+    """Small models copy the schema example or invent a subject. Accept the subject if it is
+    not the placeholder and either shares a word with the sentence (admin-link <- "the admin
+    link") or is a canonical name the perception layer knows (logout <- "sign out")."""
+    from apps.agent.perception.semantic_map import _CAPABILITY_RULES, _TAG_RULES
+
+    subject = subject.strip()
+    if subject == _PLACEHOLDER_SUBJECT:
+        return False
+    known = {name for name, _ in (*_CAPABILITY_RULES, *_TAG_RULES)}
+    return subject.lower() in known or bool(_words(subject) & _words(text))
+
+
+def _validate(data: dict[str, Any], text: str = "") -> dict[str, Any]:
     kind = data.get("kind")
     if kind not in _KINDS:
         raise ValueError(f"kind must be one of {sorted(_KINDS)}")
@@ -238,6 +258,8 @@ def _validate(data: dict[str, Any]) -> dict[str, Any]:
     subject = data.get("subject", "")
     if kind in {"presence", "absence"} and (not isinstance(subject, str) or not subject.strip()):
         raise ValueError("subject required for presence/absence")
+    if kind in {"presence", "absence"} and text and not _subject_is_plausible(str(subject), text):
+        raise ValueError(f"subject {subject!r} is not about the policy sentence")
     return {
         "kind": kind,
         "severity": sev,
@@ -252,7 +274,7 @@ def _via_llm(rule: Rule, llm: LLMProvider) -> tuple[Rule, ExpectationNode | None
     for _ in range(2):
         try:
             raw = llm.complete(prompt, system=_SYSTEM, json_mode=True)
-            v = _validate(_extract_json(raw))
+            v = _validate(_extract_json(raw), rule.text)
         except Exception as exc:
             prompt = f"Policy sentence: {rule.text!r}\nYour previous reply was invalid ({exc}). Reply with valid JSON only."
             continue

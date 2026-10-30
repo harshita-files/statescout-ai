@@ -125,8 +125,20 @@ _SYSTEM = (
     '{"rules":[{"text":"...","kind":"presence|absence|consistency|numeric|a11y|content",'
     '"severity":"low|medium|high|critical","params":{}}]}. '
     "Consider: login exposure, admin controls visible to guests, price/number consistency across views, "
-    "missing consent banner, unlabeled controls, broken links, negative or invalid numbers. Max 10 rules."
+    "missing consent banner, unlabeled controls, broken links, negative or invalid numbers. Max 10 rules. "
+    "Each rule text must be a full sentence saying what must or must not be true, such as "
+    "'Guests must not see the admin link', never a bare topic name."
 )
+
+
+_MODAL = re.compile(
+    r"\b(must|should|shall|never|always|ensure|verify|check|require[sd]?|cannot|not|no)\b", re.I
+)
+
+
+def _is_policy_sentence(text: str) -> bool:
+    """A rule states what must or must not hold. Topic labels ('login exposure') are not."""
+    return len(text.split()) >= 3 and bool(_MODAL.search(text))
 
 
 def _from_llm(pages: Sequence[PageSummary], llm: LLMProvider) -> list[Rule] | None:
@@ -154,9 +166,13 @@ def _from_llm(pages: Sequence[PageSummary], llm: LLMProvider) -> list[Rule] | No
                 if it["kind"] == "content" and "require_pattern" in params and _is_consent(text):
                     params = {**params, "when_markup": TRACKER_MARKUP}
                 rules.append(Rule(f"gen-{i}", text, "generated", sev, it["kind"], params))
-            if rules:
-                return rules
-            raise ValueError("no rules")
+            sentences = [r for r in rules if _is_policy_sentence(r.text)]
+            if sentences:
+                return [
+                    Rule(f"gen-{n}", r.text, "generated", r.severity, r.kind, r.params)
+                    for n, r in enumerate(sentences, 1)
+                ]
+            raise ValueError("rule texts must be full policy sentences, not topic labels")
         except Exception as exc:
             prompt = f"Page summaries:\n{summary}\nPrevious reply invalid ({exc}). Reply with valid JSON only."
     return None
