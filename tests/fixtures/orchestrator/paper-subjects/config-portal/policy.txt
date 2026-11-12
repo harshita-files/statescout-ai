@@ -1,0 +1,4 @@
+1. Free tier users must never access the billing panel.
+2. The account settings page must always display the current subscription level.
+3. Users should never be unable to find password change options.
+4. Non-admin team members must not be able to modify organization settings.

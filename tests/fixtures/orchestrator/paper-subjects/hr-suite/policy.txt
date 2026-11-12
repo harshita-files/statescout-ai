@@ -1,0 +1,4 @@
+1. Non-manager employees must never be able to access salary information for other employees.
+2. All employees must be able to download their pay stubs.
+3. The system should never allow non-authorized users to trigger payroll calculations.
+4. Employees must always have visibility into their benefit enrollment status.

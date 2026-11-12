@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConfigHub - Settings</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f8f9fa; }
+        .header { background: #667eea; color: white; padding: 20px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+        nav { background: white; border-bottom: 1px solid #eee; margin-bottom: 20px; }
+        nav a { display: inline-block; padding: 15px 20px; text-decoration: none; color: #667eea; border-bottom: 3px solid transparent; }
+        nav a:hover { border-bottom-color: #667eea; }
+        .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #333; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: #333; }
+        button { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #5568d3; }
+        a { color: #667eea; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Account Settings</h1>
+        </div>
+    </div>
+
+    <nav>
+        <a href="home.html">Dashboard</a>
+        <a href="subscription.html">Subscription</a>
+        <a href="settings.html">Settings</a>
+        <a href="team.html">Team</a>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h3>Profile Information</h3>
+            <label>Full Name</label>
+            <input type="text" value="Alex Johnson">
+            <label>Email Address</label>
+            <input type="email" value="alex@example.com">
+            <label>Organization</label>
+            <input type="text" value="Acme Corp">
+            <button>Save Changes</button>
+        </div>
+
+        <div class="card">
+            <h3>Preferences</h3>
+            <label>Default Language</label>
+            <select>
+                <option>English</option>
+                <option>Spanish</option>
+                <option>French</option>
+            </select>
+            <label>Email Notifications</label>
+            <input type="checkbox" checked> Receive product updates and announcements
+            <br>
+            <input type="checkbox" checked> Receive billing notifications
+        </div>
+
+        <div class="card">
+            <h3>Security</h3>
+            <p><a href="password-change.html">Change password</a></p>
+            <p><a href="#">Enable two-factor authentication</a></p>
+        </div>
+
+        <div class="card">
+            <h3>Danger Zone</h3>
+            <button onclick="confirm('Are you sure?')">Delete Account</button>
+            <p style="font-size: 12px; color: #666;">This action cannot be undone.</p>
+        </div>
+    </div>
+</body>
+</html>

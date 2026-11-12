@@ -1,0 +1,4 @@
+1. Patients must never be able to view another patient's medical records.
+2. The patient portal must always provide a way to schedule an appointment.
+3. Non-staff users should never be able to access the staff-only clinical dashboard.
+4. Patients must not be unable to locate emergency contact information.

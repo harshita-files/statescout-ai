@@ -1,0 +1,23 @@
+Web applications enforce authorization on the server, yet their user
+interfaces routinely expose what a role should never see: an Admin link
+rendered for guests, a debug panel shipped to production, or a destructive
+control two clicks from the landing page. Workflow tests miss such defects,
+because nobody writes a test for a button that is not supposed to exist. We
+present \sys{}, an autonomous auditor that explores a web application as a
+fixed role and checks every reached UI state against a role-scoped declarative
+policy. Our contributions are: (1)~a polarity-typed policy oracle that treats
+forbidden-present and required-absent clauses as distinct set operations over
+a semantic state abstraction; (2)~an error-direction asymmetry result, showing
+that under-reporting perception can only miss forbidden elements and can only
+raise false alarms on required ones, so no single perception bias is safe for
+both clause types, which motivates a design where deterministic DOM and
+accessibility-tree evidence decides existence and a vision-language model only
+annotates; and (3)~a side-effect-aware, cyclic exploration loop with
+claim-before-execute semantics, implemented as a checkpointable LangGraph
+state machine. On a ground-truth application with six states, four cycles and
+four planted violations, the loop recovers the full cyclic graph with no
+duplicate work and reports exactly the planted violations under oracle
+perception. With the deterministic perception channel, precision falls to 0.29
+and recall to 0.50, following the predicted asymmetry; a lexical-grounding
+ablation restores precision to 1.00 but not recall, isolating semantic subject
+grounding as the open problem.

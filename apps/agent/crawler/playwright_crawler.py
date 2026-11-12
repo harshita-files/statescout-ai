@@ -15,19 +15,27 @@ ADR-001 decisions honoured
 from __future__ import annotations
 
 import hashlib
+import logging
+import re
+import time
+from collections.abc import Callable, Sequence
 from contextlib import suppress
-from typing import Any
+from typing import Any, Literal
+from urllib.parse import unquote, urlsplit
 
 from playwright.sync_api import (
     Error as PlaywrightError,
 )
 from playwright.sync_api import (
+    Frame,
     Page,
+    Request,
 )
 from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
+from apps.agent.audit_models import BlockedNote, FormProbe
 from apps.agent.contracts import (
     Action,
     ActionError,
@@ -37,6 +45,7 @@ from apps.agent.contracts import (
 )
 from apps.agent.crawler.actions import execute_action, launch_session
 from apps.agent.crawler.capture import DEFAULT_OUTPUT_DIR, extract_page_state
+from apps.agent.crawler.safety import USER_AGENT, SafetyPolicy
 
 __all__ = ["PlaywrightCrawler"]
 
@@ -75,10 +84,55 @@ _KIND_MAP: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
+def _origin(url: str) -> str:
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}".lower()
+
+
 def _action_id(role: str, name: str, selector: str) -> str:
     """Stable content-addressed id (ADR-001 decision 1)."""
     raw = f"{role.strip().lower()}|{name.strip().lower()}|{selector.strip()}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+log = logging.getLogger(__name__)
+
+_FORM_JS = """(i) => {
+  const f = document.forms[i]; if (!f) return null;
+  const inputs = Array.from(f.querySelectorAll('input,textarea,select'));
+  const risky = /(card|cvv|cvc|iban|ssn|passw|secret|token)/i;
+  const bad = inputs.some(e => /^(password|file)$/i.test(e.type)
+    || /^cc-/.test(e.autocomplete || '')
+    || (e.type !== 'hidden' && risky.test((e.name || '') + ' ' + (e.id || ''))));
+  const num = inputs.find(e => e.type === 'number'
+    || /^(qty|quantity|amount|count|units|shares)$/i.test(e.name || ''));
+  const btn = f.querySelector('button[type=submit], button:not([type]), input[type=submit]');
+  let sameOrigin = true;
+  try { sameOrigin = new URL(f.action || location.href, location.href).origin === location.origin; }
+  catch (e) { sameOrigin = false; }
+  document.querySelectorAll('[data-ss-field],[data-ss-submit]').forEach(e => {
+    e.removeAttribute('data-ss-field'); e.removeAttribute('data-ss-submit'); });
+  if (num) num.setAttribute('data-ss-field', '1');
+  if (btn) btn.setAttribute('data-ss-submit', '1');
+  return {bad, hasNum: !!num, hasBtn: !!btn, sameOrigin,
+          label: ((btn && (btn.innerText || btn.value)) || '').trim(),
+          field: (num && (num.name || num.id)) || ''};
+}"""
+
+#: A submit button that does something irreversible or sensitive: never probed.
+_RISKY_BUTTON = re.compile(
+    r"(?i)\b(pay|purchase|checkout|delete|remove|transfer|withdraw|donate|subscribe|"
+    r"unsubscribe|sign ?up|register|log ?in|log ?out|send)\b"
+)
+
+_ANCHOR_JS = """() => Array.from(document.querySelectorAll('a[href]')).map(a => ({
+  name: (a.getAttribute('aria-label') || a.innerText || a.title || '').trim(),
+  href: a.href }))"""
+
+
+def _js_escape(text: str) -> str:
+    """Escape for a JS regex literal embedded in a Playwright role selector."""
+    return re.sub(r"[\\^$.*+?()\[\]{}|/]", lambda m: "\\" + m.group(0), text)
 
 
 def _extract_actions(node: Any, collected: list[Action]) -> None:
@@ -104,13 +158,9 @@ def _extract_actions(node: Any, collected: list[Action]) -> None:
     name = str(name_raw).strip()
 
     if role in _ACTIONABLE_ROLES and name:
-        backend_id = node.get("backendDOMNodeId")
-        if backend_id:
-            selector = f"[data-backend-node-id='{backend_id}']"
-        else:
-            selector = (
-                f"[aria-label='{name}'], [name='{name}'], [placeholder='{name}'], :text('{name}')"
-            )
+        # Role+name survives reloads (CDP node ids and injected attributes do not), which
+        # replays rely on. Exact match; nth=0 tolerates duplicates (they share an action_id).
+        selector = f"role={role}[name=/^{_js_escape(name)}$/] >> nth=0"
         kind = _KIND_MAP.get(role, "click")
         collected.append(
             Action(
@@ -146,13 +196,34 @@ class PlaywrightCrawler:
             crawler.close()
     """
 
+    _safety: SafetyPolicy | None = None
+    _walled: frozenset[str] = frozenset()
+
     def __init__(
         self,
         role: Role = "guest",
         *,
         output_dir: str = DEFAULT_OUTPUT_DIR,
         headless: bool = True,
+        probabilistic_states: bool = False,
+        safety: SafetyPolicy | None = None,
     ) -> None:
+        self._safety = safety
+        self._walled: frozenset[str] = frozenset()
+        # None means readiness was disabled or no outcome was reached.
+        self.last_capture_ready: bool | None = None
+        self._navigation_pending: tuple[int, set[int]] | None = None
+        self._probabilistic_states = probabilistic_states
+        self._labels: list[str] = []
+        self._pending: set[int] = set()
+        self._last_network_activity = 0.0
+        self._listeners: dict[
+            Literal["request", "requestfinished", "requestfailed"], Callable[[Request], None]
+        ] = {
+            "request": self._on_request,
+            "requestfinished": self._on_request_done,
+            "requestfailed": self._on_request_done,
+        }
         self.role = role
         self._output_dir = output_dir
         self._headless = headless
@@ -173,8 +244,108 @@ class PlaywrightCrawler:
 
     def _start_session(self) -> None:
         if self._session_ctx is None:
-            self._session_ctx = launch_session(headless=self._headless)
+            self._session_ctx = launch_session(
+                headless=self._headless, user_agent=USER_AGENT if self._safety else None
+            )
             self._page = self._session_ctx.__enter__()
+            if self._probabilistic_states:
+                for event, handler in self._listeners.items():
+                    self._page.on(event, handler)
+                self._page.on("framenavigated", self._on_frame_navigated)
+
+    def _on_request(self, request: Request) -> None:
+        if (
+            request.resource_type == "document"
+            and request.is_navigation_request()
+            and self._page is not None
+            and request.frame == self._page.main_frame
+        ):
+            self._navigation_pending = (id(request), self._pending.copy())
+        if request.resource_type not in {"fetch", "xhr"}:
+            return
+        self._pending.add(id(request))
+        self._last_network_activity = time.monotonic()
+        try:
+            path = urlsplit(request.url).path or "/"
+        except ValueError:
+            path = "/"
+        segments = []
+        for segment in path.split("/"):
+            decoded = unquote(segment)
+            if re.fullmatch(r"[0-9]+", decoded):
+                segment = ":id"
+            elif re.fullmatch(
+                r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+                r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                decoded,
+            ):
+                segment = ":uuid"
+            segments.append(segment)
+        self._labels.append(f"{request.method.upper()} {'/'.join(segments)}")
+
+    def _on_frame_navigated(self, frame: Frame) -> None:
+        if (
+            self._page is not None
+            and frame == self._page.main_frame
+            and self._navigation_pending is not None
+        ):
+            # Drop only requests predating this committed document navigation.
+            self._pending.difference_update(self._navigation_pending[1])
+            self._navigation_pending = None
+            self._last_network_activity = time.monotonic()
+
+    def _on_request_done(self, request: Request) -> None:
+        if self._navigation_pending is not None and self._navigation_pending[0] == id(request):
+            self._navigation_pending = None
+        if id(request) in self._pending:
+            self._pending.discard(id(request))
+            self._last_network_activity = time.monotonic()
+
+    def drain(self) -> tuple[str, ...]:
+        """Consume fetch/XHR start labels, preserving order, duplicates and failures.
+
+        Drain before an action to discard earlier traffic, and after it to collect
+        the observed window. Late requests belong to the window in which they
+        start. Draining does not reset pending requests or readiness tracking.
+        Disabled instances return (). No headers or bodies are inspected.
+        """
+        labels = tuple(self._labels)
+        self._labels.clear()
+        return labels
+
+    def _wait_for_capture_ready(self) -> None:
+        """Best-effort 200 ms DOM/network quiet, with a shared 2 second budget.
+
+        Polling through Playwright dispatches request events. Each DOM read has
+        its own timeout capped by the remaining budget. Expiry permits capture.
+        """
+        self.last_capture_ready = None
+        page = self._ensure_page()
+        start = time.monotonic()
+        deadline = start + 2.0
+        stable_since = start
+        previous: str | None = None
+        while (remaining := deadline - time.monotonic()) > 0:
+            try:
+                dom = page.locator("html").inner_html(timeout=max(1, min(100, remaining * 1000)))
+            except PlaywrightTimeoutError:
+                dom = None
+            now = time.monotonic()
+            if dom is None or dom != previous:
+                previous = dom
+                stable_since = now
+            if (
+                dom is not None
+                and now - stable_since >= 0.2
+                and not self._pending
+                and now - max(start, self._last_network_activity) >= 0.2
+            ):
+                self.last_capture_ready = True
+                return
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                page.wait_for_timeout(min(50, remaining * 1000))
+        self.last_capture_ready = False
 
     def _bundle(self, state: dict[str, Any]) -> CaptureBundle:
         if not state.get("success"):
@@ -197,16 +368,24 @@ class PlaywrightCrawler:
         Raises:
             NavigationError: unreachable URL, timeout, or capture failure.
         """
+        self.last_capture_ready = None
         try:
+            self._gate(url)
             self._start_session()
             page = self._ensure_page()
             response = page.goto(url, wait_until="load", timeout=30_000)
             if response is None:
                 raise NavigationError(f"goto({url!r}) returned None")
-            with suppress(PlaywrightTimeoutError):
-                page.wait_for_load_state("networkidle", timeout=5_000)
+            if self._safety is not None and response.status == 429:
+                self._safety.block(url, "rate_limit")
+                raise NavigationError(f"blocked (rate_limit): {url}")
+            if self._probabilistic_states:
+                self._wait_for_capture_ready()
+            else:
+                with suppress(PlaywrightTimeoutError):
+                    page.wait_for_load_state("networkidle", timeout=5_000)
             state = extract_page_state(page, url, self._output_dir)
-            return self._bundle(state)
+            return self._screen(self._bundle(state))
         except (NavigationError, ActionError):
             raise
         except PlaywrightTimeoutError as exc:
@@ -216,6 +395,77 @@ class PlaywrightCrawler:
         except Exception as exc:
             raise NavigationError(str(exc)) from exc
 
+    def observe(self, url: str) -> tuple[str, str, str, tuple[str, ...]]:
+        """Lean reload for repeated observation: `(url, title, dom, background requests)`.
+
+        Same gating, navigation and readiness wait as `open`, but no screenshot, no
+        accessibility tree and no capture files, so it is cheap enough to repeat dozens of
+        times. The page is not walled/expanded: this is not a new state.
+        """
+        try:
+            self._gate(url)
+            self._start_session()
+            page = self._ensure_page()
+            self.drain()  # discard requests that predate this load
+            response = page.goto(url, wait_until="load", timeout=30_000)
+            if response is None:
+                raise NavigationError(f"goto({url!r}) returned None")
+            if self._safety is not None and response.status == 429:
+                self._safety.block(url, "rate_limit")
+                raise NavigationError(f"blocked (rate_limit): {url}")
+            if self._probabilistic_states:
+                self._wait_for_capture_ready()
+            else:
+                with suppress(PlaywrightTimeoutError):
+                    page.wait_for_load_state("networkidle", timeout=5_000)
+            return page.url, page.title(), page.content(), self.drain()
+        except NavigationError:
+            raise
+        except Exception as exc:
+            raise NavigationError(str(exc)) from exc
+
+    def probe_forms(self, url: str, values: Sequence[str]) -> list[FormProbe]:
+        """Submit each invalid `value` to each eligible form on `url`; return what happened.
+
+        Eligible: a numeric field, a submit button, a same-origin action, and none of: a
+        password/file/card-like field or a button that pays, deletes, sends, signs in...
+        The caller must only use this on targets the user owns (see `is_local_target`).
+        """
+        out: list[FormProbe] = []
+        try:
+            self._gate(url)
+            self._start_session()
+            page = self._ensure_page()
+            page.goto(url, wait_until="load", timeout=30_000)
+            count = int(page.evaluate("document.forms.length"))
+        except Exception as exc:
+            raise NavigationError(str(exc)) from exc
+        for i in range(count):
+            for value in values:
+                try:
+                    self._gate(url)
+                    page.goto(url, wait_until="load", timeout=30_000)
+                    spec = page.evaluate(_FORM_JS, i)
+                    if (
+                        not spec
+                        or spec["bad"]
+                        or not spec["hasNum"]
+                        or not spec["hasBtn"]
+                        or not spec["sameOrigin"]
+                        or _RISKY_BUTTON.search(spec["label"])
+                    ):
+                        break  # this form is ineligible for every value
+                    before = page.content()
+                    page.fill("[data-ss-field]", value, timeout=3_000)
+                    page.click("[data-ss-submit]", timeout=3_000)
+                    with suppress(PlaywrightTimeoutError):
+                        page.wait_for_load_state("networkidle", timeout=3_000)
+                    page.wait_for_timeout(300)
+                    out.append(FormProbe(url, spec["field"], value, before, page.content()))
+                except Exception as exc:
+                    log.warning("form probe on %s failed (%s)", url, type(exc).__name__)
+        return out
+
     def act(self, action: Action) -> CaptureBundle:
         """Execute *action* on the current page and capture what follows.
 
@@ -223,19 +473,29 @@ class PlaywrightCrawler:
             ActionError: stale element, unknown action kind, execution failure.
             NavigationError: triggered navigation that then failed.
         """
+        self.last_capture_ready = None
         try:
             page = self._ensure_page()
+            if action.kind == "navigate":
+                self._gate(action.target)
+            elif self._safety is not None:
+                self._gate(page.url)
             raw: dict[str, Any] = {
                 "type": action.kind,
                 "selector": action.target,
                 "url": action.target if action.kind == "navigate" else None,
                 "text": action.value,
             }
-            result = execute_action(page, raw, self._output_dir)
+            if self._probabilistic_states:
+                result = execute_action(
+                    page, raw, self._output_dir, before_capture=self._wait_for_capture_ready
+                )
+            else:
+                result = execute_action(page, raw, self._output_dir)
             if not result.get("success"):
                 raise ActionError(f"execute_action failed: {result.get('error', 'unknown')}")
             state: dict[str, Any] = result.get("resulting_state") or {}
-            return self._bundle(state)
+            return self._screen(self._bundle(state))
         except (NavigationError, ActionError):
             raise
         except PlaywrightTimeoutError as exc:
@@ -257,19 +517,110 @@ class PlaywrightCrawler:
         if bundle.ax_tree:
             _extract_actions(bundle.ax_tree, collected)
 
+        if self._safety is not None and (bundle.url in self._walled or self._off_scope(bundle.url)):
+            return ()
+
+        collected = self._direct_links(bundle, collected)
+
         seen: set[str] = set()
         unique: list[Action] = []
         for a in collected:
             if a.action_id not in seen:
                 seen.add(a.action_id)
                 unique.append(a)
+        if self._safety is not None:
+            return self._safety.filter_actions(tuple(unique))
         return tuple(unique)
+
+    def _direct_links(self, bundle: CaptureBundle, actions: list[Action]) -> list[Action]:
+        """Turn real same-document-external links into `navigate` actions.
+
+        A link's destination does not depend on page state, so the orchestrator can reach
+        it with one `goto` instead of re-opening the seed and replaying a click path.
+        Off-scope links are dropped (they are scope, not findings). Anything that cannot
+        be matched to an `<a href>` stays a click.
+        """
+        if not any(a.target.startswith("role=link[") for a in actions):
+            return actions
+        try:
+            anchors = self._ensure_page().evaluate(_ANCHOR_JS)
+        except Exception:  # page gone / closed: keep clicks
+            return actions
+        hrefs: dict[str, str] = {}
+        for item in anchors:
+            name = " ".join(str(item.get("name", "")).split())
+            href = str(item.get("href", ""))
+            if name and href.startswith(("http://", "https://")):
+                hrefs.setdefault(name, href)
+        here = bundle.url.split("#")[0]
+        out: list[Action] = []
+        for a in actions:
+            if a.target.startswith("role=link[") and a.label.startswith('click "'):
+                dest = hrefs.get(" ".join(a.label[7:-1].split()))
+                if dest is not None:
+                    if dest.split("#")[0] == here and "#" in dest:
+                        continue  # in-page anchor: not a new state
+                    if self._off_scope(dest):
+                        continue
+                    a = Action(
+                        action_id=a.action_id,
+                        kind="navigate",
+                        target=dest,
+                        label=a.label.replace("click", "navigate", 1),
+                    )
+            out.append(a)
+        return out
+
+    # ------------------------------------------------------------------
+    # Safety (no-ops when ``safety`` is None)
+    # ------------------------------------------------------------------
+
+    def blocked_notes(self) -> tuple[BlockedNote, ...]:
+        """Pages not crawled (robots, captcha, login/consent wall, cap, 429)."""
+        return self._safety.blocked_notes() if self._safety else ()
+
+    def _off_scope(self, url: str) -> bool:
+        s = self._safety
+        return bool(
+            s and s.same_origin_only and s._start_origin and _origin(url) != s._start_origin
+        )
+
+    def _gate(self, url: str) -> None:
+        """Pre-navigation checks: scope, caps, robots, then per-host rate limit."""
+        if self._safety is None:
+            return
+        reason = self._safety.check_navigation(url)
+        if reason:
+            raise NavigationError(f"blocked ({reason}): {url}")
+        self._safety.throttle(url)
+
+    def _screen(self, bundle: CaptureBundle) -> CaptureBundle:
+        """Count the page and record walls; walled pages are returned but not expanded."""
+        if self._safety is None:
+            return bundle
+        if self._off_scope(bundle.url):
+            # A click landed on another origin (links we could not resolve to an href):
+            # scope, not a finding. Record it and do not expand or count the page.
+            self._safety.block(bundle.url, "offsite")
+            raise NavigationError(f"blocked (offsite): {bundle.url}")
+        self._safety.record_page(bundle.url)
+        if self._safety.check_bundle(bundle):
+            self._walled = self._walled | {bundle.url}
+        return bundle
 
     def close(self) -> None:
         """Release the browser. Safe to call more than once."""
         if self._closed:
             return
         self._closed = True
+        if self._page is not None and self._probabilistic_states:
+            for event, handler in self._listeners.items():
+                with suppress(Exception):
+                    self._page.remove_listener(event, handler)
+            with suppress(Exception):
+                self._page.remove_listener("framenavigated", self._on_frame_navigated)
+            self._navigation_pending = None
+            self._pending.clear()
         if self._session_ctx is not None:
             with suppress(Exception):
                 self._session_ctx.__exit__(None, None, None)

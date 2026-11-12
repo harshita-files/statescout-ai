@@ -37,9 +37,10 @@ Design rules (handbook Sections 1.4, 2.1; ADR-001):
 
 from __future__ import annotations
 
+import json
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from neo4j import GraphDatabase
 
@@ -286,6 +287,31 @@ class GraphStore:
     # ------------------------------------------------------------------
     # Month 2 extras — scan lifecycle
     # ------------------------------------------------------------------
+
+    def persist_dynamic_report(self, run_id: str, report: dict[str, object]) -> None:
+        """Replace a run's optional JSON-serializable dynamic statistics snapshot.
+
+        Stored independently of PolicyContext so standalone runs work without
+        creating partial scan metadata. Traversal and visited data are untouched.
+        """
+        report_json = json.dumps(report, allow_nan=False)
+        with self.driver.session() as session:
+            session.run(
+                "MERGE (r:DynamicReport {run_id: $run_id}) SET r.report_json = $report_json",
+                run_id=run_id,
+                report_json=report_json,
+            )
+
+    def get_dynamic_report(self, run_id: str) -> dict[str, object] | None:
+        """Return the run's latest snapshot, or None when none was persisted."""
+        with self.driver.session() as session:
+            record = session.run(
+                "MATCH (r:DynamicReport {run_id: $run_id}) RETURN r.report_json AS report_json",
+                run_id=run_id,
+            ).single()
+            if record is None or record["report_json"] is None:
+                return None
+            return cast(dict[str, object], json.loads(record["report_json"]))
 
     def create_policy_context(
         self, scan_id: str, url: str, policy: str, role: str = "guest"

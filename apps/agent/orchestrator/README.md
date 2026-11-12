@@ -71,3 +71,63 @@ resumed, which is why it is the one that ships.
 See [`.claude/skills/orchestrator-conventions`](../../../.claude/skills/orchestrator-conventions)
 for the full conventions, and [`docs/track-b-progress.md`](../../../docs/track-b-progress.md)
 for status and open cross-track questions.
+
+## Experimental dynamic-state exploration
+
+`probabilistic_states` is **off by default**. Enable it explicitly and declare
+application-specific regex masks for volatile DOM/AX string content:
+
+```python
+config = OrchestratorConfig(
+    probabilistic_states=True,
+    volatility_patterns=(r'data-nonce="[^"]*"', r"noise-\d+"),
+)
+```
+
+Environment equivalents are `STATESCOUT_PROBABILISTIC_STATES=true` and
+`STATESCOUT_VOLATILITY_PATTERNS` (a JSON array of regex strings). For API scans,
+set `probabilistic_states: true` and `volatility_patterns` in `POST /scan/start`;
+API requests explicitly default to disabled, independently of environment flags.
+Masks have no automatic defaults: numeric balances, permission labels, URLs and
+roles must not be silently classified as noise. Masks affect identity only;
+original captures are audited on exploration revisits and known-state replay
+captures. Unknown divergent replay observations are retained as hashes and logged
+as coverage skips. Broad masks can still hide distinct action paths; review masks
+against the application's policy and controls.
+
+`ExplorationResult.dynamic` and the scan report's `dynamic` field contain:
+
+- `transitions` and `transition_probabilities`: observed targets per JSON-encoded
+  `[state_id, action_id]` key; `replay_transitions` is the replay-only subset.
+- `exact_hashes`: raw URL/DOM/AX SHA-256 evidence grouped under equivalence IDs.
+- `endpoints` and `action_endpoints`: API request counts and distinct triggering
+  action/click counts, both globally and per state/action. Replay counts are
+  included in totals and also separately available; subtract them for exploration
+  counts. Failed actions can contribute calls without creating a transition.
+- `audits`, `hits`, `recurrence`, `reproducibility`, `confidence`: sample counts,
+  Beta(1,1)-smoothed finding recurrence, weighted incoming transition frequency,
+  and their product. This is a reproduction score, **not** calibrated confidence
+  that a security finding is correct. Findings are never filtered by this score.
+- `network_available` and `readiness`: distinguish absent instrumentation from
+  zero requests, and settled, timed-out, or unknown capture readiness. A timeout
+  still produces a best-effort capture and can yield an incomplete audit.
+
+Telemetry observes fetch/XHR starts during each action window. Seed traffic and
+traffic between actions are excluded. Late/background requests during a window
+can be counted; this is temporal attribution, not proof of causality. Endpoint
+labels omit origins and queries and template numeric/UUID path segments; distinct
+hosts with the same route share a label. Avoid secrets in path segments.
+
+Frontier ordering favors unknown or uncertain actions within BFS depth. Replay
+accepts equivalent identity and can retarget to a previously learned, known
+alternative only when its probability exceeds `replay_min_probability` (default
+0.05) and the live action matches exactly. The actual source pair is checked and
+claimed before execution. No resampling loop, probabilistic stopping rule, or
+edge pruning is introduced. The deprecated plain-Python entry point delegates
+experimental runs to the checkpointed runner; it remains an independent parity
+oracle only for legacy mode.
+
+Statistics live in every LangGraph checkpoint; the API exports the final snapshot
+to Neo4j. General crash-resume and export of interrupted runs remain separate
+work. `contracts.py` is unchanged; cross-track contract proposals are in
+[ADR-002](../../../docs/adr-002-probabilistic-network-state-model.md).

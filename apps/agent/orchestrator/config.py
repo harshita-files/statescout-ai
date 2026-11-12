@@ -41,6 +41,7 @@ Termination needs both.
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -72,6 +73,21 @@ class OrchestratorConfig(BaseSettings):
         frozen=True,
     )
 
+    probabilistic_states: bool = False
+    volatility_patterns: tuple[str, ...] = ()
+    #: With `probabilistic_states`: learn volatile regions (tickers, clocks,
+    #: counters) from repeated seed captures and mask them out of state identity.
+    auto_mask: bool = False
+    #: Extra captures of the seed used to learn masks. Needs >= 2 to learn anything.
+    auto_mask_samples: int = Field(default=4, ge=0)
+    #: With `probabilistic_states`: order each depth's frontier by UCB novelty
+    #: (reorder only; never drops a pair).
+    ucb_frontier: bool = False
+    #: With `probabilistic_states`: visit unseen kinds of page (URL patterns) before more of a
+    #: kind already seen. Reorder only; never drops a pair.
+    diverse_frontier: bool = True
+    replay_min_probability: float = Field(default=0.05, gt=0, le=1)
+
     role: Role = "guest"
 
     #: FR-10. Depth of the *state*, not of the action; 0 audits the seed alone.
@@ -94,6 +110,8 @@ class OrchestratorConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _fixed_strategy_needs_an_id(self) -> OrchestratorConfig:
+        for pattern in self.volatility_patterns:
+            re.compile(pattern)
         if self.run_id_strategy == "fixed" and not self.run_id:
             raise ValueError(
                 "run_id_strategy='fixed' requires run_id "

@@ -1,0 +1,26 @@
+\section{Discussion and Next Steps}
+\label{sec:discussion}
+
+\paragraph{Resuming safely.}
+Since LangGraph re-runs a node on resume \cite{langgraph2026durable}, the crash test suggests a concrete change: \texttt{act} should
+consult the claim set and treat a claimed pair with no recorded edge as \emph{in
+doubt}, skipping it with a recorded reason or handing it to a human, not re-firing
+it silently. A claim-set restart needs the opposite repair, rebuilding the frontier
+from persisted edges. Both need a durable checkpointer and a real browser to test.
+
+\paragraph{Subject grounding.}
+Accuracy hinges on mapping a policy subject to the elements and capabilities of a
+rendered state. A VLM could help there, but hallucination and negation weakness
+would enter through the tags it adds; Proposition~\ref{prop:asym} suggests scoring
+it per polarity on a labelled probe set of hard cases (unlabelled \texttt{div}
+controls, hidden and icon-only elements). An \emph{indeterminate} verdict when
+channels disagree, escalated to a human, is a proposal only.
+
+\paragraph{Scope, replay safety and what is missing.}
+Clauses are scoped by role only; page-scope predicates and path-sensitive
+properties need the revisit edges we keep. Treating \texttt{click} as replay-safe
+assumes navigational clicks. The results do not show that a browser-driven run
+would match the oracle. Beyond the
+fixture, the work needs independent subjects, a real Crawljax-plus-invariants
+baseline, a browser-driven run once the vocabulary question is settled, the VLM
+probe set and an archived artifact; none has been run.

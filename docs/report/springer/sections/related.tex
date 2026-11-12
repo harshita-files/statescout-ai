@@ -1,0 +1,149 @@
+\section{Background and Related Work}
+\label{sec:related}
+
+\subsection{A Running Example}
+\label{sec:example}
+
+Our test application, \texttt{broken-admin}, has six pages (\texttt{index},
+\texttt{login}, \texttt{register}, \texttt{dashboard}, \texttt{reports},
+\texttt{admin}); a guest signs in from \texttt{index} and reaches
+\texttt{dashboard}, which links to \texttt{reports} and \texttt{admin}, and most
+pages link back. The policy has four sentences, each with one planted violation:
+(F1/V-01) a guest must never see the admin link, planted on \texttt{dashboard};
+(F2/V-02) no page may ship a debug panel, planted on \texttt{reports};
+(F3/V-03) a guest must never be able to delete a user, planted as a Delete-user
+button on \texttt{admin}; and (R1/V-04) every page must offer a skip-to-content
+link, which \texttt{admin}, the only page lacking one, omits. The forbidden defects
+are \emph{additional} UI, so a workflow test has no reason to fail, and R1 is an
+absence, which an intersection-only oracle cannot express.
+
+\subsection{Related Work}
+
+Table~\ref{tab:related} compares the closest systems we found along the axes of
+our literature search (crawling and model inference, LLM/VLM GUI agents,
+access-control testing, negation in VLMs, specification and accessibility
+oracles) by web search in September and October 2026. It is a positioning aid, not a systematic review, and absence from it is not
+evidence that no related system exists. Cells were read from the abstract of each cited source (and from the
+body for ATUSA); ``?'' marks what we could not establish.
+
+\begin{table}[tbp]
+\caption{Positioning against nearby work. \checkmark{}: stated in the source we
+read; $\sim$: partial, or only expressible in code; --: not stated in what we
+read; ?: not established (MATE: we could not obtain an abstract naming its checks). AXNav's $\sim$ on REQ reflects behavioural heuristics that flag expected behaviour missing, not required elements. AE: autonomous exploration; POL: declarative policy as
+input; NEG: must-not-exist oracle; REQ: required-absent oracle; ROLE: role- or
+user-scoped; MM: multimodal perception. \sys{} marks mean implemented and
+exercised at fixture level only (AE: scripted crawler; MM: unevaluated, not wired
+in; POL: no English compiler).}
+\label{tab:related}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.02}
+\footnotesize
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccccc@{}}
+\toprule
+System & AE & POL & NEG & REQ & ROLE & MM \\
+\midrule
+Crawljax \cite{mesbah2012crawljax}              & \checkmark & -- & -- & -- & -- & -- \\
+ATUSA \cite{mesbah2012invariant}                & \checkmark & $\sim$ & \checkmark & \checkmark & -- & -- \\
+WebMate \cite{dallmeier2013webmate}             & \checkmark & -- & -- & -- & -- & -- \\
+Kea \cite{xiong2024kea}                         & \checkmark & $\sim$ & $\sim$ & $\sim$ & -- & -- \\
+MATE \cite{eler2018mate}                        & \checkmark & -- & ? & ? & -- & -- \\
+Sun et al. \cite{sun2011static}                 & -- & -- & $\sim$ & -- & \checkmark & -- \\
+DroidAgent \cite{yoon2024droidagent}            & \checkmark & -- & -- & -- & -- & -- \\
+VisionDroid/Trident \cite{liu2024visiondroid} & \checkmark & -- & -- & -- & -- & \checkmark \\
+AXNav \cite{taeb2024axnav}                      & -- & $\sim$ & -- & $\sim$ & -- & $\sim$ \\
+UIGuard \cite{chen2023uiguard}                  & -- & $\sim$ & \checkmark & -- & -- & \checkmark \\
+ST-WebAgentBench \cite{levy2026stwebagentbench} & -- & \checkmark & $\sim$ & $\sim$ & -- & -- \\
+axe-core \cite{deque2024axecore,deque2024bypass,deque2024marquee} & -- & $\sim$ & \checkmark & \checkmark & -- & -- \\
+ZAP \cite{zap2025passive,zap2025users,zap2025spider} & \checkmark & -- & \checkmark & -- & $\sim$ & -- \\
+\midrule
+\textbf{\sys{}} & $\sim$ & $\sim$ & \checkmark & \checkmark & \checkmark & $\sim$ \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+No row combines exploration, a declarative role-scoped policy and both polarities
+as typed fields; this describes the table, not all prior work. ATUSA supplies both
+polarities per application through code. axe-core ships fixed rules of both
+polarities (\texttt{bypass} requires a mechanism, \texttt{marquee} forbids an
+element) and ZAP ships passive rules and per-user scanning, but neither has
+role-scoped, user-declared clauses.
+
+\paragraph{Crawlers and GUI testers.}
+GUI Ripping \cite{memon2003ripping}, Crawljax \cite{mesbah2012crawljax} and WebMate
+\cite{dallmeier2013webmate} recover state-flow models of running interfaces; on
+Android, Sapienz, Stoat, APE, DroidBot and Humanoid
+\cite{mao2016sapienz,su2017stoat,gu2019ape,li2017droidbot,li2019humanoid} explore
+by search, stochastic models, model refinement or learned input generation, and
+Stoat reports crash detection as its headline result. Such models are cyclic by
+construction, so a cyclic graph is not our novelty. Our fingerprint is an ordinary
+state abstraction \cite{yandrapally2020nearduplicate}, and Doup\'e et al.\
+\cite{doupe2012enemy} infer a server-side state machine from state-changing
+requests, which our claim rule only echoes for the auditor's own side effects.
+
+\paragraph{Oracles, invariants and deployed web checkers.}
+Barr et al.\ \cite{barr2015oracle} survey the oracle problem; Memon et al.\
+\cite{memon2000oracles} introduced GUI oracles. ATUSA \cite{mesbah2012invariant}
+checks generic and application-specific invariants on every state Crawljax
+reaches, written as DOM conditions with XPath and JavaScript preconditions, and
+its case studies include invariants that require a structure to exist and
+invariants that flag unwanted content. In expressive power our oracle therefore
+offers a skilled tester nothing that hand-written ATUSA invariants could not
+(Sect.~\ref{sec:rq5} compares with a hand-written script of that kind, our own
+re-implementation and not ATUSA). The differences are that polarity is a typed
+field, clauses use a vocabulary of roles, names, tags and capabilities in place of
+page-specific XPath, clauses carry a role scope, and each finding records the
+operation that produced it. Kea \cite{xiong2024kea} checks user-written properties
+and MATE \cite{eler2018mate} applies accessibility checks during Android
+exploration.
+
+Both polarities are also checked on the web. The axe-core engine
+\cite{deque2024axecore} has a \texttt{bypass} rule that passes a page offering an
+internal skip link, a heading or a landmark \cite{deque2024bypass}, implementing
+WCAG success criterion 2.4.1 \cite{w3c2023wcag241}, and a \texttt{marquee} rule that
+forbids a deprecated element \cite{deque2024marquee}. The first is a deployed
+required-presence oracle close to our example R1, although it also accepts a heading
+or landmark where R1 demands a skip link; both run on whatever page a test driver
+supplies. ZAP
+has a spider that discovers resources from seed URLs \cite{zap2025spider}, a
+passive rule that flags known debug-error fragments in responses
+\cite{zap2025passive}, and it can issue requests as a configured user in a
+context \cite{zap2025users}. Detecting a missing skip link or a leaked debug
+artifact is thus not new; our contribution is treating both polarities uniformly in
+one role-scoped, declarative clause language over an explored state graph.
+
+\paragraph{Access-control testing.}
+Sun et al.\ \cite{sun2011static} statically build per-role sitemaps, compare them to
+find privileged pages, and check whether forced browsing to them succeeds. Li et
+al.\ \cite{li2014blackbox}, Noseevich and Petukhov \cite{noseevich2011detecting},
+MACE \cite{monshizadeh2014mace}, BACScan \cite{liu2025bacscan} (a feedback-driven
+oracle on read and modify operations) and BACFuzz \cite{dharmaadi2025bacfuzz} target
+authorization flaws on the server side. \sys{} instead asks whether the interface
+shown to a role conforms to a declared policy, including a required-absent half
+those tools do not model. Exposure of a link is not by itself an OWASP A01
+vulnerability \cite{owasp2021a01}, so we position the work as policy conformance.
+
+\paragraph{LLM and VLM agents, negation, and specifications.}
+GPTDroid, DroidAgent and AutoDroid \cite{liu2024gptdroid,yoon2024droidagent,wen2024autodroid}
+drive mobile apps with language models; VisionDroid (renamed Trident in a later
+arXiv version) \cite{liu2024visiondroid} asks a multimodal model to detect non-crash
+functional bugs; AXNav \cite{taeb2024axnav},
+AUITestAgent \cite{hu2024auitestagent} and WebTestPilot \cite{teoh2026webtestpilot}
+turn natural-language descriptions into interactions and checks; UIGuard
+\cite{chen2023uiguard} detects dark patterns, a fixed taxonomy of forbidden UI.
+WebArena, Mind2Web, OSWorld and SeeAct
+\cite{zhou2024webarena,deng2023mind2web,xie2024osworld,zheng2024seeact} concern web
+and computer-use agents, and ST-WebAgentBench
+\cite{levy2026stwebagentbench} measures whether \emph{agents} comply with
+policies, whereas we use a policy to audit the \emph{application}. In most of
+these systems the model delivers the verdict. In \sys{} it is not meant to decide
+which elements exist, but it can still influence a verdict through the tags it
+adds (Sect.~\ref{sec:perception}). VLMs perform near chance on negated queries
+\cite{alhamoud2025negation} and show bag-of-words behaviour
+\cite{yuksekgonul2023aro,ma2023crepe}; these studies use natural images, so we
+cite them as motivation, and transferring them to UI yes/no questions is an
+extrapolation we do not test. nl2spec and NL2LTL
+\cite{cosler2023nl2spec,fuggitti2023nl2ltl} translate language into temporal
+logic; our planned English-to-clause compiler is not implemented, and our policies
+are supplied in structured form. Sridhar et al.\ \cite{sridhar2020firepixel,sridhar2020rule} report fire-detection
+work (by title and venue only; we make no claim about their method) from the same
+institution; it is listed as adjacent work, not as support for our approach.

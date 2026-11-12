@@ -1,0 +1,31 @@
+{
+  "violations": [
+    {
+      "page": "admin-dashboard.html",
+      "role": "guest",
+      "expectation_id": "exp-shop-0",
+      "clause_type": "forbidden_present",
+      "description": "Admin dashboard page is visible to guest user, revealing admin controls and statistics"
+    },
+    {
+      "page": "checkout.html",
+      "role": "guest",
+      "expectation_id": "exp-shop-2",
+      "clause_type": "forbidden_present",
+      "description": "Complete Purchase button is displayed to guest without verified payment method"
+    },
+    {
+      "page": "index.html",
+      "role": "guest",
+      "expectation_id": "exp-shop-3",
+      "clause_type": "required_absent",
+      "description": "Home page lacks accessible link to customer support contact information"
+    }
+  ],
+  "clean_pages": {
+    "exp-shop-0": ["index.html", "products.html", "cart.html", "checkout.html", "support.html", "product-detail.html"],
+    "exp-shop-1": ["index.html", "products.html", "cart.html"],
+    "exp-shop-2": ["index.html", "products.html", "support.html", "product-detail.html", "admin-dashboard.html"],
+    "exp-shop-3": ["products.html", "support.html"]
+  }
+}

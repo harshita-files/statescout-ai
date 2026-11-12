@@ -16,9 +16,12 @@ the nodes hold an already-throttled port and cannot forget to wait for a token.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from apps.agent.contracts import CrawlerPort, GraphPort, PerceptionPort, Role
+from apps.agent.crawler.safety import SafetyPolicy
 from apps.agent.orchestrator.config import OrchestratorConfig
+from apps.agent.orchestrator.dynamic import NetworkObservations
 from apps.agent.orchestrator.ratelimit import RateLimiter, ThrottledPerception
 
 __all__ = ["Ports", "build_ports", "fake_ports", "live_ports"]
@@ -35,6 +38,7 @@ class Ports:
     crawler: CrawlerPort
     perception: PerceptionPort
     graph: GraphPort
+    network: NetworkObservations | None = None
 
 
 def _throttled(perception: PerceptionPort, limiter: RateLimiter | None) -> PerceptionPort:
@@ -61,37 +65,71 @@ def build_ports(config: OrchestratorConfig, *, live: bool = False) -> Ports:
     limiter = (
         RateLimiter(config.perception_rate_per_min) if config.perception_rate_per_min else None
     )
-    build = live_ports if live else fake_ports
-    return build(role=config.role, limiter=limiter)
+    if live:
+        return live_ports(
+            role=config.role, limiter=limiter, probabilistic_states=config.probabilistic_states
+        )
+    return fake_ports(role=config.role, limiter=limiter)
 
 
-def live_ports(*, role: Role = "guest", limiter: RateLimiter | None = None) -> Ports:
+def _make_graph(mode: str) -> GraphPort:
+    """memory | neo4j | auto (neo4j, falling back to memory if unreachable)."""
+    from apps.agent.graph.memory_graph import MemoryGraph
+
+    if mode == "memory":
+        return MemoryGraph()
+    if mode not in ("neo4j", "auto"):
+        raise ValueError(f"graph must be 'memory', 'neo4j' or 'auto', not {mode!r}")
+    try:
+        from apps.agent.graph.neo4j_graph import Neo4jGraph
+
+        return Neo4jGraph()
+    except Exception:
+        if mode == "neo4j":
+            raise
+        return MemoryGraph()
+
+
+def live_ports(
+    *,
+    role: Role = "guest",
+    limiter: RateLimiter | None = None,
+    probabilistic_states: bool = False,
+    safety: SafetyPolicy | None = None,
+    graph: str = "auto",
+    perception: PerceptionPort | None = None,
+) -> Ports:
     """Real ports from the other tracks' modules.
 
     Imports are deliberately local: `--fake` must keep working on a machine where
     Playwright, a VLM key, and Neo4j are all absent.
 
+    Args:
+        safety: optional crawl politeness/safety policy for the crawler.
+        graph: "neo4j", "memory", or "auto" (Neo4j if reachable, else memory).
+        perception: optional perception override (default: Gemini-backed VLMPerception).
+
     Raises:
-        NotImplementedError: while any of the three modules is still a stub. The
-            message names what is missing, because "cannot import name" from
-            three tracks at once is not a useful error.
+        NotImplementedError: while a required module cannot be imported. The
+            message names what is missing.
     """
     missing: list[str] = []
 
-    try:  # pragma: no cover - exercised only once Track A lands
+    try:
         from apps.agent.crawler import PlaywrightCrawler
     except ImportError:
         missing.append("apps.agent.crawler.PlaywrightCrawler (Track A)")
 
-    try:  # pragma: no cover - exercised only once Track C lands
+    try:
         from apps.agent.perception import VLMPerception
     except ImportError:
         missing.append("apps.agent.perception.VLMPerception (Track C)")
 
-    try:  # pragma: no cover - exercised only once Track D lands
-        from apps.agent.graph import Neo4jGraph  # type: ignore[attr-defined]
-    except ImportError:
-        missing.append("apps.agent.graph.Neo4jGraph (Track D)")
+    if graph == "neo4j":
+        try:
+            import apps.agent.graph.neo4j_graph  # noqa: F401
+        except ImportError:
+            missing.append("apps.agent.graph.Neo4jGraph (Track D)")
 
     if missing:
         raise NotImplementedError(
@@ -100,8 +138,15 @@ def live_ports(*, role: Role = "guest", limiter: RateLimiter | None = None) -> P
             + ". Run with --fake until they land."
         )
 
-    return Ports(  # pragma: no cover - unreachable until all three land
-        crawler=PlaywrightCrawler(role=role),
-        perception=_throttled(VLMPerception(), limiter),
-        graph=Neo4jGraph(),
+    kwargs: dict[str, Any] = {"role": role}
+    if probabilistic_states:
+        kwargs["probabilistic_states"] = True
+    if safety is not None:
+        kwargs["safety"] = safety
+    crawler = PlaywrightCrawler(**kwargs)
+    return Ports(
+        crawler=crawler,
+        network=crawler if probabilistic_states else None,
+        perception=_throttled(perception or VLMPerception(), limiter),
+        graph=_make_graph(graph),
     )

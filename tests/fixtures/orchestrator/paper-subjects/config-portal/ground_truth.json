@@ -1,0 +1,31 @@
+{
+  "violations": [
+    {
+      "page": "billing.html",
+      "role": "free_user",
+      "expectation_id": "exp-cfg-0",
+      "clause_type": "forbidden_present",
+      "description": "Billing panel is accessible to free tier user, exposing payment method management and invoice history"
+    },
+    {
+      "page": "team.html",
+      "role": "member",
+      "expectation_id": "exp-cfg-3",
+      "clause_type": "forbidden_present",
+      "description": "Non-admin team member can modify organization name and enable SSO configuration with visible input fields and buttons"
+    },
+    {
+      "page": "settings.html",
+      "role": "any",
+      "expectation_id": "exp-cfg-1",
+      "clause_type": "required_absent",
+      "description": "Account settings page does not display the current subscription level"
+    }
+  ],
+  "clean_pages": {
+    "exp-cfg-0": ["login.html", "home.html", "subscription.html", "settings.html", "password-change.html"],
+    "exp-cfg-1": ["subscription.html", "home.html"],
+    "exp-cfg-2": ["password-change.html", "settings.html", "home.html"],
+    "exp-cfg-3": ["login.html", "home.html", "subscription.html", "billing.html", "settings.html", "password-change.html"]
+  }
+}

@@ -1,0 +1,105 @@
+\section{Introduction}
+\label{sec:intro}
+
+
+Broken access control heads the OWASP Top~10~\cite{owasp2021a01}. Most
+research tools for it ask whether the \emph{server} enforces authorization,
+by comparing or replaying requests under different identities
+\cite{sun2011static,li2014blackbox,noseevich2011detecting,monshizadeh2014mace,liu2025bacscan}.
+A related class of defect lives one layer up. Consider a dashboard that
+renders an \emph{Admin} link for every role. The backend correctly rejects a
+guest's request, so a request-level scanner reports nothing. The link itself
+still leaks the existence and location of privileged functionality, invites
+probing, and violates the organisation's least-privilege UI policy. The same
+applies to a debug panel left in a production build, a destructive control a
+guest can reach in two clicks, or the \emph{absence} of an element the policy
+requires, such as a skip-to-content link, a consent banner, or a logout
+affordance.
+
+Workflow-based UI testing does not catch these defects, because tests check
+what \emph{should} happen and nobody writes a test for a button that should
+not exist. Model-inference crawlers~\cite{mesbah2012crawljax,memon2003ripping,dallmeier2013webmate}
+explore autonomously but check generic or hand-coded invariants. DOM
+invariants~\cite{mesbah2012invariant} can express presence and absence, but as
+per-page XPath predicates written in code, with no notion of role. LLM and
+VLM GUI agents~\cite{liu2024gptdroid,yoon2024droidagent,liu2024visiondroid,zheng2024seeact}
+explore or judge screens in natural language, but they let a model issue the
+verdict, which is risky when the verdict is ``this element is \emph{not}
+there'': VLMs are known to handle negation poorly~\cite{alhamoud2025negation}.
+
+\paragraph{This paper.}
+We present \sys{}, which reframes UI testing as \emph{state-space auditing}.
+Given a seed URL, a role, and a policy of the form ``a guest must never see the
+admin link; every page must offer a skip-to-content link'', \sys{} explores the
+application autonomously, keeps the full cyclic state graph, and audits every
+reached state. Each finding carries the policy clause it breaks, the set
+operation that caught it, and human-checkable evidence.
+
+\paragraph{Motivating example.}
+\Cref{fig:app} shows \texttt{broken-admin}, a six-page
+application built as ground truth. A guest lands on \texttt{index}, signs in,
+and reaches \texttt{dashboard}. From there the guest can open
+\texttt{reports} and \texttt{admin}, and every page links back. The policy,
+written in English and stored with its structured form, reads:
+
+\begin{quote}\small
+(F1) A guest must never see the admin link.
+(F2) A guest must never be able to delete a user.
+(F3) No page may ship a debug panel.
+(R1) Every page must offer a skip-to-content link.
+\end{quote}
+
+Four violations are planted. The Admin link on \texttt{dashboard} breaks F1.
+The debug panel on \texttt{reports} breaks F3. The Delete-user button on
+\texttt{admin} breaks F2. \texttt{admin} is also the only page without a
+skip-to-content link, which breaks R1.
+
+Three observations follow from this example. \emph{First}, no workflow test
+catches F1--F3, because each defect is extra UI, not broken UI. \emph{Second},
+R1 is an \emph{absence}. An engine that only intersects what it sees with a
+forbidden list cannot express it (\cref{sec:eval:rq3}). \emph{Third}, the
+graph is dense with cycles (log out, back to dashboard). A crawler that drops
+back-edges still ``finds the violations'' but throws away the navigation
+evidence that a path-sensitive policy (``reachable without signing in'') would
+need.
+
+\paragraph{Contributions.}
+We do not claim to be the first to crawl web applications into state graphs,
+to check invariants on crawled states, or to use VLMs for GUI testing; each has
+substantial prior art (\cref{sec:related}). Our contributions are a
+formalisation and a design that \emph{combine} these threads for a question
+none of them targets: \emph{does the UI a given role can reach conform to a
+declared policy of what must and must not exist?}
+\begin{enumerate}
+  \item \textbf{A polarity-typed, role-scoped policy oracle}
+    (\cref{sec:model}). Forbidden-present ($S\cap\mathcal F$) and
+    required-absent ($\mathcal R\setminus S$) are distinct set operations over
+    a \emph{semantic} state abstraction (roles, accessible names, tags,
+    capabilities), not raw XPath. Polarity is part of the policy schema, and
+    every violation is tagged with its clause type.
+  \item \textbf{An error-direction asymmetry result}
+    (\cref{prop:asym}) together with its empirical confirmation
+    (\cref{sec:eval:rq2}). Perception errors propagate in opposite directions
+    for the two clause types. This argues for reporting accuracy \emph{per
+    polarity} and for a \emph{negation-safe division of labour}, in which
+    deterministic DOM/AX evidence decides existence and a VLM only annotates.
+  \item \textbf{A side-effect-aware cyclic exploration loop}
+    (\cref{sec:system}). It uses claim-before-execute per $(v,a)$ pair,
+    kind-restricted replay, content-addressed actions, and normalized
+    fingerprints, and runs as a checkpointable LangGraph state machine behind
+    typed ports.
+  \item \textbf{An honest, reproducible evaluation} on a polarity-complete
+    ground-truth application (\cref{sec:eval}). It separates what the loop
+    guarantees (exact recovery with an oracle perceiver) from what perception
+    currently delivers, and localizes the remaining gap to semantic subject
+    grounding.
+\end{enumerate}
+
+Unlike access-control scanners, \sys{} does not test server-side enforcement.
+It audits what each role \emph{sees}, so the two are complementary.
+
+\paragraph{Organisation.}
+\Cref{sec:related} reviews related work, \cref{sec:method} presents the
+formal model, the experimental materials and the implementation,
+\cref{sec:eval} reports results and discussion, and \cref{sec:conclusion}
+concludes with future work.

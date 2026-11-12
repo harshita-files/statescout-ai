@@ -1,0 +1,92 @@
+% StateScout AI -- research paper, IEEE journal layout (follows IEEE_Journal_Paper_Template.docx)
+% Build:  cd docs/report/ieee && make
+\documentclass[10pt,twocolumn,a4paper]{article}
+
+\usepackage[top=1in,bottom=1in,left=0.75in,right=0.75in,columnsep=0.25in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage[scaled=0.9]{helvet}
+\usepackage{courier}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{microtype}
+\usepackage{booktabs,multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage[font=footnotesize,labelfont=bf,labelsep=period]{caption}
+\usepackage{enumitem}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{balance}
+\usepackage{titlesec}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=green!40!black,urlcolor=blue!50!black]{hyperref}
+\usepackage[capitalise,nameinlink]{cleveref}
+
+\setlist{nosep,leftmargin=*}
+\setlength{\parindent}{1em}
+\raggedbottom
+
+% --- IEEE-style headings: I. SMALL CAPS centred / A. italic / 1) italic run-in
+\renewcommand{\thesection}{\Roman{section}}
+\renewcommand{\thesubsection}{\Alph{subsection}}
+\renewcommand{\thesubsubsection}{\arabic{subsubsection}}
+\titleformat{\section}[block]{\centering\normalfont\small\scshape}{\thesection.\ }{0pt}{}
+\titlespacing*{\section}{0pt}{10pt}{5pt}
+\titleformat{\subsection}[block]{\normalfont\small\itshape}{\thesubsection.\ }{0pt}{}
+\titlespacing*{\subsection}{0pt}{7pt}{3pt}
+\titleformat{\subsubsection}[runin]{\normalfont\itshape}{\thesubsubsection)\ }{0pt}{}[.\ ]
+\titlespacing*{\subsubsection}{\parindent}{4pt}{0.5em}
+\titleformat{\paragraph}[runin]{\normalfont\itshape}{}{0pt}{}[.\ ]
+\titlespacing*{\paragraph}{\parindent}{3pt}{0.5em}
+\crefname{section}{Section}{Sections}
+\crefname{subsection}{Section}{Sections}
+\crefname{subsubsection}{Section}{Sections}
+
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newcommand{\sys}{\textsc{StateScout}}
+\newcommand{\Forb}{\mathcal{F}}
+\newcommand{\Req}{\mathcal{R}}
+\newcommand{\Sig}{\Sigma}
+\definecolor{bad}{HTML}{C0392B}
+\definecolor{good}{HTML}{1E7B4F}
+\definecolor{mute}{HTML}{7F8C8D}
+\definecolor{acc}{HTML}{2E5E8C}
+
+\begin{document}
+
+% ---- single-column front matter (title, authors, abstract, keywords)
+\twocolumn[{
+\begin{center}
+{\fontsize{14}{17}\selectfont\bfseries \sys: Auditing What Must \emph{Not} Exist ---\\
+Policy-Aware, Negation-Grounded Exploration of Web User Interfaces\par}
+\vspace{8pt}
+{\normalsize Team 46}\\[2pt]
+{\small\itshape Dept.\ of Computer Science and Engineering}\\
+{\small\itshape Amrita Vishwa Vidyapeetham}\\
+{\small India}\\[8pt]
+\end{center}
+\begin{minipage}{\textwidth}
+\small\noindent\textbf{\textit{Abstract}}\,---\,
+\input{sections/abstract}
+\par\vspace{4pt}
+\noindent\textbf{\textit{Keywords}}\,---\,\textit{
+access control; GUI testing; negation; policy oracle; state-space exploration; vision-language models}
+\end{minipage}
+\vspace{10pt}
+}]
+
+\input{sections/introduction}
+\input{sections/related}
+\input{sections/method}
+\input{sections/results}
+\input{sections/conclusion}
+
+\balance
+\bibliographystyle{ieeetr}
+\bibliography{references}
+
+\end{document}

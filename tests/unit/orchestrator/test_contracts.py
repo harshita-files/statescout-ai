@@ -74,9 +74,7 @@ WIRE_MIRROR = {
 #: Fields Track B added that Track A has not yet mirrored. Every entry is debt
 #: with an owner — an empty dict is the goal state, not a permanent allowance.
 #: See docs/adr-001-cross-track-contract-review.md, action item A-2.
-PENDING_TS_SYNC = {
-    ("Violation", "clause_type"): "decision 6: awaiting Track A PR adding `clauseType`",
-}
+PENDING_TS_SYNC: dict[tuple[str, str], str] = {}
 
 
 # ---------------------------------------------------------------------------

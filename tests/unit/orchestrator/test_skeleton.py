@@ -77,7 +77,10 @@ def test_unreachable_url_exits_two(capsys: pytest.CaptureFixture[str]) -> None:
     assert any(json.loads(line)["event"] == "failed" for line in captured.err.splitlines())
 
 
-def test_live_mode_exits_two_with_a_useful_reason(capsys: pytest.CaptureFixture[str]) -> None:
+def test_live_mode_exits_two_with_a_useful_reason(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(sys.modules, "apps.agent.crawler", None)
     """Until Tracks A, C, and D land, `--live` must fail by naming what is
     missing rather than raising three import errors at once."""
     assert main(["--live", "--url", "https://example.com", "--run-id", "r4"]) == EXIT_ERROR
@@ -92,14 +95,13 @@ def test_live_mode_exits_two_with_a_useful_reason(capsys: pytest.CaptureFixture[
     assert "do not exist yet" in reasons[0]
 
 
-def test_live_mode_names_every_missing_implementation() -> None:
-    # Track A (PlaywrightCrawler) is now implemented and imports cleanly.
-    # Track C (VLMPerception) is implemented and imports cleanly.
-    # Track D (Neo4jGraph) is still missing — it must appear in the message.
+def test_live_mode_names_every_missing_implementation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "apps.agent.crawler", None)
+    monkeypatch.setitem(sys.modules, "apps.agent.graph.neo4j_graph", None)
     with pytest.raises(NotImplementedError) as exc:
-        live_ports()
+        live_ports(graph="neo4j")
     message = str(exc.value)
-    assert "Track A" not in message
+    assert "Track A" in message
     assert "Track D" in message
     assert "--fake" in message
 

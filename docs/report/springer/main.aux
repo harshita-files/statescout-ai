@@ -1,0 +1,190 @@
+\relax 
+\citation{owasp2021a01}
+\citation{sun2011static,li2014blackbox,noseevich2011detecting,monshizadeh2014mace,liu2025bacscan}
+\@writefile{toc}{\contentsline {title}{\textsc  {StateScout}: Auditing What a User Interface Must Not Contain, and What It Must}{1}{}\protected@file@percent }
+\@writefile{toc}{\authcount {5}}
+\@writefile{toc}{\contentsline {author}{Kavinraj S, Harshita R, Sanjay A R, Jai Subiksha T, and Sathiya R R}{1}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{}\protected@file@percent }
+\newlabel{sec:intro}{{1}{1}{}{section.1}{}}
+\citation{mesbah2012crawljax,memon2003ripping,dallmeier2013webmate}
+\citation{mesbah2012invariant}
+\citation{liu2024gptdroid,yoon2024droidagent,liu2024visiondroid,zheng2024seeact}
+\citation{alhamoud2025negation}
+\citation{mesbah2012crawljax}
+\citation{mesbah2012invariant}
+\citation{dallmeier2013webmate}
+\citation{xiong2024kea}
+\citation{eler2018mate}
+\citation{sun2011static}
+\citation{yoon2024droidagent}
+\citation{liu2024visiondroid}
+\citation{taeb2024axnav}
+\citation{chen2023uiguard}
+\citation{levy2026stwebagentbench}
+\citation{deque2024axecore,deque2024bypass,deque2024marquee}
+\citation{zap2025passive,zap2025users,zap2025spider}
+\citation{memon2003ripping}
+\citation{mesbah2012crawljax}
+\citation{dallmeier2013webmate}
+\citation{mao2016sapienz,su2017stoat,gu2019ape,li2017droidbot,li2019humanoid}
+\citation{yandrapally2020nearduplicate}
+\citation{doupe2012enemy}
+\citation{barr2015oracle}
+\citation{memon2000oracles}
+\citation{mesbah2012invariant}
+\citation{xiong2024kea}
+\citation{eler2018mate}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Background and Related Work}{3}{}\protected@file@percent }
+\newlabel{sec:related}{{2}{3}{}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}A Running Example}{3}{}\protected@file@percent }
+\newlabel{sec:example}{{2.1}{3}{}{subsection.2.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Related Work}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Crawlers and GUI testers.}{3}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Positioning against nearby work. \text  {$\mathsurround \z@ \mathchar "458$}{}: stated in the source we read; $\sim $: partial, or only expressible in code; --: not stated in what we read; ?: not established (MATE: we could not obtain an abstract naming its checks). AXNav's $\sim $ on REQ reflects behavioural heuristics that flag expected behaviour missing, not required elements. AE: autonomous exploration; POL: declarative policy as input; NEG: must-not-exist oracle; REQ: required-absent oracle; ROLE: role- or user-scoped; MM: multimodal perception. \textsc  {StateScout}{} marks mean implemented and exercised at fixture level only (AE: scripted crawler; MM: unevaluated, not wired in; POL: no English compiler).}}{4}{}\protected@file@percent }
+\newlabel{tab:related}{{1}{4}{}{table.1}{}}
+\citation{deque2024axecore}
+\citation{deque2024bypass}
+\citation{w3c2023wcag241}
+\citation{deque2024marquee}
+\citation{zap2025spider}
+\citation{zap2025passive}
+\citation{zap2025users}
+\citation{sun2011static}
+\citation{li2014blackbox}
+\citation{noseevich2011detecting}
+\citation{monshizadeh2014mace}
+\citation{liu2025bacscan}
+\citation{dharmaadi2025bacfuzz}
+\citation{owasp2021a01}
+\citation{liu2024gptdroid,yoon2024droidagent,wen2024autodroid}
+\citation{liu2024visiondroid}
+\citation{taeb2024axnav}
+\citation{hu2024auitestagent}
+\citation{teoh2026webtestpilot}
+\citation{chen2023uiguard}
+\citation{zhou2024webarena,deng2023mind2web,xie2024osworld,zheng2024seeact}
+\citation{levy2026stwebagentbench}
+\citation{alhamoud2025negation}
+\citation{yuksekgonul2023aro,ma2023crepe}
+\citation{cosler2023nl2spec,fuggitti2023nl2ltl}
+\citation{sridhar2020firepixel,sridhar2020rule}
+\@writefile{toc}{\contentsline {paragraph}{Oracles, invariants and deployed web checkers.}{5}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Access-control testing.}{5}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{LLM and VLM agents, negation, and specifications.}{5}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Problem Formulation}{6}{}\protected@file@percent }
+\newlabel{sec:model}{{3}{6}{}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Applications, Captures and States}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}The Exploration Graph Is Cyclic}{6}{}\protected@file@percent }
+\newlabel{prop:term}{{1}{7}{}{proposition.1.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Policies as Two Set Operations}{7}{}\protected@file@percent }
+\newlabel{eq:forb}{{1}{7}{}{equation.1}{}}
+\newlabel{eq:req}{{2}{7}{}{equation.2}{}}
+\citation{alhamoud2025negation,yuksekgonul2023aro,ma2023crepe}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Error Direction Under Imperfect Perception}{8}{}\protected@file@percent }
+\newlabel{sec:asym}{{3.4}{8}{}{subsection.3.4}{}}
+\newlabel{prop:asym}{{2}{8}{}{proposition.1.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}The \textsc  {StateScout}{} Prototype}{8}{}\protected@file@percent }
+\newlabel{sec:system}{{4}{8}{}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Orchestration, Capture and Persistence}{9}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Perception}{9}{}\protected@file@percent }
+\newlabel{sec:perception}{{4.2}{9}{}{subsection.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Negation Engine}{9}{}\protected@file@percent }
+\newlabel{sec:negation}{{4.3}{9}{}{subsection.4.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Evaluation}{10}{}\protected@file@percent }
+\newlabel{sec:eval}{{5}{10}{}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Questions, Subject and Arms}{10}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Subject and arms.}{10}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Environment and artifact.}{10}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Experimental arms. \emph  {Prod.} is the production negation engine; \emph  {fake} is the in-memory fake's own set algebra. RQ4 uses E2 and E8.}}{11}{}\protected@file@percent }
+\newlabel{tab:arms}{{2}{11}{}{table.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Loop counters (A7); the 25 shuffles give identical counts. ``Dup.'': pairs executed as a frontier action more than once; ``replay/steps'': re-navigations and re-fired actions; ``revisits'': revisit edges. In the last row the login-to-dashboard step is a side-effecting action.}}{11}{}\protected@file@percent }
+\newlabel{tab:loop}{{3}{11}{}{table.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}RQ1: Audit Agreement and Loop Behaviour}{11}{}\protected@file@percent }
+\newlabel{sec:rq1}{{5.2}{11}{}{subsection.5.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{(a) Agreement under oracle perception.}{11}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{(b) The exploration loop.}{11}{}\protected@file@percent }
+\citation{langgraph2026durable}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Simulated crash and resume at 11 positions. ``Twice'': positions at which a claimed pair was attempted again after resume. ``Graph equal'': positions at which the final graph equals the uninterrupted run's (a shortfall means exploration was lost).}}{12}{}\protected@file@percent }
+\newlabel{tab:resume}{{4}{12}{}{table.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{Crash and resume.}{12}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Accuracy on \texttt  {broken-admin} by arm, with errors split by clause type ($\mathcal  F$: forbidden-present, $\mathcal  R$: required-absent). Genuine TP excludes a required-absent hit when the clause also fires on pages that carry the element: it then fires everywhere and the hit is a coincidence.}}{13}{}\protected@file@percent }
+\newlabel{tab:rq2}{{5}{13}{}{table.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}RQ2: Vocabulary Match, Perception Error and Error Direction}{13}{}\protected@file@percent }
+\newlabel{sec:rq2}{{5.3}{13}{}{subsection.5.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{A vocabulary-mismatch case study.}{13}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{A falsifiable test of the error direction.}{13}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}RQ4: Fingerprint Noise and Targeted Edits}{14}{}\protected@file@percent }
+\newlabel{sec:fp}{{5.4}{14}{}{subsection.5.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}RQ5: Mutants, Baselines and Further Apps}{14}{}\protected@file@percent }
+\newlabel{sec:rq5}{{5.5}{14}{}{subsection.5.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Errors per mutant family, as FN$_\mathcal  F$/FP$_\mathcal  R$ summed over the family's $n$ variants (no arm produced FP$_\mathcal  F$ or FN$_\mathcal  R$ anywhere). ``Planted'': forbidden/required violations in the family. A2 and A6 on intact tags make no error in any family, and A8 on stripped copies equals A8 on intact ones. A2s is the oracle perceiver run without its annotations (stripped copies), shown as a reference and not as a competitor. The label-rename row includes the combined variant, so its A8 totals double-count the singles.}}{15}{}\protected@file@percent }
+\newlabel{tab:mutants}{{6}{15}{}{table.6}{}}
+\@writefile{toc}{\contentsline {paragraph}{Three further apps.}{15}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Four generated apps (E14).}{15}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Threats to Validity}{16}{}\protected@file@percent }
+\newlabel{sec:threats}{{5.6}{16}{}{subsection.5.6}{}}
+\citation{langgraph2026durable}
+\citation{sridhar2025cloud,sathiya2025stress}
+\bibstyle{plain}
+\bibdata{references}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Discussion and Next Steps}{17}{}\protected@file@percent }
+\newlabel{sec:discussion}{{6}{17}{}{section.6}{}}
+\@writefile{toc}{\contentsline {paragraph}{Resuming safely.}{17}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Subject grounding.}{17}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Scope, replay safety and what is missing.}{17}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Conclusion}{17}{}\protected@file@percent }
+\newlabel{sec:conclusion}{{7}{17}{}{section.7}{}}
+\bibcite{alhamoud2025negation}{{1}{}{{}}{{}}}
+\bibcite{barr2015oracle}{{2}{}{{}}{{}}}
+\bibcite{chen2023uiguard}{{3}{}{{}}{{}}}
+\bibcite{cosler2023nl2spec}{{4}{}{{}}{{}}}
+\bibcite{dallmeier2013webmate}{{5}{}{{}}{{}}}
+\bibcite{deng2023mind2web}{{6}{}{{}}{{}}}
+\bibcite{deque2024axecore}{{7}{}{{}}{{}}}
+\bibcite{deque2024bypass}{{8}{}{{}}{{}}}
+\bibcite{deque2024marquee}{{9}{}{{}}{{}}}
+\bibcite{dharmaadi2025bacfuzz}{{10}{}{{}}{{}}}
+\bibcite{doupe2012enemy}{{11}{}{{}}{{}}}
+\bibcite{eler2018mate}{{12}{}{{}}{{}}}
+\bibcite{fuggitti2023nl2ltl}{{13}{}{{}}{{}}}
+\bibcite{gu2019ape}{{14}{}{{}}{{}}}
+\bibcite{hu2024auitestagent}{{15}{}{{}}{{}}}
+\bibcite{langgraph2026durable}{{16}{}{{}}{{}}}
+\bibcite{levy2026stwebagentbench}{{17}{}{{}}{{}}}
+\bibcite{li2014blackbox}{{18}{}{{}}{{}}}
+\bibcite{li2017droidbot}{{19}{}{{}}{{}}}
+\bibcite{li2019humanoid}{{20}{}{{}}{{}}}
+\bibcite{liu2025bacscan}{{21}{}{{}}{{}}}
+\bibcite{liu2024gptdroid}{{22}{}{{}}{{}}}
+\bibcite{liu2024visiondroid}{{23}{}{{}}{{}}}
+\bibcite{ma2023crepe}{{24}{}{{}}{{}}}
+\bibcite{mao2016sapienz}{{25}{}{{}}{{}}}
+\bibcite{memon2003ripping}{{26}{}{{}}{{}}}
+\bibcite{memon2000oracles}{{27}{}{{}}{{}}}
+\bibcite{mesbah2012crawljax}{{28}{}{{}}{{}}}
+\bibcite{mesbah2012invariant}{{29}{}{{}}{{}}}
+\bibcite{monshizadeh2014mace}{{30}{}{{}}{{}}}
+\bibcite{noseevich2011detecting}{{31}{}{{}}{{}}}
+\bibcite{owasp2021a01}{{32}{}{{}}{{}}}
+\bibcite{sathiya2025stress}{{33}{}{{}}{{}}}
+\bibcite{sridhar2020rule}{{34}{}{{}}{{}}}
+\bibcite{sridhar2025cloud}{{35}{}{{}}{{}}}
+\bibcite{sridhar2020firepixel}{{36}{}{{}}{{}}}
+\bibcite{su2017stoat}{{37}{}{{}}{{}}}
+\bibcite{sun2011static}{{38}{}{{}}{{}}}
+\bibcite{taeb2024axnav}{{39}{}{{}}{{}}}
+\bibcite{teoh2026webtestpilot}{{40}{}{{}}{{}}}
+\bibcite{w3c2023wcag241}{{41}{}{{}}{{}}}
+\bibcite{wen2024autodroid}{{42}{}{{}}{{}}}
+\bibcite{xie2024osworld}{{43}{}{{}}{{}}}
+\bibcite{xiong2024kea}{{44}{}{{}}{{}}}
+\bibcite{yandrapally2020nearduplicate}{{45}{}{{}}{{}}}
+\bibcite{yoon2024droidagent}{{46}{}{{}}{{}}}
+\bibcite{yuksekgonul2023aro}{{47}{}{{}}{{}}}
+\bibcite{zap2025passive}{{48}{}{{}}{{}}}
+\bibcite{zap2025spider}{{49}{}{{}}{{}}}
+\bibcite{zap2025users}{{50}{}{{}}{{}}}
+\bibcite{zheng2024seeact}{{51}{}{{}}{{}}}
+\bibcite{zhou2024webarena}{{52}{}{{}}{{}}}
+\providecommand\NAT@force@numbers{}\NAT@force@numbers
+\gdef \@abspage@last{22}

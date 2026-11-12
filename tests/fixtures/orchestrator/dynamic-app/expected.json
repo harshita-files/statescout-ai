@@ -1,0 +1,82 @@
+{
+  "app": "dynamic-app (simulated, seeded, stdlib-only; NOT a real browser)",
+  "seed": 7,
+  "seed_url": "http://dyn.test/",
+  "role": "guest",
+  "logical_state_count": 9,
+  "logical_states": [
+    {"name": "home", "url": "/", "note": "seed"},
+    {"name": "home-modal", "url": "/", "note": "SPA modal: same URL as home, opened by the Help button"},
+    {"name": "products", "url": "/products", "note": "carries the FLAKY forbidden element (~40% of renders)"},
+    {"name": "sold-out", "url": "/products/sold-out", "note": "30% outcome of Add to cart"},
+    {"name": "cart", "url": "/cart", "note": "70% outcome of Add to cart; also reachable via View cart"},
+    {"name": "thanks", "url": "/thanks", "note": "95% outcome of Checkout"},
+    {"name": "error", "url": "/error", "note": "5% rare outcome of Checkout"},
+    {"name": "feed", "url": "/feed", "note": "infinite scroll: every Load more appends 3 items, same logical state"},
+    {"name": "settings", "url": "/settings", "note": "carries the STABLE forbidden element (every render)"}
+  ],
+  "cycles_with_back_edges": [
+    ["home", "products", "home"],
+    ["home", "home-modal", "home"],
+    ["products", "cart", "products"],
+    ["home", "feed", "home"],
+    ["cart", "thanks", "home", "products", "cart"],
+    ["error", "cart", "error"]
+  ],
+  "stochastic_actions": [
+    {"action": "Add to cart", "from": "products", "outcomes": {"cart": 0.7, "sold-out": 0.3}},
+    {"action": "Checkout", "from": "cart", "outcomes": {"thanks": 0.95, "error": 0.05}}
+  ],
+  "planted_violations": [
+    {
+      "id": "V-STABLE",
+      "logical_state": "settings",
+      "expectation_id": "e-debug-panel",
+      "subject": "debug-panel",
+      "clause_type": "forbidden_present",
+      "kind": "stable",
+      "render_probability": 1.0
+    },
+    {
+      "id": "V-FLAKY",
+      "logical_state": "products",
+      "expectation_id": "e-admin-link",
+      "subject": "admin-link",
+      "clause_type": "forbidden_present",
+      "kind": "flaky",
+      "render_probability": 0.4
+    }
+  ],
+  "dynamic_features": [
+    "rotating ad block (6 ads)",
+    "live visitor counter (\"N people online\")",
+    "relative timestamps (\"Updated N minutes ago\")",
+    "infinite-scroll feed, new items per visit (8 titles, random like counts)",
+    "randomised CSS class names on every wrapper element",
+    "SPA modal at an unchanged URL",
+    "70/30 outcome (Add to cart) and 5% rare outcome (Checkout)",
+    "flaky forbidden element (~40% of products renders)"
+  ],
+  "endpoints": {
+    "note": "calls made inside ONE action window, after sanitising (query dropped, numeric segments templated). Every action also refreshes the live visitor counter.",
+    "by_action": {
+      "Products": {"GET /api/products": 1, "GET /api/visitors": 1},
+      "Feed": {"GET /api/feed": 1, "GET /api/visitors": 1},
+      "Settings": {"GET /api/settings": 1, "GET /api/visitors": 1},
+      "Help": {"GET /api/visitors": 1},
+      "Close": {"GET /api/visitors": 1},
+      "Home": {"GET /api/home": 1, "GET /api/visitors": 1},
+      "Add to cart": {"POST /api/cart": 1, "GET /api/visitors": 1},
+      "View cart": {"GET /api/cart": 1, "GET /api/visitors": 1},
+      "Back to products": {"GET /api/products": 1, "GET /api/visitors": 1},
+      "Continue shopping": {"GET /api/products": 1, "GET /api/visitors": 1},
+      "Checkout": {"POST /api/checkout": 1, "GET /api/orders/{id}": 1, "GET /api/visitors": 1},
+      "Retry": {"GET /api/cart": 1, "GET /api/visitors": 1},
+      "Load more": {"GET /api/feed": 2, "GET /api/visitors": 1}
+    },
+    "conditional": {
+      "Checkout": {"GET /api/orders/{id}": "only when the outcome is thanks (95%)"}
+    },
+    "click_actions": ["Help", "Close", "Add to cart", "Checkout", "Retry", "Load more"]
+  }
+}

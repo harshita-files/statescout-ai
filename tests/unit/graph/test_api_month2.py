@@ -209,3 +209,55 @@ class TestViolationsReport:
     def test_calls_persist_violation(self, client, mock_graph):
         client.post("/violations/report", json=self._payload)
         mock_graph.persist_violation.assert_called_once()
+
+
+class TestDynamicScan:
+    @pytest.mark.parametrize("enabled,patterns", [(False, []), (True, [r"nonce=\d+"])])
+    def test_start_forwards_options(self, client, stub_run_scan, enabled, patterns):
+        payload = {"url": "http://app.local", "policy": "p"}
+        if enabled:
+            payload.update(probabilistic_states=enabled, volatility_patterns=patterns)
+        assert client.post("/scan/start", json=payload).status_code == 200
+        kwargs = stub_run_scan.call_args.kwargs
+        assert kwargs["probabilistic_states"] is enabled
+        assert tuple(kwargs["volatility_patterns"]) == tuple(patterns)
+
+    def test_invalid_pattern_rejected_before_scheduling(self, client, stub_run_scan):
+        response = client.post(
+            "/scan/start",
+            json={
+                "url": "http://app.local",
+                "policy": "p",
+                "volatility_patterns": ["["],
+            },
+        )
+        assert response.status_code == 422
+        stub_run_scan.assert_not_called()
+
+    @pytest.mark.parametrize("stored", [None, "invalid json", "[]"])
+    def test_legacy_or_invalid_dynamic_report(self, client, mock_graph, stored):
+        mock_graph.get_dynamic_report.return_value = stored
+        response = client.get("/scan/legacy/report")
+        assert response.status_code == 200
+        assert response.json().get("dynamic") is None
+        assert response.json()["total_states"] == 0
+
+    def test_dynamic_report_round_trip(self, client, mock_graph):
+        from dataclasses import asdict
+
+        from apps.agent.orchestrator.dynamic import DynamicStats
+
+        stats = asdict(
+            DynamicStats(
+                transitions={'["s","a"]': {"t": 2}},
+                replay_transitions={'["s","a"]': {"t": 1}},
+                exact_hashes={"s": ["hash"]},
+                endpoints={"GET /items": {"calls": 2}},
+                audits={"s": 2},
+                hits={"s": 1},
+                confidence={"s": 0.5},
+                network_available=True,
+            )
+        )
+        mock_graph.get_dynamic_report.return_value = stats
+        assert client.get("/scan/dynamic/report").json()["dynamic"] == stats

@@ -1,11 +1,12 @@
 version: '3.8'
 
 # StateScout AI — local development stack
-# Usage:  docker-compose -f infra/docker-compose.yml up -d
+# Usage:  docker compose -f infra/docker-compose.yml up -d
 #
 # Services:
 #   neo4j  — graph DB (Bolt :7687, browser :7474)
 #   redis  — visited-state cache (:6379)
+#   api    — FastAPI reporting backend & Audit Console (:8000)
 
 services:
   # Neo4j Graph Database
@@ -14,13 +15,10 @@ services:
     image: neo4j:5.20-community
     container_name: statescout-neo4j
     environment:
-      # NOTE: For local setup simplicity, default credentials are set here.
-      # WARNING: Move these to a .env file and reference them via env_file/variables
-      # before deploying or sharing the environment.
-      NEO4J_AUTH: neo4j/testpassword123
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-testpassword123}
       NEO4J_dbms_memory_heap_initial__size: 512m
       NEO4J_dbms_memory_heap_max__size: 1g
-      NEO4J_PLUGINS: '["apoc"]'   # Optional utility library commonly used for graphs
+      NEO4J_PLUGINS: '["apoc"]'
     ports:
       - "7474:7474"   # Neo4j Browser HTTP UI
       - "7687:7687"   # Bolt Protocol (used by Python code)
@@ -40,6 +38,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: statescout-redis
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
     ports:
       - "6379:6379"   # Redis default port
     volumes:
@@ -50,6 +49,34 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    restart: unless-stopped
+
+  # FastAPI Reporting Backend & Web Audit Console
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    container_name: statescout-api
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-testpassword123}
+      REDIS_URL: redis://redis:6379/0
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
 
 volumes:

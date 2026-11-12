@@ -1,17 +1,12 @@
-# Track B — orchestrator
+# Orchestrator
 
-You are working in Track B's module. Root `CLAUDE.md` still applies.
+Root `CLAUDE.md` still applies.
 
-## Hard rules
+## Rules
 
-- **Only** create or modify files under `apps/agent/orchestrator/`,
-  `apps/agent/skeleton.py`, `tests/unit/orchestrator/`,
-  `tests/integration/orchestrator/`, `tests/fixtures/orchestrator/`.
-- **Never** modify `apps/agent/crawler/`, `apps/agent/perception/`,
-  `apps/agent/negation/`, `apps/agent/graph/`, `services/api/`,
-  `apps/vscode-extension/`. Read them freely; write to them never.
-- `apps/agent/contracts.py` is read-only once frozen. Code against it. If a
-  contract seems wrong, STOP and say so instead of changing it.
+- The ownership boundary is lifted: one maintainer owns every module now. Cross-module
+  changes are fine, but keep `apps/agent/contracts.py` changes **additive** (new types/ports,
+  no edits to existing ones) so the TS mirror and tests stay valid.
 - No new dependencies without asking first.
 
 ## Design invariants

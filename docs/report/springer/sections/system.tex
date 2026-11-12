@@ -1,0 +1,67 @@
+\section{The \sys{} Prototype}
+\label{sec:system}
+
+
+The prototype is a checkpointed LangGraph state machine that reaches the
+browser, perception and storage only through typed ports, each replaceable by an
+in-memory fake (the experiments use the fakes). We describe the parts the
+evaluation relies on.
+
+\subsection{Orchestration, Capture and Persistence}
+
+Exploration is a breadth-first search over (state, action) pairs. A plain Python
+reference loop, kept as a parity oracle, has been ported to a LangGraph
+\texttt{StateGraph} (\texttt{scan}, \texttt{reason}, \texttt{act},
+\texttt{observe}). The checkpointed dictionary holds the frontier, the discovery
+order, the skips and counters, but not the claim set, which lives in the graph
+store; the two are separate stores, so resuming a checkpoint does not consult the
+claims again (Sect.~\ref{sec:rq1}). Limits such as depth and state cap are
+configuration, so a resumed run cannot silently change its rules. A skipped
+action returns straight to \texttt{act}, since routing it through \texttt{scan}
+would add a spurious entry to the discovery order, which is the evidence for
+cycles.
+
+A Playwright crawler records the DOM, the CDP accessibility tree and a screenshot;
+candidate actions come from actionable AX roles and receive content-addressed
+identifiers. The normaliser $N$ strips known volatile attributes
+(\texttt{nonce}, \texttt{data-session}, \texttt{data-csrf} and similar),
+hexadecimal-looking generated ids, prefixed tokens, runs of ten or more digits,
+whitespace and volatile CDP keys. These patterns are broad on purpose, and
+Sect.~\ref{sec:fp} shows what they merge. The claim set lives in Redis and the
+graph, revisit edges included, in Neo4j. Neither store, nor the browser, is used in
+the experiments of this paper.
+
+\subsection{Perception}
+\label{sec:perception}
+
+Perception turns a capture into a \emph{Semantic UI Map}: elements with role,
+accessible name, tags, selector, visibility and enabled state, plus the
+capabilities the state exposes (for example \texttt{delete-user}). The
+deterministic channel correlates DOM elements with AX nodes by browser identifier,
+then by role plus name, then by unique name, and never guesses at ambiguous
+matches. DOM-only elements are kept, since an element hidden from the AX tree can still be an exposure.
+
+A VLM channel (a Gemini Flash model behind a rate-limited provider interface) reads the screenshot and AX tree to supply judgements the DOM cannot,
+for example that a styled \texttt{div} looks like a delete button. By design it only
+annotates elements the deterministic channel already found, adding tags and
+capabilities; it can neither add nor remove an element. That limits its influence
+but does not make the verdict immune to it: Eqs.~(\ref{eq:forb}) and~(\ref{eq:req})
+test membership of a subject in $\Sig(v)$. Subjects that are identifiers or
+accessible names come from the DOM and AX tree, but subjects that are tags or
+capabilities can be created or hidden by a wrong annotation, in either direction,
+which falls under Proposition~\ref{prop:asym}. The channel is present in the code base but not wired
+into the orchestrator and \emph{not evaluated} here, so the division of labour is a
+design hypothesis. Canvas-rendered UI is invisible to the deterministic channel.
+
+\subsection{Negation Engine}
+\label{sec:negation}
+
+The engine implements Eqs.~(\ref{eq:forb}) and~(\ref{eq:req}) deterministically.
+It checks that a clause applies to the run's role, then matches subjects against
+capabilities (the stronger evidence) and then against element tags and accessible
+names, exactly after whitespace and case normalisation; substring matching is
+avoided because an over-eager matcher is itself an over-reporting bias.
+Each violation carries its clause type, a severity fixed by clause type, a
+rationale and evidence for a human reviewer. Each test application ships its pages,
+an \texttt{app.json}, a structured \texttt{policy.json} beside the English policy,
+and a \texttt{violations.json} of planted defects.

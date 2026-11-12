@@ -1,0 +1,3413 @@
+{
+  "E1_E3": {
+    "planted": 4,
+    "pages": 6,
+    "E1_oracle_perception": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positives": [],
+      "missed": []
+    },
+    "E1_deterministic_dom_perception": {
+      "tp": 2,
+      "fp": 5,
+      "fn": 2,
+      "precision": 0.286,
+      "recall": 0.5,
+      "f1": 0.364,
+      "false_positives": [
+        [
+          "/index.html",
+          "e-skip-link",
+          "required_absent"
+        ],
+        [
+          "/pages/dashboard.html",
+          "e-skip-link",
+          "required_absent"
+        ],
+        [
+          "/pages/login.html",
+          "e-skip-link",
+          "required_absent"
+        ],
+        [
+          "/pages/register.html",
+          "e-skip-link",
+          "required_absent"
+        ],
+        [
+          "/pages/reports.html",
+          "e-skip-link",
+          "required_absent"
+        ]
+      ],
+      "missed": [
+        [
+          "/pages/dashboard.html",
+          "e-admin-link",
+          "forbidden_present"
+        ],
+        [
+          "/pages/reports.html",
+          "e-debug-panel",
+          "forbidden_present"
+        ]
+      ]
+    },
+    "E3_oracle_intersection_only": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 1,
+      "precision": 1.0,
+      "recall": 0.75,
+      "f1": 0.857,
+      "false_positives": [],
+      "missed": [
+        [
+          "/pages/admin.html",
+          "e-skip-link",
+          "required_absent"
+        ]
+      ]
+    },
+    "E4_deterministic_lexical_grounding": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 2,
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1": 0.667,
+      "false_positives": [],
+      "missed": [
+        [
+          "/pages/dashboard.html",
+          "e-admin-link",
+          "forbidden_present"
+        ],
+        [
+          "/pages/reports.html",
+          "e-debug-panel",
+          "forbidden_present"
+        ]
+      ]
+    }
+  },
+  "E2": {
+    "captures_per_page": 50,
+    "logical_states": 6,
+    "distinct_ids_normalized": 6,
+    "distinct_ids_naive": 300,
+    "per_page": {
+      "/index.html": {
+        "normalized": 1,
+        "naive": 50
+      },
+      "/pages/admin.html": {
+        "normalized": 1,
+        "naive": 50
+      },
+      "/pages/dashboard.html": {
+        "normalized": 1,
+        "naive": 50
+      },
+      "/pages/login.html": {
+        "normalized": 1,
+        "naive": 50
+      },
+      "/pages/register.html": {
+        "normalized": 1,
+        "naive": 50
+      },
+      "/pages/reports.html": {
+        "normalized": 1,
+        "naive": 50
+      }
+    },
+    "real_change_detected": true
+  },
+  "E5_loop": {
+    "uninterrupted": {
+      "termination": "frontier_exhausted",
+      "max_state_depth": 3,
+      "states": 6,
+      "edges": 11,
+      "pairs_executed": 11,
+      "distinct_pairs_claimed": 11,
+      "duplicate_frontier_executions": 0,
+      "replays": 9,
+      "replayed_steps": 21,
+      "replayed_steps_per_pair": 1.91,
+      "revisit_edges_persisted": 6,
+      "tree_edges": 5,
+      "total_crawler_act_calls": 32,
+      "max_executions_of_one_pair_incl_replay": 10,
+      "pairs_executed_more_than_once_incl_replay": 5,
+      "skipped": 0,
+      "violations": 4
+    },
+    "reference_loop_parity": {
+      "counters_equal": true,
+      "graph_equal": true
+    },
+    "order_invariance": {
+      "runs": 25,
+      "revisit_edges_values": [
+        6
+      ],
+      "tree_edges_values": [
+        5
+      ],
+      "states_values": [
+        6
+      ],
+      "duplicate_frontier_executions_max": 0,
+      "replays_values": [
+        9
+      ],
+      "replayed_steps_range": [
+        21,
+        21
+      ],
+      "all_frontier_exhausted": true,
+      "violation_sets_equal": true
+    },
+    "injected_side_effecting_step": {
+      "submit": {
+        "termination": "frontier_exhausted",
+        "max_state_depth": 2,
+        "states": 4,
+        "edges": 4,
+        "pairs_executed": 4,
+        "distinct_pairs_claimed": 4,
+        "duplicate_frontier_executions": 0,
+        "replays": 2,
+        "replayed_steps": 3,
+        "replayed_steps_per_pair": 0.75,
+        "revisit_edges_persisted": 1,
+        "tree_edges": 3,
+        "total_crawler_act_calls": 7,
+        "max_executions_of_one_pair_incl_replay": 3,
+        "pairs_executed_more_than_once_incl_replay": 2,
+        "skipped": 3,
+        "violations": 1,
+        "skip_reasons": [
+          "unreplayable path"
+        ],
+        "planted_found": 1
+      },
+      "fill": {
+        "termination": "frontier_exhausted",
+        "max_state_depth": 2,
+        "states": 4,
+        "edges": 4,
+        "pairs_executed": 4,
+        "distinct_pairs_claimed": 4,
+        "duplicate_frontier_executions": 0,
+        "replays": 2,
+        "replayed_steps": 3,
+        "replayed_steps_per_pair": 0.75,
+        "revisit_edges_persisted": 1,
+        "tree_edges": 3,
+        "total_crawler_act_calls": 7,
+        "max_executions_of_one_pair_incl_replay": 3,
+        "pairs_executed_more_than_once_incl_replay": 2,
+        "skipped": 3,
+        "violations": 1,
+        "skip_reasons": [
+          "unreplayable path"
+        ],
+        "planted_found": 1
+      }
+    },
+    "resume": {
+      "crash_in_action_after_claim__same_crawler": {
+        "positions": 11,
+        "positions_with_a_pair_attempted_twice": 11,
+        "positions_with_skips": 0,
+        "positions_graph_equals_uninterrupted": 11,
+        "rows": [
+          {
+            "crash_at": 1,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 2,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 3,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 4,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 5,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 6,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 7,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 8,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 9,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 10,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 11,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          }
+        ]
+      },
+      "crash_in_action_after_claim__fresh_crawler": {
+        "positions": 11,
+        "positions_with_a_pair_attempted_twice": 11,
+        "positions_with_skips": 2,
+        "positions_graph_equals_uninterrupted": 9,
+        "rows": [
+          {
+            "crash_at": 1,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 2,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 2,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 3,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 4,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 5,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 6,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 7,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 8,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 9,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 10,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 11,
+            "max_attempts_of_a_claimed_pair": 2,
+            "pairs_attempted_twice": 1,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          }
+        ]
+      },
+      "crash_in_edge_write__same_crawler": {
+        "positions": 11,
+        "positions_with_a_pair_attempted_twice": 0,
+        "positions_with_skips": 0,
+        "positions_graph_equals_uninterrupted": 11,
+        "rows": [
+          {
+            "crash_at": 1,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 2,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 3,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 4,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 5,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 6,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 7,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 8,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 9,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 10,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 11,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          }
+        ]
+      },
+      "crash_in_edge_write__fresh_crawler": {
+        "positions": 11,
+        "positions_with_a_pair_attempted_twice": 0,
+        "positions_with_skips": 1,
+        "positions_graph_equals_uninterrupted": 10,
+        "rows": [
+          {
+            "crash_at": 1,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 2,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 2,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 3,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 4,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 5,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 6,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 7,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 8,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 9,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 10,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          },
+          {
+            "crash_at": 11,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 0,
+            "graph_equals_uninterrupted": true
+          }
+        ]
+      },
+      "restart_from_claim_set_only": {
+        "positions": 11,
+        "max_second_run_pairs": 0,
+        "min_total_edges_after": 0,
+        "max_total_edges_after": 10,
+        "full_graph_edges": 11,
+        "rows": [
+          {
+            "crash_at_claim": 1,
+            "claimed_at_crash": 1,
+            "edges_at_crash": 0,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 0,
+            "total_states_after": 1
+          },
+          {
+            "crash_at_claim": 2,
+            "claimed_at_crash": 2,
+            "edges_at_crash": 1,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 1,
+            "total_states_after": 2
+          },
+          {
+            "crash_at_claim": 3,
+            "claimed_at_crash": 3,
+            "edges_at_crash": 2,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 2,
+            "total_states_after": 3
+          },
+          {
+            "crash_at_claim": 4,
+            "claimed_at_crash": 4,
+            "edges_at_crash": 3,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 3,
+            "total_states_after": 4
+          },
+          {
+            "crash_at_claim": 5,
+            "claimed_at_crash": 5,
+            "edges_at_crash": 4,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 4,
+            "total_states_after": 4
+          },
+          {
+            "crash_at_claim": 6,
+            "claimed_at_crash": 6,
+            "edges_at_crash": 5,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 5,
+            "total_states_after": 5
+          },
+          {
+            "crash_at_claim": 7,
+            "claimed_at_crash": 7,
+            "edges_at_crash": 6,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 6,
+            "total_states_after": 6
+          },
+          {
+            "crash_at_claim": 8,
+            "claimed_at_crash": 8,
+            "edges_at_crash": 7,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 7,
+            "total_states_after": 6
+          },
+          {
+            "crash_at_claim": 9,
+            "claimed_at_crash": 9,
+            "edges_at_crash": 8,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 8,
+            "total_states_after": 6
+          },
+          {
+            "crash_at_claim": 10,
+            "claimed_at_crash": 10,
+            "edges_at_crash": 9,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 9,
+            "total_states_after": 6
+          },
+          {
+            "crash_at_claim": 11,
+            "claimed_at_crash": 11,
+            "edges_at_crash": 10,
+            "second_run_pairs": 0,
+            "second_run_states": 1,
+            "second_run_attempts_of_claimed_pairs": 0,
+            "total_edges_after": 10,
+            "total_states_after": 6
+          }
+        ]
+      }
+    }
+  },
+  "E6_real_audit_on_oracle_maps": {
+    "fake_algebra": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positives": [],
+      "missed": []
+    },
+    "oracle_maps_real_audit": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positives": [],
+      "missed": []
+    },
+    "oracle_maps_real_audit_forbidden_only": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 1,
+      "precision": 1.0,
+      "recall": 0.75,
+      "f1": 0.857,
+      "false_positives": [],
+      "missed": [
+        [
+          "/pages/admin.html",
+          "e-skip-link",
+          "required_absent"
+        ]
+      ]
+    },
+    "arms_agree": true
+  },
+  "E7_perturbed_perceivers": {
+    "trials_per_setting": 200,
+    "seed": 7,
+    "under_p0.25": {
+      "trials": 200,
+      "fn_F": 0.75,
+      "fn_R": 0.0,
+      "fp_F": 0.0,
+      "fp_R": 1.39,
+      "tp_F": 2.25,
+      "tp_R": 1.0,
+      "trials_violating_prediction": 0
+    },
+    "under_p0.5": {
+      "trials": 200,
+      "fn_F": 1.57,
+      "fn_R": 0.0,
+      "fp_F": 0.0,
+      "fp_R": 2.58,
+      "tp_F": 1.43,
+      "tp_R": 1.0,
+      "trials_violating_prediction": 0
+    },
+    "under_p1.0": {
+      "trials": 1,
+      "fn_F": 3.0,
+      "fn_R": 0.0,
+      "fp_F": 0.0,
+      "fp_R": 5.0,
+      "tp_F": 0.0,
+      "tp_R": 1.0,
+      "trials_violating_prediction": 0
+    },
+    "over_p0.25": {
+      "trials": 200,
+      "fn_F": 0.0,
+      "fn_R": 0.2,
+      "fp_F": 4.0,
+      "fp_R": 0.0,
+      "tp_F": 3.0,
+      "tp_R": 0.8,
+      "trials_violating_prediction": 0
+    },
+    "over_p0.5": {
+      "trials": 200,
+      "fn_F": 0.0,
+      "fn_R": 0.47,
+      "fp_F": 7.79,
+      "fp_R": 0.0,
+      "tp_F": 3.0,
+      "tp_R": 0.54,
+      "trials_violating_prediction": 0
+    },
+    "over_p1.0": {
+      "trials": 1,
+      "fn_F": 0.0,
+      "fn_R": 1.0,
+      "fp_F": 15.0,
+      "fp_R": 0.0,
+      "tp_F": 3.0,
+      "tp_R": 0.0,
+      "trials_violating_prediction": 0
+    },
+    "prediction": "under-reporting (S_hat subset of S): fp_F = 0 and fn_R = 0 in every trial; over-reporting (S_hat superset of S): fn_F = 0 and fp_R = 0 in every trial"
+  },
+  "E8_fingerprint_edits": {
+    "base_page": "/pages/admin.html",
+    "n_edits": 12,
+    "edits": [
+      {
+        "edit": "remove the Delete-user button (visible element removed)",
+        "id_changed": true,
+        "a_state_change_that_should_split": true
+      },
+      {
+        "edit": "add a new visible control (Export data)",
+        "id_changed": true,
+        "a_state_change_that_should_split": true
+      },
+      {
+        "edit": "rename a visible label (Delete user -> Remove user)",
+        "id_changed": true,
+        "a_state_change_that_should_split": true
+      },
+      {
+        "edit": "swap the order of two links",
+        "id_changed": true,
+        "a_state_change_that_should_split": true
+      },
+      {
+        "edit": "add an element hidden with the hidden attribute",
+        "id_changed": true,
+        "a_state_change_that_should_split": "debatable"
+      },
+      {
+        "edit": "edit only an HTML comment",
+        "id_changed": true,
+        "a_state_change_that_should_split": "debatable"
+      },
+      {
+        "edit": "whitespace-only change",
+        "id_changed": false,
+        "a_state_change_that_should_split": false
+      },
+      {
+        "edit": "change a visible 10+ digit number (phone 5551234567 -> 5559876543)",
+        "id_changed": false,
+        "a_state_change_that_should_split": true
+      },
+      {
+        "edit": "change a visible word with a token-like prefix (req_approved -> req_denied)",
+        "id_changed": false,
+        "a_state_change_that_should_split": true
+      },
+      {
+        "edit": "change an identifier-like id value (user-1234 -> user-5678)",
+        "id_changed": false,
+        "a_state_change_that_should_split": true
+      },
+      {
+        "edit": "change only the URL query string (?page=1 -> ?page=2)",
+        "id_changed": true,
+        "a_state_change_that_should_split": true
+      },
+      {
+        "edit": "change only an accessible name in the AX tree",
+        "id_changed": true,
+        "a_state_change_that_should_split": true
+      }
+    ],
+    "not_detected": [
+      "whitespace-only change",
+      "change a visible 10+ digit number (phone 5551234567 -> 5559876543)",
+      "change a visible word with a token-like prefix (req_approved -> req_denied)",
+      "change an identifier-like id value (user-1234 -> user-5678)"
+    ],
+    "detected": 8
+  },
+  "E9_mutants_and_baseline": {
+    "mutants_single": 24,
+    "mutants_compound": 40,
+    "mutants_total": 64,
+    "ops_available": 30,
+    "pooled_counts": {
+      "oracle_maps_real_audit": {
+        "fn_F": 0,
+        "fn_R": 0,
+        "fp_F": 0,
+        "fp_R": 0,
+        "tp_F": 246,
+        "tp_R": 75
+      },
+      "dom_channel_real_audit": {
+        "fn_F": 169,
+        "fn_R": 0,
+        "fp_F": 0,
+        "fp_R": 309,
+        "tp_F": 77,
+        "tp_R": 75
+      },
+      "own_dom_invariant_baseline": {
+        "fn_F": 0,
+        "fn_R": 0,
+        "fp_F": 0,
+        "fp_R": 0,
+        "tp_F": 246,
+        "tp_R": 75
+      }
+    },
+    "mutants_with_exact_match": {
+      "oracle_maps_real_audit": 64,
+      "dom_channel_real_audit": 0,
+      "own_dom_invariant_baseline": 64
+    },
+    "vocabulary_rename_scores": {
+      "admin-link->admin_link": {
+        "oracle_maps_real_audit": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.75
+        },
+        "dom_channel_real_audit": {
+          "tp": 2,
+          "fp": 5,
+          "fn": 2,
+          "precision": 0.286,
+          "recall": 0.5
+        },
+        "own_dom_invariant_baseline": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.75
+        }
+      },
+      "debug-panel->debug_panel": {
+        "oracle_maps_real_audit": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.75
+        },
+        "dom_channel_real_audit": {
+          "tp": 2,
+          "fp": 5,
+          "fn": 2,
+          "precision": 0.286,
+          "recall": 0.5
+        },
+        "own_dom_invariant_baseline": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.75
+        }
+      },
+      "skip-to-content->skip_to_content": {
+        "oracle_maps_real_audit": {
+          "tp": 4,
+          "fp": 5,
+          "fn": 0,
+          "precision": 0.444,
+          "recall": 1.0
+        },
+        "dom_channel_real_audit": {
+          "tp": 2,
+          "fp": 5,
+          "fn": 2,
+          "precision": 0.286,
+          "recall": 0.5
+        },
+        "own_dom_invariant_baseline": {
+          "tp": 4,
+          "fp": 5,
+          "fn": 0,
+          "precision": 0.444,
+          "recall": 1.0
+        }
+      }
+    },
+    "role_scope_check_admin": {
+      "expected": [
+        [
+          "/pages/admin.html",
+          "e-skip-link",
+          "required_absent"
+        ],
+        [
+          "/pages/reports.html",
+          "e-debug-panel",
+          "forbidden_present"
+        ]
+      ],
+      "found": [
+        [
+          "/pages/admin.html",
+          "e-skip-link",
+          "required_absent"
+        ],
+        [
+          "/pages/reports.html",
+          "e-debug-panel",
+          "forbidden_present"
+        ]
+      ],
+      "match": true
+    },
+    "spec_effort": {
+      "engine_policy_clauses": 4,
+      "baseline_function_source_lines": 17,
+      "baseline_per_clause_branches": 4,
+      "note": "baseline is our own re-implementation; it hard-codes role guest and the data-tag spelling"
+    }
+  },
+  "meta": {
+    "python": "3.13.13",
+    "platform": "Linux x86_64",
+    "langgraph": "1.2.10",
+    "git_head": "44875744dd9388a05b0c3fa6cbb5858b53f34d3c",
+    "code_tree_clean_vs_head": false,
+    "seed": 7,
+    "note": "E1-E4 read page HTML from test-apps/broken-admin; E5 uses the in-memory fakes; no browser, no network, no Neo4j/Redis"
+  },
+  "E10_xpath_baseline": {
+    "fixture_scores": {
+      "A2_tag_oracle_production_audit": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "false_positives": [],
+        "missed": []
+      },
+      "A3_dom_channel": {
+        "tp": 2,
+        "fp": 5,
+        "fn": 2,
+        "precision": 0.286,
+        "recall": 0.5,
+        "f1": 0.364,
+        "false_positives": [
+          [
+            "/index.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/dashboard.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/login.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/register.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/reports.html",
+            "e-skip-link",
+            "required_absent"
+          ]
+        ],
+        "missed": [
+          [
+            "/pages/dashboard.html",
+            "e-admin-link",
+            "forbidden_present"
+          ],
+          [
+            "/pages/reports.html",
+            "e-debug-panel",
+            "forbidden_present"
+          ]
+        ]
+      },
+      "A6_tag_script": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "false_positives": [],
+        "missed": []
+      },
+      "A8_xpath_roles_text": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "false_positives": [],
+        "missed": []
+      },
+      "A2_on_stripped_copy": {
+        "tp": 1,
+        "fp": 5,
+        "fn": 3,
+        "precision": 0.167,
+        "recall": 0.25,
+        "f1": 0.2,
+        "false_positives": [
+          [
+            "/index.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/dashboard.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/login.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/register.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/reports.html",
+            "e-skip-link",
+            "required_absent"
+          ]
+        ],
+        "missed": [
+          [
+            "/pages/admin.html",
+            "e-delete-user",
+            "forbidden_present"
+          ],
+          [
+            "/pages/dashboard.html",
+            "e-admin-link",
+            "forbidden_present"
+          ],
+          [
+            "/pages/reports.html",
+            "e-debug-panel",
+            "forbidden_present"
+          ]
+        ]
+      },
+      "A3_on_stripped_copy": {
+        "tp": 2,
+        "fp": 5,
+        "fn": 2,
+        "precision": 0.286,
+        "recall": 0.5,
+        "f1": 0.364,
+        "false_positives": [
+          [
+            "/index.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/dashboard.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/login.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/register.html",
+            "e-skip-link",
+            "required_absent"
+          ],
+          [
+            "/pages/reports.html",
+            "e-skip-link",
+            "required_absent"
+          ]
+        ],
+        "missed": [
+          [
+            "/pages/dashboard.html",
+            "e-admin-link",
+            "forbidden_present"
+          ],
+          [
+            "/pages/reports.html",
+            "e-debug-panel",
+            "forbidden_present"
+          ]
+        ]
+      },
+      "A8_on_stripped_copy": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "false_positives": [],
+        "missed": []
+      }
+    },
+    "xpath_invariants": [
+      [
+        "e-admin-link",
+        "forbidden_present",
+        ".//a[.='Admin']"
+      ],
+      [
+        "e-debug-panel",
+        "forbidden_present",
+        ".//section[h2='Debug']"
+      ],
+      [
+        "e-delete-user",
+        "forbidden_present",
+        ".//button[.='Delete user']"
+      ],
+      [
+        "e-skip-link",
+        "required_absent",
+        ".//a[@href='#main'][.='Skip to content']"
+      ]
+    ],
+    "xpath_spec_lines": 13,
+    "families": {
+      "remove planted forbidden element": {
+        "mutants": 3,
+        "arms": {
+          "A2_tag_oracle_production_audit": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 6,
+            "tp_R": 3
+          },
+          "A3_dom_channel": {
+            "fn_F": 4,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 15,
+            "tp_F": 2,
+            "tp_R": 3
+          },
+          "A6_tag_script": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 6,
+            "tp_R": 3
+          },
+          "A8_xpath_roles_text": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 6,
+            "tp_R": 3
+          },
+          "A2_on_stripped_copy": {
+            "fn_F": 6,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 15,
+            "tp_F": 0,
+            "tp_R": 3
+          },
+          "A3_on_stripped_copy": {
+            "fn_F": 4,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 15,
+            "tp_F": 2,
+            "tp_R": 3
+          },
+          "A8_on_stripped_copy": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 6,
+            "tp_R": 3
+          }
+        },
+        "exact_match": {
+          "A2_tag_oracle_production_audit": 3,
+          "A3_dom_channel": 0,
+          "A6_tag_script": 3,
+          "A8_xpath_roles_text": 3,
+          "A2_on_stripped_copy": 0,
+          "A3_on_stripped_copy": 0,
+          "A8_on_stripped_copy": 3
+        }
+      },
+      "add forbidden element: admin-link": {
+        "mutants": 5,
+        "arms": {
+          "A2_tag_oracle_production_audit": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          },
+          "A3_dom_channel": {
+            "fn_F": 15,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 25,
+            "tp_F": 5,
+            "tp_R": 5
+          },
+          "A6_tag_script": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          },
+          "A8_xpath_roles_text": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          },
+          "A2_on_stripped_copy": {
+            "fn_F": 20,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 25,
+            "tp_F": 0,
+            "tp_R": 5
+          },
+          "A3_on_stripped_copy": {
+            "fn_F": 15,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 25,
+            "tp_F": 5,
+            "tp_R": 5
+          },
+          "A8_on_stripped_copy": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          }
+        },
+        "exact_match": {
+          "A2_tag_oracle_production_audit": 5,
+          "A3_dom_channel": 0,
+          "A6_tag_script": 5,
+          "A8_xpath_roles_text": 5,
+          "A2_on_stripped_copy": 0,
+          "A3_on_stripped_copy": 0,
+          "A8_on_stripped_copy": 5
+        }
+      },
+      "add forbidden element: delete-user": {
+        "mutants": 5,
+        "arms": {
+          "A2_tag_oracle_production_audit": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          },
+          "A3_dom_channel": {
+            "fn_F": 10,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 25,
+            "tp_F": 10,
+            "tp_R": 5
+          },
+          "A6_tag_script": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          },
+          "A8_xpath_roles_text": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          },
+          "A2_on_stripped_copy": {
+            "fn_F": 20,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 25,
+            "tp_F": 0,
+            "tp_R": 5
+          },
+          "A3_on_stripped_copy": {
+            "fn_F": 10,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 25,
+            "tp_F": 10,
+            "tp_R": 5
+          },
+          "A8_on_stripped_copy": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          }
+        },
+        "exact_match": {
+          "A2_tag_oracle_production_audit": 5,
+          "A3_dom_channel": 0,
+          "A6_tag_script": 5,
+          "A8_xpath_roles_text": 5,
+          "A2_on_stripped_copy": 0,
+          "A3_on_stripped_copy": 0,
+          "A8_on_stripped_copy": 5
+        }
+      },
+      "add forbidden element: debug-panel": {
+        "mutants": 5,
+        "arms": {
+          "A2_tag_oracle_production_audit": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          },
+          "A3_dom_channel": {
+            "fn_F": 15,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 25,
+            "tp_F": 5,
+            "tp_R": 5
+          },
+          "A6_tag_script": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          },
+          "A8_xpath_roles_text": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          },
+          "A2_on_stripped_copy": {
+            "fn_F": 20,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 25,
+            "tp_F": 0,
+            "tp_R": 5
+          },
+          "A3_on_stripped_copy": {
+            "fn_F": 15,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 25,
+            "tp_F": 5,
+            "tp_R": 5
+          },
+          "A8_on_stripped_copy": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 20,
+            "tp_R": 5
+          }
+        },
+        "exact_match": {
+          "A2_tag_oracle_production_audit": 5,
+          "A3_dom_channel": 0,
+          "A6_tag_script": 5,
+          "A8_xpath_roles_text": 5,
+          "A2_on_stripped_copy": 0,
+          "A3_on_stripped_copy": 0,
+          "A8_on_stripped_copy": 5
+        }
+      },
+      "remove skip link": {
+        "mutants": 5,
+        "arms": {
+          "A2_tag_oracle_production_audit": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 15,
+            "tp_R": 10
+          },
+          "A3_dom_channel": {
+            "fn_F": 10,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 20,
+            "tp_F": 5,
+            "tp_R": 10
+          },
+          "A6_tag_script": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 15,
+            "tp_R": 10
+          },
+          "A8_xpath_roles_text": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 15,
+            "tp_R": 10
+          },
+          "A2_on_stripped_copy": {
+            "fn_F": 15,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 20,
+            "tp_F": 0,
+            "tp_R": 10
+          },
+          "A3_on_stripped_copy": {
+            "fn_F": 10,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 20,
+            "tp_F": 5,
+            "tp_R": 10
+          },
+          "A8_on_stripped_copy": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 15,
+            "tp_R": 10
+          }
+        },
+        "exact_match": {
+          "A2_tag_oracle_production_audit": 5,
+          "A3_dom_channel": 0,
+          "A6_tag_script": 5,
+          "A8_xpath_roles_text": 5,
+          "A2_on_stripped_copy": 0,
+          "A3_on_stripped_copy": 0,
+          "A8_on_stripped_copy": 5
+        }
+      },
+      "restore skip link": {
+        "mutants": 1,
+        "arms": {
+          "A2_tag_oracle_production_audit": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 3,
+            "tp_R": 0
+          },
+          "A3_dom_channel": {
+            "fn_F": 2,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 6,
+            "tp_F": 1,
+            "tp_R": 0
+          },
+          "A6_tag_script": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 3,
+            "tp_R": 0
+          },
+          "A8_xpath_roles_text": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 3,
+            "tp_R": 0
+          },
+          "A2_on_stripped_copy": {
+            "fn_F": 3,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 6,
+            "tp_F": 0,
+            "tp_R": 0
+          },
+          "A3_on_stripped_copy": {
+            "fn_F": 2,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 6,
+            "tp_F": 1,
+            "tp_R": 0
+          },
+          "A8_on_stripped_copy": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 3,
+            "tp_R": 0
+          }
+        },
+        "exact_match": {
+          "A2_tag_oracle_production_audit": 1,
+          "A3_dom_channel": 0,
+          "A6_tag_script": 1,
+          "A8_xpath_roles_text": 1,
+          "A2_on_stripped_copy": 0,
+          "A3_on_stripped_copy": 0,
+          "A8_on_stripped_copy": 1
+        }
+      },
+      "compound (2-3 operations)": {
+        "mutants": 40,
+        "arms": {
+          "A2_tag_oracle_production_audit": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 162,
+            "tp_R": 47
+          },
+          "A3_dom_channel": {
+            "fn_F": 113,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 193,
+            "tp_F": 49,
+            "tp_R": 47
+          },
+          "A6_tag_script": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 162,
+            "tp_R": 47
+          },
+          "A8_xpath_roles_text": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 162,
+            "tp_R": 47
+          },
+          "A2_on_stripped_copy": {
+            "fn_F": 162,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 193,
+            "tp_F": 0,
+            "tp_R": 47
+          },
+          "A3_on_stripped_copy": {
+            "fn_F": 113,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 193,
+            "tp_F": 49,
+            "tp_R": 47
+          },
+          "A8_on_stripped_copy": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 162,
+            "tp_R": 47
+          }
+        },
+        "exact_match": {
+          "A2_tag_oracle_production_audit": 40,
+          "A3_dom_channel": 0,
+          "A6_tag_script": 40,
+          "A8_xpath_roles_text": 40,
+          "A2_on_stripped_copy": 0,
+          "A3_on_stripped_copy": 0,
+          "A8_on_stripped_copy": 40
+        }
+      },
+      "label rename (text changed, defects kept)": {
+        "mutants": 4,
+        "arms": {
+          "A2_tag_oracle_production_audit": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 12,
+            "tp_R": 4
+          },
+          "A3_dom_channel": {
+            "fn_F": 8,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 20,
+            "tp_F": 4,
+            "tp_R": 4
+          },
+          "A6_tag_script": {
+            "fn_F": 0,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 0,
+            "tp_F": 12,
+            "tp_R": 4
+          },
+          "A8_xpath_roles_text": {
+            "fn_F": 4,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 10,
+            "tp_F": 8,
+            "tp_R": 4
+          },
+          "A2_on_stripped_copy": {
+            "fn_F": 12,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 20,
+            "tp_F": 0,
+            "tp_R": 4
+          },
+          "A3_on_stripped_copy": {
+            "fn_F": 8,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 20,
+            "tp_F": 4,
+            "tp_R": 4
+          },
+          "A8_on_stripped_copy": {
+            "fn_F": 4,
+            "fn_R": 0,
+            "fp_F": 0,
+            "fp_R": 10,
+            "tp_F": 8,
+            "tp_R": 4
+          }
+        },
+        "exact_match": {
+          "A2_tag_oracle_production_audit": 4,
+          "A3_dom_channel": 0,
+          "A6_tag_script": 4,
+          "A8_xpath_roles_text": 0,
+          "A2_on_stripped_copy": 0,
+          "A3_on_stripped_copy": 0,
+          "A8_on_stripped_copy": 0
+        }
+      }
+    },
+    "total_mutants": 68,
+    "note": "A8 is our own XPath-subset re-implementation reading element types, link targets and visible text; not ATUSA or Crawljax; the authors knew the labels; ordering of writing vs. first run is an authorial statement the artifact cannot evidence"
+  },
+  "E11_two_seed_variant": {
+    "seed_actions": 2,
+    "uninterrupted": {
+      "termination": "frontier_exhausted",
+      "max_state_depth": 3,
+      "states": 7,
+      "edges": 13,
+      "pairs_executed": 13,
+      "distinct_pairs_claimed": 13,
+      "duplicate_frontier_executions": 0,
+      "replays": 12,
+      "replayed_steps": 23,
+      "replayed_steps_per_pair": 1.77,
+      "revisit_edges_persisted": 7,
+      "tree_edges": 6,
+      "total_crawler_act_calls": 36,
+      "max_executions_of_one_pair_incl_replay": 11,
+      "pairs_executed_more_than_once_incl_replay": 6,
+      "skipped": 0,
+      "violations": 4
+    },
+    "resume_summary": {
+      "crash_in_action_after_claim__same_crawler": {
+        "positions": 13,
+        "positions_with_a_pair_attempted_twice": 13,
+        "positions_with_skips": 0,
+        "positions_graph_equals_uninterrupted": 13
+      },
+      "crash_in_edge_write__same_crawler": {
+        "positions": 13,
+        "positions_with_a_pair_attempted_twice": 0,
+        "positions_with_skips": 0,
+        "positions_graph_equals_uninterrupted": 13
+      },
+      "restart_from_claim_set_only": {
+        "positions": 13,
+        "max_second_run_pairs": 2,
+        "min_total_edges_after": 1,
+        "max_total_edges_after": 12,
+        "full_graph_edges": 13
+      }
+    },
+    "restart_rows": [
+      {
+        "crash_at_claim": 1,
+        "claimed_at_crash": 1,
+        "edges_at_crash": 0,
+        "second_run_pairs": 2,
+        "second_run_states": 2,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 2,
+        "total_states_after": 2
+      },
+      {
+        "crash_at_claim": 2,
+        "claimed_at_crash": 2,
+        "edges_at_crash": 1,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 1,
+        "total_states_after": 2
+      },
+      {
+        "crash_at_claim": 3,
+        "claimed_at_crash": 3,
+        "edges_at_crash": 2,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 2,
+        "total_states_after": 3
+      },
+      {
+        "crash_at_claim": 4,
+        "claimed_at_crash": 4,
+        "edges_at_crash": 3,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 3,
+        "total_states_after": 4
+      },
+      {
+        "crash_at_claim": 5,
+        "claimed_at_crash": 5,
+        "edges_at_crash": 4,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 4,
+        "total_states_after": 5
+      },
+      {
+        "crash_at_claim": 6,
+        "claimed_at_crash": 6,
+        "edges_at_crash": 5,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 5,
+        "total_states_after": 5
+      },
+      {
+        "crash_at_claim": 7,
+        "claimed_at_crash": 7,
+        "edges_at_crash": 6,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 6,
+        "total_states_after": 5
+      },
+      {
+        "crash_at_claim": 8,
+        "claimed_at_crash": 8,
+        "edges_at_crash": 7,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 7,
+        "total_states_after": 6
+      },
+      {
+        "crash_at_claim": 9,
+        "claimed_at_crash": 9,
+        "edges_at_crash": 8,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 8,
+        "total_states_after": 7
+      },
+      {
+        "crash_at_claim": 10,
+        "claimed_at_crash": 10,
+        "edges_at_crash": 9,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 9,
+        "total_states_after": 7
+      },
+      {
+        "crash_at_claim": 11,
+        "claimed_at_crash": 11,
+        "edges_at_crash": 10,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 10,
+        "total_states_after": 7
+      },
+      {
+        "crash_at_claim": 12,
+        "claimed_at_crash": 12,
+        "edges_at_crash": 11,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 11,
+        "total_states_after": 7
+      },
+      {
+        "crash_at_claim": 13,
+        "claimed_at_crash": 13,
+        "edges_at_crash": 12,
+        "second_run_pairs": 0,
+        "second_run_states": 1,
+        "second_run_attempts_of_claimed_pairs": 0,
+        "total_edges_after": 12,
+        "total_states_after": 7
+      }
+    ]
+  },
+  "E12_extra_apps": {
+    "broken-rbac-demo": {
+      "derivation": {
+        "readme_sentence": "Guest users must never see administrative links, nor should they be able to access administrative pages.",
+        "role": "guest",
+        "derivation_notes": "README names the dashboard sidebar link 'Admin Dashboard' as the UI violation. Reaching admin.html is described as a backend-enforcement violation, which an element-level clause cannot express, so it yields no triple. The README is silent about links on other pages; any other finding is scored as a false positive and discussed.",
+        "clauses": [
+          [
+            "e-admin-link",
+            "admin-link",
+            "forbidden_present"
+          ]
+        ],
+        "ground_truth": [
+          [
+            "dashboard.html",
+            "e-admin-link",
+            "forbidden_present"
+          ]
+        ]
+      },
+      "pages": [
+        "admin.html",
+        "dashboard.html",
+        "index.html",
+        "login.html"
+      ],
+      "xpath_invariants": [
+        [
+          "e-admin-link",
+          "forbidden_present",
+          [
+            ".//a[@href='admin.html']"
+          ]
+        ]
+      ],
+      "arms": {
+        "A3_dom_channel_readme_subjects": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "false_positives": [],
+          "missed": [
+            [
+              "dashboard.html",
+              "e-admin-link",
+              "forbidden_present"
+            ]
+          ]
+        },
+        "A8_xpath_in_sample": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "false_positives": [],
+          "missed": []
+        },
+        "A3_posthoc_tagger_vocabulary_subjects": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 0,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.667,
+          "false_positives": [
+            [
+              "admin.html",
+              "e-admin-link",
+              "forbidden_present"
+            ]
+          ],
+          "missed": []
+        }
+      }
+    },
+    "missing-consent-demo": {
+      "derivation": {
+        "readme_sentence": "Every page on first load must display a cookie consent banner or modal, regardless of user role.",
+        "role": "guest",
+        "derivation_notes": "One page, one required clause, banner documented as absent.",
+        "clauses": [
+          [
+            "e-cookie-consent",
+            "cookie-consent-banner",
+            "required_absent"
+          ]
+        ],
+        "ground_truth": [
+          [
+            "index.html",
+            "e-cookie-consent",
+            "required_absent"
+          ]
+        ]
+      },
+      "pages": [
+        "index.html"
+      ],
+      "xpath_invariants": [
+        [
+          "e-cookie-consent",
+          "required_absent",
+          [
+            ".//*[@role='dialog']",
+            ".//*[@id='cookie-banner']",
+            ".//*[@id='cookie-consent']",
+            ".//button[.='Accept']",
+            ".//button[.='Accept all']"
+          ]
+        ]
+      ],
+      "arms": {
+        "A3_dom_channel_readme_subjects": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "false_positives": [],
+          "missed": []
+        },
+        "A8_xpath_in_sample": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "false_positives": [],
+          "missed": []
+        }
+      },
+      "control_with_banner_inserted": {
+        "truth": [],
+        "A3_dom_channel_readme_subjects": [
+          [
+            "index.html",
+            "e-cookie-consent",
+            "required_absent"
+          ]
+        ],
+        "A8_xpath_in_sample": [],
+        "note": "A8's queries include the inserted markup by construction; the informative part is whether A3 can ever stop firing"
+      },
+      "A8_row_discriminating": false,
+      "A8_row_note": "Any absence-based clause scores 1/1 on a page without a banner, so this row does not discriminate between arms for A8; the control is circular for A8."
+    },
+    "broken-feature-flag-demo": {
+      "derivation": {
+        "readme_sentence": "Free Tier users must never see or interact with Premium features, specifically the Export Data functionality (policy text also names an Advanced Analytics panel).",
+        "role": "free-tier",
+        "derivation_notes": "README documents only the Export Data button as the violation. If the page also shows an analytics panel, that finding is README-ambiguous: it is scored as a false positive under this README-derived truth and flagged; a truth variant that includes it is also reported.",
+        "clauses": [
+          [
+            "e-export-data",
+            "export-data-button",
+            "forbidden_present"
+          ],
+          [
+            "e-advanced-analytics",
+            "advanced-analytics-panel",
+            "forbidden_present"
+          ]
+        ],
+        "ground_truth": [
+          [
+            "index.html",
+            "e-export-data",
+            "forbidden_present"
+          ]
+        ]
+      },
+      "pages": [
+        "index.html"
+      ],
+      "xpath_invariants": [
+        [
+          "e-export-data",
+          "forbidden_present",
+          [
+            ".//button[.='Export Data']"
+          ]
+        ],
+        [
+          "e-advanced-analytics",
+          "forbidden_present",
+          [
+            ".//h2[.='Advanced Analytics']"
+          ]
+        ]
+      ],
+      "arms": {
+        "A3_dom_channel_readme_subjects": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "false_positives": [],
+          "missed": [
+            [
+              "index.html",
+              "e-export-data",
+              "forbidden_present"
+            ]
+          ]
+        },
+        "A8_xpath_in_sample": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "false_positives": [],
+          "missed": []
+        },
+        "A3_posthoc_tagger_vocabulary_subjects": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "false_positives": [],
+          "missed": []
+        }
+      },
+      "truth_variant_with_named_analytics_panel": {
+        "truth": [
+          [
+            "index.html",
+            "e-advanced-analytics",
+            "forbidden_present"
+          ],
+          [
+            "index.html",
+            "e-export-data",
+            "forbidden_present"
+          ]
+        ],
+        "A3_dom_channel_readme_subjects": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": 1.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "false_positives": [],
+          "missed": [
+            [
+              "index.html",
+              "e-advanced-analytics",
+              "forbidden_present"
+            ],
+            [
+              "index.html",
+              "e-export-data",
+              "forbidden_present"
+            ]
+          ]
+        },
+        "A8_xpath_in_sample": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.5,
+          "f1": 0.667,
+          "false_positives": [],
+          "missed": [
+            [
+              "index.html",
+              "e-advanced-analytics",
+              "forbidden_present"
+            ]
+          ]
+        },
+        "note": "A8's exact-heading query misses the analytics panel, so A8 is 1 of 2 under this truth"
+      }
+    },
+    "disclosure": "Same-project apps; tiny, single-defect, unannotated (no data-tag). Static HTML audited per page; no crawl, browser or service. Ground truth derived from README sentences first; ordering is an authorial statement the artifact cannot evidence. The XPath invariants were written after reading the scored HTML, so A8 results here are in-sample. Nothing under test-apps/ is modified."
+  },
+  "E13_label_rename_variants": {
+    "Admin -> Administration": {
+      "A2_tag_oracle_production_audit": {
+        "tp_F": 3,
+        "fp_F": 0,
+        "fn_F": 0,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      },
+      "A3_dom_channel": {
+        "tp_F": 1,
+        "fp_F": 0,
+        "fn_F": 2,
+        "tp_R": 1,
+        "fp_R": 5,
+        "fn_R": 0
+      },
+      "A6_tag_script": {
+        "tp_F": 3,
+        "fp_F": 0,
+        "fn_F": 0,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      },
+      "A8_xpath": {
+        "tp_F": 2,
+        "fp_F": 0,
+        "fn_F": 1,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      }
+    },
+    "Delete user -> Remove account": {
+      "A2_tag_oracle_production_audit": {
+        "tp_F": 3,
+        "fp_F": 0,
+        "fn_F": 0,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      },
+      "A3_dom_channel": {
+        "tp_F": 1,
+        "fp_F": 0,
+        "fn_F": 2,
+        "tp_R": 1,
+        "fp_R": 5,
+        "fn_R": 0
+      },
+      "A6_tag_script": {
+        "tp_F": 3,
+        "fp_F": 0,
+        "fn_F": 0,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      },
+      "A8_xpath": {
+        "tp_F": 2,
+        "fp_F": 0,
+        "fn_F": 1,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      }
+    },
+    "Skip to content -> Skip navigation": {
+      "A2_tag_oracle_production_audit": {
+        "tp_F": 3,
+        "fp_F": 0,
+        "fn_F": 0,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      },
+      "A3_dom_channel": {
+        "tp_F": 1,
+        "fp_F": 0,
+        "fn_F": 2,
+        "tp_R": 1,
+        "fp_R": 5,
+        "fn_R": 0
+      },
+      "A6_tag_script": {
+        "tp_F": 3,
+        "fp_F": 0,
+        "fn_F": 0,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      },
+      "A8_xpath": {
+        "tp_F": 3,
+        "fp_F": 0,
+        "fn_F": 0,
+        "tp_R": 1,
+        "fp_R": 5,
+        "fn_R": 0
+      }
+    },
+    "all three together": {
+      "A2_tag_oracle_production_audit": {
+        "tp_F": 3,
+        "fp_F": 0,
+        "fn_F": 0,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      },
+      "A3_dom_channel": {
+        "tp_F": 1,
+        "fp_F": 0,
+        "fn_F": 2,
+        "tp_R": 1,
+        "fp_R": 5,
+        "fn_R": 0
+      },
+      "A6_tag_script": {
+        "tp_F": 3,
+        "fp_F": 0,
+        "fn_F": 0,
+        "tp_R": 1,
+        "fp_R": 0,
+        "fn_R": 0
+      },
+      "A8_xpath": {
+        "tp_F": 1,
+        "fp_F": 0,
+        "fn_F": 2,
+        "tp_R": 1,
+        "fp_R": 5,
+        "fn_R": 0
+      }
+    },
+    "parser_helper_lines": 26
+  },
+  "E14_generated_apps": {
+    "protocol": {
+      "invariants_file": "docs/report/experiments/e14_invariants.py",
+      "sha256_recorded_at_creation": "4537f85c18805d41c3d2c51561abe751ce82ff4e7052b1417f29951403d96d92",
+      "sha256_now": "4537f85c18805d41c3d2c51561abe751ce82ff4e7052b1417f29951403d96d92",
+      "unchanged_since_recorded": true,
+      "utc_timestamp_recorded_at_creation": "2026-10-09T05:18:45Z",
+      "ordering": "Self-attested: invariants were written from policy.txt and policy.expected.json (and directory file names) before any .html, ground_truth.json or README.md of these apps was opened. The artifact cannot prove this; the hash and timestamp only show the invariants file did not change afterwards.",
+      "a3_subjects": "verbatim 'subject' strings of policy.expected.json, no tuning",
+      "provenance": "Same-project, AI-generated (fixture-forge), unannotated (no data-tag); they add variety and a more blind protocol, not independence.",
+      "scoring": "TP = found triple in ground_truth violations. FP = found triple on a page listed in clean_pages for that clause. unlisted = found on a page in neither list (reported, not counted as FP). FN = ground-truth violation not found. decoy_adjacent = FP on a clean page whose visible text contains a content word (>=4 letters, not in a small stoplist) of the clause subject (mechanical definition fixed before running)."
+    },
+    "apps": {
+      "shop-hub": {
+        "pages": [
+          "admin-dashboard.html",
+          "cart.html",
+          "checkout.html",
+          "index.html",
+          "product-detail.html",
+          "products.html",
+          "support.html"
+        ],
+        "roles_run": [
+          "guest"
+        ],
+        "double_negation_clauses": [
+          "exp-shop-3"
+        ],
+        "truth": [
+          [
+            "admin-dashboard.html",
+            "exp-shop-0",
+            "forbidden_present"
+          ],
+          [
+            "checkout.html",
+            "exp-shop-2",
+            "forbidden_present"
+          ],
+          [
+            "index.html",
+            "exp-shop-3",
+            "required_absent"
+          ]
+        ],
+        "arms": {
+          "A3": {
+            "exp-shop-0": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "admin-dashboard.html"
+              ],
+              "missed": [
+                "admin-dashboard.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-shop-2": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "checkout.html"
+              ],
+              "missed": [
+                "checkout.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-shop-1": {
+              "kind": "required_absent",
+              "tp": 0,
+              "fn": 0,
+              "fp": 3,
+              "decoy_adjacent_fp": 3,
+              "unlisted_hits": 4,
+              "found_pages": [
+                "admin-dashboard.html",
+                "cart.html",
+                "checkout.html",
+                "index.html",
+                "product-detail.html",
+                "products.html",
+                "support.html"
+              ],
+              "truth_pages": [],
+              "missed": [],
+              "fp_pages": [
+                "cart.html",
+                "index.html",
+                "products.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "cart.html",
+                "index.html",
+                "products.html"
+              ],
+              "unlisted_pages": [
+                "admin-dashboard.html",
+                "checkout.html",
+                "product-detail.html",
+                "support.html"
+              ],
+              "double_negation_clause": false
+            },
+            "exp-shop-3": {
+              "kind": "required_absent",
+              "tp": 1,
+              "fn": 0,
+              "fp": 2,
+              "decoy_adjacent_fp": 2,
+              "unlisted_hits": 4,
+              "found_pages": [
+                "admin-dashboard.html",
+                "cart.html",
+                "checkout.html",
+                "index.html",
+                "product-detail.html",
+                "products.html",
+                "support.html"
+              ],
+              "truth_pages": [
+                "index.html"
+              ],
+              "missed": [],
+              "fp_pages": [
+                "products.html",
+                "support.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "products.html",
+                "support.html"
+              ],
+              "unlisted_pages": [
+                "admin-dashboard.html",
+                "cart.html",
+                "checkout.html",
+                "product-detail.html"
+              ],
+              "double_negation_clause": true
+            }
+          },
+          "A8": {
+            "exp-shop-0": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "admin-dashboard.html"
+              ],
+              "missed": [
+                "admin-dashboard.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-shop-2": {
+              "kind": "forbidden_present",
+              "tp": 1,
+              "fn": 0,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [
+                "checkout.html"
+              ],
+              "truth_pages": [
+                "checkout.html"
+              ],
+              "missed": [],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-shop-1": {
+              "kind": "required_absent",
+              "tp": 0,
+              "fn": 0,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [],
+              "missed": [],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-shop-3": {
+              "kind": "required_absent",
+              "tp": 1,
+              "fn": 0,
+              "fp": 1,
+              "decoy_adjacent_fp": 1,
+              "unlisted_hits": 4,
+              "found_pages": [
+                "admin-dashboard.html",
+                "cart.html",
+                "checkout.html",
+                "index.html",
+                "product-detail.html",
+                "support.html"
+              ],
+              "truth_pages": [
+                "index.html"
+              ],
+              "missed": [],
+              "fp_pages": [
+                "support.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "support.html"
+              ],
+              "unlisted_pages": [
+                "admin-dashboard.html",
+                "cart.html",
+                "checkout.html",
+                "product-detail.html"
+              ],
+              "double_negation_clause": true
+            }
+          }
+        }
+      },
+      "med-clinic": {
+        "pages": [
+          "appointments.html",
+          "dashboard.html",
+          "emergency.html",
+          "login.html",
+          "medical-records.html",
+          "prescriptions.html",
+          "staff-portal.html"
+        ],
+        "roles_run": [
+          "patient"
+        ],
+        "double_negation_clauses": [
+          "exp-med-3"
+        ],
+        "truth": [
+          [
+            "dashboard.html",
+            "exp-med-3",
+            "required_absent"
+          ],
+          [
+            "medical-records.html",
+            "exp-med-0",
+            "forbidden_present"
+          ],
+          [
+            "staff-portal.html",
+            "exp-med-2",
+            "forbidden_present"
+          ]
+        ],
+        "arms": {
+          "A3": {
+            "exp-med-0": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "medical-records.html"
+              ],
+              "missed": [
+                "medical-records.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-med-2": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "staff-portal.html"
+              ],
+              "missed": [
+                "staff-portal.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-med-1": {
+              "kind": "required_absent",
+              "tp": 0,
+              "fn": 0,
+              "fp": 2,
+              "decoy_adjacent_fp": 2,
+              "unlisted_hits": 5,
+              "found_pages": [
+                "appointments.html",
+                "dashboard.html",
+                "emergency.html",
+                "login.html",
+                "medical-records.html",
+                "prescriptions.html",
+                "staff-portal.html"
+              ],
+              "truth_pages": [],
+              "missed": [],
+              "fp_pages": [
+                "appointments.html",
+                "dashboard.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "appointments.html",
+                "dashboard.html"
+              ],
+              "unlisted_pages": [
+                "emergency.html",
+                "login.html",
+                "medical-records.html",
+                "prescriptions.html",
+                "staff-portal.html"
+              ],
+              "double_negation_clause": false
+            },
+            "exp-med-3": {
+              "kind": "required_absent",
+              "tp": 1,
+              "fn": 0,
+              "fp": 2,
+              "decoy_adjacent_fp": 2,
+              "unlisted_hits": 4,
+              "found_pages": [
+                "appointments.html",
+                "dashboard.html",
+                "emergency.html",
+                "login.html",
+                "medical-records.html",
+                "prescriptions.html",
+                "staff-portal.html"
+              ],
+              "truth_pages": [
+                "dashboard.html"
+              ],
+              "missed": [],
+              "fp_pages": [
+                "appointments.html",
+                "emergency.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "appointments.html",
+                "emergency.html"
+              ],
+              "unlisted_pages": [
+                "login.html",
+                "medical-records.html",
+                "prescriptions.html",
+                "staff-portal.html"
+              ],
+              "double_negation_clause": true
+            }
+          },
+          "A8": {
+            "exp-med-0": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "medical-records.html"
+              ],
+              "missed": [
+                "medical-records.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-med-2": {
+              "kind": "forbidden_present",
+              "tp": 1,
+              "fn": 0,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [
+                "staff-portal.html"
+              ],
+              "truth_pages": [
+                "staff-portal.html"
+              ],
+              "missed": [],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-med-1": {
+              "kind": "required_absent",
+              "tp": 0,
+              "fn": 0,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 1,
+              "found_pages": [
+                "staff-portal.html"
+              ],
+              "truth_pages": [],
+              "missed": [],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [
+                "staff-portal.html"
+              ],
+              "double_negation_clause": false
+            },
+            "exp-med-3": {
+              "kind": "required_absent",
+              "tp": 1,
+              "fn": 0,
+              "fp": 2,
+              "decoy_adjacent_fp": 2,
+              "unlisted_hits": 3,
+              "found_pages": [
+                "appointments.html",
+                "dashboard.html",
+                "emergency.html",
+                "medical-records.html",
+                "prescriptions.html",
+                "staff-portal.html"
+              ],
+              "truth_pages": [
+                "dashboard.html"
+              ],
+              "missed": [],
+              "fp_pages": [
+                "appointments.html",
+                "emergency.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "appointments.html",
+                "emergency.html"
+              ],
+              "unlisted_pages": [
+                "medical-records.html",
+                "prescriptions.html",
+                "staff-portal.html"
+              ],
+              "double_negation_clause": true
+            }
+          }
+        }
+      },
+      "hr-suite": {
+        "pages": [
+          "benefits.html",
+          "dashboard.html",
+          "login.html",
+          "pay-stubs.html",
+          "payroll-calc.html",
+          "salary-view.html",
+          "team-directory.html"
+        ],
+        "roles_run": [
+          "employee"
+        ],
+        "double_negation_clauses": [],
+        "truth": [
+          [
+            "benefits.html",
+            "exp-hr-3",
+            "required_absent"
+          ],
+          [
+            "payroll-calc.html",
+            "exp-hr-2",
+            "forbidden_present"
+          ],
+          [
+            "salary-view.html",
+            "exp-hr-0",
+            "forbidden_present"
+          ]
+        ],
+        "arms": {
+          "A3": {
+            "exp-hr-0": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "salary-view.html"
+              ],
+              "missed": [
+                "salary-view.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-hr-2": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "payroll-calc.html"
+              ],
+              "missed": [
+                "payroll-calc.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-hr-1": {
+              "kind": "required_absent",
+              "tp": 0,
+              "fn": 0,
+              "fp": 2,
+              "decoy_adjacent_fp": 2,
+              "unlisted_hits": 5,
+              "found_pages": [
+                "benefits.html",
+                "dashboard.html",
+                "login.html",
+                "pay-stubs.html",
+                "payroll-calc.html",
+                "salary-view.html",
+                "team-directory.html"
+              ],
+              "truth_pages": [],
+              "missed": [],
+              "fp_pages": [
+                "dashboard.html",
+                "pay-stubs.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "dashboard.html",
+                "pay-stubs.html"
+              ],
+              "unlisted_pages": [
+                "benefits.html",
+                "login.html",
+                "payroll-calc.html",
+                "salary-view.html",
+                "team-directory.html"
+              ],
+              "double_negation_clause": false
+            },
+            "exp-hr-3": {
+              "kind": "required_absent",
+              "tp": 1,
+              "fn": 0,
+              "fp": 3,
+              "decoy_adjacent_fp": 3,
+              "unlisted_hits": 3,
+              "found_pages": [
+                "benefits.html",
+                "dashboard.html",
+                "login.html",
+                "pay-stubs.html",
+                "payroll-calc.html",
+                "salary-view.html",
+                "team-directory.html"
+              ],
+              "truth_pages": [
+                "benefits.html"
+              ],
+              "missed": [],
+              "fp_pages": [
+                "dashboard.html",
+                "pay-stubs.html",
+                "team-directory.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "dashboard.html",
+                "pay-stubs.html",
+                "team-directory.html"
+              ],
+              "unlisted_pages": [
+                "login.html",
+                "payroll-calc.html",
+                "salary-view.html"
+              ],
+              "double_negation_clause": false
+            }
+          },
+          "A8": {
+            "exp-hr-0": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "salary-view.html"
+              ],
+              "missed": [
+                "salary-view.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-hr-2": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "payroll-calc.html"
+              ],
+              "missed": [
+                "payroll-calc.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-hr-1": {
+              "kind": "required_absent",
+              "tp": 0,
+              "fn": 0,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [],
+              "missed": [],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-hr-3": {
+              "kind": "required_absent",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 1,
+              "found_pages": [
+                "payroll-calc.html"
+              ],
+              "truth_pages": [
+                "benefits.html"
+              ],
+              "missed": [
+                "benefits.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [
+                "payroll-calc.html"
+              ],
+              "double_negation_clause": false
+            }
+          }
+        }
+      },
+      "config-portal": {
+        "pages": [
+          "billing.html",
+          "home.html",
+          "login.html",
+          "password-change.html",
+          "settings.html",
+          "subscription.html",
+          "team.html"
+        ],
+        "roles_run": [
+          "free_user",
+          "member"
+        ],
+        "double_negation_clauses": [
+          "exp-cfg-2"
+        ],
+        "truth": [
+          [
+            "billing.html",
+            "exp-cfg-0",
+            "forbidden_present"
+          ],
+          [
+            "settings.html",
+            "exp-cfg-1",
+            "required_absent"
+          ],
+          [
+            "team.html",
+            "exp-cfg-3",
+            "forbidden_present"
+          ]
+        ],
+        "arms": {
+          "A3": {
+            "exp-cfg-0": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "billing.html"
+              ],
+              "missed": [
+                "billing.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-cfg-3": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "team.html"
+              ],
+              "missed": [
+                "team.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-cfg-1": {
+              "kind": "required_absent",
+              "tp": 1,
+              "fn": 0,
+              "fp": 2,
+              "decoy_adjacent_fp": 2,
+              "unlisted_hits": 4,
+              "found_pages": [
+                "billing.html",
+                "home.html",
+                "login.html",
+                "password-change.html",
+                "settings.html",
+                "subscription.html",
+                "team.html"
+              ],
+              "truth_pages": [
+                "settings.html"
+              ],
+              "missed": [],
+              "fp_pages": [
+                "home.html",
+                "subscription.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "home.html",
+                "subscription.html"
+              ],
+              "unlisted_pages": [
+                "billing.html",
+                "login.html",
+                "password-change.html",
+                "team.html"
+              ],
+              "double_negation_clause": false
+            },
+            "exp-cfg-2": {
+              "kind": "required_absent",
+              "tp": 0,
+              "fn": 0,
+              "fp": 3,
+              "decoy_adjacent_fp": 3,
+              "unlisted_hits": 4,
+              "found_pages": [
+                "billing.html",
+                "home.html",
+                "login.html",
+                "password-change.html",
+                "settings.html",
+                "subscription.html",
+                "team.html"
+              ],
+              "truth_pages": [],
+              "missed": [],
+              "fp_pages": [
+                "home.html",
+                "password-change.html",
+                "settings.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "home.html",
+                "password-change.html",
+                "settings.html"
+              ],
+              "unlisted_pages": [
+                "billing.html",
+                "login.html",
+                "subscription.html",
+                "team.html"
+              ],
+              "double_negation_clause": true
+            }
+          },
+          "A8": {
+            "exp-cfg-0": {
+              "kind": "forbidden_present",
+              "tp": 0,
+              "fn": 1,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [],
+              "truth_pages": [
+                "billing.html"
+              ],
+              "missed": [
+                "billing.html"
+              ],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-cfg-3": {
+              "kind": "forbidden_present",
+              "tp": 1,
+              "fn": 0,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [
+                "team.html"
+              ],
+              "truth_pages": [
+                "team.html"
+              ],
+              "missed": [],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-cfg-1": {
+              "kind": "required_absent",
+              "tp": 1,
+              "fn": 0,
+              "fp": 0,
+              "decoy_adjacent_fp": 0,
+              "unlisted_hits": 0,
+              "found_pages": [
+                "settings.html"
+              ],
+              "truth_pages": [
+                "settings.html"
+              ],
+              "missed": [],
+              "fp_pages": [],
+              "decoy_adjacent_fp_pages": [],
+              "unlisted_pages": [],
+              "double_negation_clause": false
+            },
+            "exp-cfg-2": {
+              "kind": "required_absent",
+              "tp": 0,
+              "fn": 0,
+              "fp": 1,
+              "decoy_adjacent_fp": 1,
+              "unlisted_hits": 3,
+              "found_pages": [
+                "billing.html",
+                "password-change.html",
+                "subscription.html",
+                "team.html"
+              ],
+              "truth_pages": [],
+              "missed": [],
+              "fp_pages": [
+                "password-change.html"
+              ],
+              "decoy_adjacent_fp_pages": [
+                "password-change.html"
+              ],
+              "unlisted_pages": [
+                "billing.html",
+                "subscription.html",
+                "team.html"
+              ],
+              "double_negation_clause": true
+            }
+          }
+        }
+      }
+    },
+    "totals_per_polarity": {
+      "A3": {
+        "forbidden_present": {
+          "tp": 0,
+          "fn": 8,
+          "fp": 0,
+          "decoy_adjacent_fp": 0,
+          "unlisted_hits": 0
+        },
+        "required_absent": {
+          "tp": 4,
+          "fn": 0,
+          "fp": 19,
+          "decoy_adjacent_fp": 19,
+          "unlisted_hits": 33
+        }
+      },
+      "A8": {
+        "forbidden_present": {
+          "tp": 3,
+          "fn": 5,
+          "fp": 0,
+          "decoy_adjacent_fp": 0,
+          "unlisted_hits": 0
+        },
+        "required_absent": {
+          "tp": 3,
+          "fn": 1,
+          "fp": 4,
+          "decoy_adjacent_fp": 4,
+          "unlisted_hits": 12
+        }
+      }
+    }
+  },
+  "key_map": {
+    "RQ1a": [
+      "E1_E3.E1_oracle_perception",
+      "E6_real_audit_on_oracle_maps"
+    ],
+    "RQ1b": [
+      "E5_loop",
+      "E11_two_seed_variant"
+    ],
+    "RQ2": [
+      "E1_E3.E1_deterministic_dom_perception",
+      "E1_E3.E4_deterministic_lexical_grounding",
+      "E7_perturbed_perceivers"
+    ],
+    "RQ3": [
+      "E1_E3.E3_oracle_intersection_only",
+      "E6_real_audit_on_oracle_maps"
+    ],
+    "RQ4": [
+      "E2",
+      "E8_fingerprint_edits"
+    ],
+    "RQ5": [
+      "E9_mutants_and_baseline",
+      "E10_xpath_baseline",
+      "E12_extra_apps",
+      "E13_label_rename_variants",
+      "E14_generated_apps"
+    ]
+  }
+}

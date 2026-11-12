@@ -1,0 +1,80 @@
+% StateScout -- conference paper in the Springer svproc template.
+% Build: make   (pdflatex + bibtex; see Makefile).   Do not edit svproc.cls.
+\documentclass{svproc}
+
+\usepackage{url}
+\usepackage{helvet}
+\usepackage{courier}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{natbib}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
+\def\UrlFont{\rmfamily}
+\emergencystretch=3em
+
+\newcommand{\sys}{\textsc{StateScout}}
+\newcommand{\Forb}{\mathcal{F}}
+\newcommand{\Req}{\mathcal{R}}
+\newcommand{\Sig}{\Sigma}
+\newcommand{\placeholder}[1]{\textbf{[#1]}}
+
+\begin{document}
+\mainmatter
+
+\title{\sys: Auditing What a User Interface Must Not Contain, and What It Must}
+\titlerunning{\sys: Policy-Aware Auditing of Web UIs}
+
+\author{Kavinraj S\inst{1} \and Harshita R\inst{2} \and Sanjay A R\inst{3} \and Jai Subiksha T\inst{4} \and Sathiya R R\inst{5}}
+% Empty running-head author text on purpose (a blank, not the class default).
+\authorrunning{\mbox{}}
+\tocauthor{Kavinraj S, Harshita R, Sanjay A R, Jai Subiksha T, and Sathiya R R}
+\institute{Department of Computer Science and Engineering, Amrita School of Computing Coimbatore, Amrita Vishwa Vidyapeetham, India\\
+\email{cb.sc.u4cse23329@cb.students.amrita.edu}
+\and
+Department of Computer Science and Engineering, Amrita School of Computing Coimbatore, Amrita Vishwa Vidyapeetham, India\\
+\email{cb.sc.u4cse23028@cb.students.amrita.edu}
+\and
+Department of Computer Science and Engineering, Amrita School of Computing Coimbatore, Amrita Vishwa Vidyapeetham, India\\
+\email{cb.sc.u4cse23052@cb.students.amrita.edu}
+\and
+Department of Computer Science and Engineering, Amrita School of Computing Coimbatore, Amrita Vishwa Vidyapeetham, India\\
+\email{cb.sc.u4cse23327@cb.students.amrita.edu}
+\and
+Department of Computer Science and Engineering, Amrita School of Computing Coimbatore, Amrita Vishwa Vidyapeetham, India\\
+\email{rr\_sathiya@cb.amrita.edu}}
+
+\maketitle
+
+\begin{abstract}
+Web applications enforce authorization on the server, yet their interfaces can
+still show what a role should not see or omit what a policy requires. We
+present \sys{}, a prototype that explores an application as one fixed role and
+checks each reached state against a role-scoped policy of forbidden and required
+elements, computed as an intersection and a set difference over a semantic state description. The evaluation is fixture-level: one six-page
+application with four planted violations and seven small same-project apps,
+using fakes. Under oracle perception the production audit agrees
+with the ground truth, a consistency check. A
+rule-based channel fails mainly by vocabulary mismatch; an in-sample label script
+beats it on the first app but finds 3 of 8 forbidden violations on four generated
+apps; and a simulated crash shows that claim-before-execute does not by
+itself make resumption safe. No browser or VLM pipeline is evaluated.
+\keywords{web UI testing, test oracles, negation, vision-language models,
+state-space exploration}
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/related}
+\input{sections/model}
+\input{sections/system}
+\input{sections/evaluation}
+\input{sections/discussion}
+\input{sections/conclusion}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

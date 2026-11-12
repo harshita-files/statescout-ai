@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedClinic - Medical Records</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        nav { background: #0066cc; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        nav a { color: white; text-decoration: none; margin-right: 20px; }
+        nav a:hover { text-decoration: underline; }
+        .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #0066cc; }
+        .record { border-left: 4px solid #0066cc; padding-left: 10px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="appointments.html">Appointments</a>
+        <a href="medical-records.html">Medical Records</a>
+        <a href="prescriptions.html">Prescriptions</a>
+    </nav>
+
+    <div class="card">
+        <h3>Your Medical Records</h3>
+
+        <div class="record">
+            <strong>Blood Work - Oct 10, 2026</strong>
+            <p>Red Blood Cell Count: 4.8 M/uL (Normal)</p>
+            <p>White Blood Cell Count: 7.2 K/uL (Normal)</p>
+        </div>
+
+        <div class="record">
+            <strong>Physical Examination - Oct 5, 2026</strong>
+            <p>Height: 5'10", Weight: 180 lbs, BP: 120/80</p>
+            <p>Notes: Patient in good health</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Michael Chen - Records</h3>
+        <p>Patient ID: MC-8472</p>
+
+        <div class="record">
+            <strong>MRI Scan - Oct 9, 2026</strong>
+            <p>Knee MRI ordered for ligament assessment</p>
+            <p>Results: Minor cartilage wear, no ACL damage</p>
+        </div>
+
+        <div class="record">
+            <strong>Medication History - Oct 2026</strong>
+            <p>Ibuprofen 400mg (PRN)</p>
+            <p>Lisinopril 10mg (Daily)</p>
+        </div>
+    </div>
+</body>
+</html>

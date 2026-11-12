@@ -1,0 +1,68 @@
+% StateScout AI -- research paper draft
+% Build:  cd docs/report/paper && make      (pdflatex + bibtex, see Makefile)
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage[margin=0.75in,columnsep=0.25in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage[scaled=0.9]{helvet}
+\usepackage{courier}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{microtype}
+\usepackage{booktabs,multirow,threeparttable}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{balance}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=green!40!black,urlcolor=blue!50!black]{hyperref}
+\usepackage[capitalise,nameinlink]{cleveref}
+
+\setlist{nosep,leftmargin=*}
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newcommand{\sys}{\textsc{StateScout}}
+\newcommand{\Forb}{\mathcal{F}}
+\newcommand{\Req}{\mathcal{R}}
+\newcommand{\Sig}{\Sigma}
+\newcommand{\todo}[1]{\textcolor{red!70!black}{[\textbf{TODO:} #1]}}
+\definecolor{bad}{HTML}{C0392B}
+\definecolor{good}{HTML}{1E7B4F}
+\definecolor{mute}{HTML}{7F8C8D}
+\definecolor{acc}{HTML}{2E5E8C}
+
+\title{\sys: Auditing What Must \emph{Not} Exist --- Policy-Aware,\\
+Negation-Grounded Exploration of Web User Interfaces}
+
+\author{Team 46\thanks{Author names and ordering to be finalised by the team.}\\
+Department of Computer Science and Engineering\\
+Amrita Vishwa Vidyapeetham\\
+\small\textit{Research draft --- \today}}
+
+\date{}
+
+\begin{document}
+\maketitle
+
+\input{sections/abstract}
+\input{sections/introduction}
+\input{sections/background}
+\input{sections/model}
+\input{sections/system}
+\input{sections/evaluation}
+\input{sections/related}
+\input{sections/discussion}
+\input{sections/conclusion}
+
+\balance
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+
+\end{document}
