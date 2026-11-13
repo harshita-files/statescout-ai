@@ -34,8 +34,17 @@ extJs = extJs.replace(
 fs.writeFileSync(path.join(distDir, "shared-types.js"), sharedJs, "utf8");
 fs.writeFileSync(path.join(distDir, "extension.js"), extJs, "utf8");
 
+// Also build a CommonJS bundle (`dist/extension.cjs`) for the VS Code Node extension host,
+// where `require("vscode")` is only injected into CommonJS modules.
+const cjsShared = sharedJs.replace(/\bexport\s+(const|function|class)\s+/g, "$1 ");
+const cjsExt = extJs
+  .replace(/import\s*\{[\s\S]*?\}\s*from\s*["']\.\/shared-types\.js["'];?/g, "")
+  .replace(/\bexport\s+(const|function|class)\s+/g, "$1 ");
+const cjsBundle = `"use strict";\n${cjsShared}\n${cjsExt}\nmodule.exports = {\n  COMMANDS,\n  DEFAULT_API_BASE_URL,\n  describeRun,\n  describeAudit,\n  rankViolations,\n  rankFindings,\n  buildAuditPayload,\n  AuditApiClient,\n  renderAuditWebviewHtml,\n  activate,\n  deactivate,\n};\n`;
+fs.writeFileSync(path.join(distDir, "extension.cjs"), cjsBundle, "utf8");
+
 if (process.argv.includes("--build-only")) {
-  console.log("Built apps/vscode-extension/dist/extension.js");
+  console.log("Built apps/vscode-extension/dist/extension.js and extension.cjs");
   process.exit(0);
 }
 
@@ -123,6 +132,8 @@ const contentTypesXml = `<?xml version="1.0" encoding="utf-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension=".json" ContentType="application/json"/>
   <Default Extension=".js" ContentType="application/javascript"/>
+  <Default Extension=".cjs" ContentType="application/javascript"/>
+  <Default Extension=".svg" ContentType="image/svg+xml"/>
   <Default Extension=".md" ContentType="text/markdown"/>
   <Default Extension=".vsixmanifest" ContentType="text/xml"/>
 </Types>`;
@@ -146,7 +157,7 @@ const vsixManifest = `<?xml version="1.0" encoding="utf-8"?>
 </PackageManifest>`;
 
 const vsixPath = path.join(extDir, `${pkg.name}-${pkg.version}.vsix`);
-const zipBuffer = buildZip([
+const vsixEntries = [
   { name: "[Content_Types].xml", data: contentTypesXml },
   { name: "extension.vsixmanifest", data: vsixManifest },
   {
@@ -158,6 +169,10 @@ const zipBuffer = buildZip([
     data: fs.readFileSync(path.join(extDir, "README.md")),
   },
   {
+    name: "extension/media/sidebar-icon.svg",
+    data: fs.readFileSync(path.join(extDir, "media/sidebar-icon.svg")),
+  },
+  {
     name: "extension/dist/shared-types.js",
     data: fs.readFileSync(path.join(distDir, "shared-types.js")),
   },
@@ -165,7 +180,20 @@ const zipBuffer = buildZip([
     name: "extension/dist/extension.js",
     data: fs.readFileSync(path.join(distDir, "extension.js")),
   },
-]);
+  {
+    name: "extension/dist/extension.cjs",
+    data: fs.readFileSync(path.join(distDir, "extension.cjs")),
+  },
+];
+const defaultReportPath = path.join(distDir, "default-report.json");
+if (fs.existsSync(defaultReportPath)) {
+  vsixEntries.push({
+    name: "extension/dist/default-report.json",
+    data: fs.readFileSync(defaultReportPath),
+  });
+}
+const zipBuffer = buildZip(vsixEntries);
 
 fs.writeFileSync(vsixPath, zipBuffer);
 console.log(`Packaged VSIX: ${vsixPath} (${zipBuffer.length} bytes)`);
+
