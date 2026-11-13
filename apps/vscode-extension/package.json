@@ -3,9 +3,8 @@
   "displayName": "StateScout AI",
   "publisher": "statescout-ai",
   "description": "Run policy-aware UI audits and review forbidden interface states without leaving the editor.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "type": "module",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -13,16 +12,36 @@
     "Testing"
   ],
   "activationEvents": [
+    "onStartupFinished",
+    "onView:statescout.sidebarView",
     "onCommand:statescout.startScan",
     "onCommand:statescout.stopScan",
     "onCommand:statescout.openConsole"
   ],
-  "main": "./dist/extension.js",
+  "main": "./dist/extension.cjs",
   "scripts": {
     "build": "node ./scripts/package-vsix.mjs --build-only",
     "package": "node ./scripts/package-vsix.mjs"
   },
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "statescout-sidebar",
+          "title": "StateScout AI",
+          "icon": "media/sidebar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "statescout-sidebar": [
+        {
+          "type": "webview",
+          "id": "statescout.sidebarView",
+          "name": "StateScout AI Console"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "statescout.startScan",
