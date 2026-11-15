@@ -423,9 +423,7 @@ def create_router() -> APIRouter:
         return SessionListResponse(sessions=rows)
 
     @router.get("/sessions/{session_id}", response_model=SessionSummary)
-    async def get_session(
-        session_id: str, user_id: str = Depends(require_login)
-    ) -> SessionSummary:
+    async def get_session(session_id: str, user_id: str = Depends(require_login)) -> SessionSummary:
         _prune()
         record = _store.by_id.get(session_id)
         if record is None or record.user_id != user_id:
