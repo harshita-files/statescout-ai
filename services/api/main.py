@@ -171,9 +171,13 @@ from fastapi.responses import FileResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from services.api.audits import create_router  # noqa: E402
+from services.api.sessions import create_router as create_auth_router  # noqa: E402
 
 _STATIC = Path(__file__).parent / "static"
 app.include_router(create_router())
+# Login + per-project sessions. Open routes by design: /auth/login IS the gate,
+# so it cannot sit behind _PROTECTED, and the rest check their own bearer token.
+app.include_router(create_auth_router())
 app.mount("/static", StaticFiles(directory=_STATIC), name="static")
 
 
