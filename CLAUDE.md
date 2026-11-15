@@ -22,8 +22,7 @@ caches visited pairs.
 | `apps/agent/graph/`, `services/api/`, `infra/` | D |
 
 Cross-module calls go through the typed interfaces in `apps/agent/contracts.py`.
-Never import another track's internals directly. A `PreToolUse` hook enforces
-this — see `.claude/hooks/README.md`.
+Prefer the typed interfaces over reaching into another module's internals.
 
 ## Project-wide rules
 

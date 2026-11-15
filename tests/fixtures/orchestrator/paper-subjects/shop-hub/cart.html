@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopHub - Cart</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        nav { background: #f0f0f0; padding: 10px; margin-bottom: 20px; }
+        nav a { margin-right: 15px; text-decoration: none; color: #0066cc; }
+        a:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        .total { font-weight: bold; font-size: 18px; margin-top: 20px; }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; cursor: pointer; }
+        button:hover { background: #0052a3; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="products.html">Continue Shopping</a>
+    </nav>
+
+    <h1>Shopping Cart</h1>
+
+    <table>
+        <tr>
+            <th>Product</th>
+            <th>Price</th>
+            <th>Quantity</th>
+        </tr>
+        <tr>
+            <td>Wireless Headphones</td>
+            <td>$79.99</td>
+            <td>1</td>
+        </tr>
+    </table>
+
+    <div class="total">Total: $79.99</div>
+
+    <p>Ready to buy? Choose an option:</p>
+    <button onclick="location.href='checkout.html'">Proceed to Checkout</button>
+    <button onclick="location.href='products.html'">Continue Shopping</button>
+</body>
+</html>

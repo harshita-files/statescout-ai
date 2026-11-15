@@ -1,0 +1,25 @@
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+\sys{} audits what a role can \emph{see}, where workflow tests check what a
+user can \emph{do}. Formalising the policy oracle as two typed set operations
+makes absence a first-class violation. It also exposes a structural fact:
+perception errors propagate in opposite directions for forbidden and required
+clauses, so no single perception bias is safe for both. On a polarity-complete
+ground-truth application, the exploration loop and audit algebra are exact
+when perception is an oracle. The deterministic perception channel shows the
+predicted asymmetry, and a lexical-grounding ablation isolates semantic
+subject grounding as the open problem.
+
+The next steps follow directly:
+(i)~run the pipeline end to end with the live Playwright crawler and the
+deterministic and VLM perception channels;
+(ii)~evaluate presence and absence judgements separately per polarity on a
+probe set of hard cases (unlabelled \texttt{<div>} controls, hidden and
+icon-only elements);
+(iii)~add page-scope predicates and three-valued verdicts;
+(iv)~narrow replay safety beyond action kinds; and
+(v)~release \textsc{NegUI} with a Crawljax-plus-invariants baseline.
+
+\paragraph{Artifact.}
+The code, the ground-truth applications and the scripts that produce every number are in the project repository (\nolinkurl{docs/report/experiments/}).

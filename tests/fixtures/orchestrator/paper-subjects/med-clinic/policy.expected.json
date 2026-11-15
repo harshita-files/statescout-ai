@@ -1,0 +1,34 @@
+{
+  "forbidden": [
+    {
+      "expectation_id": "exp-med-0",
+      "polarity": "must_not_exist",
+      "subject": "other patient records",
+      "roles": ["patient"],
+      "source_text": "Patients must never be able to view another patient's medical records."
+    },
+    {
+      "expectation_id": "exp-med-2",
+      "polarity": "must_not_exist",
+      "subject": "staff clinical dashboard",
+      "roles": ["patient"],
+      "source_text": "Non-staff users should never be able to access the staff-only clinical dashboard."
+    }
+  ],
+  "required": [
+    {
+      "expectation_id": "exp-med-1",
+      "polarity": "must_exist",
+      "subject": "appointment scheduling",
+      "roles": ["patient"],
+      "source_text": "The patient portal must always provide a way to schedule an appointment."
+    },
+    {
+      "expectation_id": "exp-med-3",
+      "polarity": "must_exist",
+      "subject": "emergency contact information",
+      "roles": ["patient"],
+      "source_text": "Patients must not be unable to locate emergency contact information."
+    }
+  ]
+}

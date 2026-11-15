@@ -1,0 +1,152 @@
+\section{Problem Formulation}
+\label{sec:model}
+
+\subsection{Applications, roles, and observations}
+
+We model a web application under test (AUT), as seen by a fixed role $r$, as a
+labelled transition system $M_r=(Q,A,\delta,q_0)$ over concrete UI
+configurations $Q$, actions $A$, and a partial transition function
+$\delta:Q\times A\rightharpoonup Q$. The auditor never sees $Q$ directly. A
+\emph{capture} $\kappa(q)=(u,d,t,s)$ bundles the URL, serialized DOM,
+accessibility (AX) tree, and an optional screenshot. \sys{} pins one role per
+run; multi-role coverage is several runs, and comparing roles is a
+reporting-layer concern (\cref{sec:discussion}).
+
+\begin{definition}[State abstraction]
+A \emph{fingerprint} is $\phi = H\circ N$, where $N$ normalizes a capture by
+removing volatile content (session and CSRF tokens, nonces, long numeric
+timestamps, generated hex identifiers, per-session CDP node ids, transient
+focus), and $H$ is SHA-256. Two configurations are \emph{the same abstract
+state} iff $\phi(\kappa(q))=\phi(\kappa(q'))$.
+\end{definition}
+
+Normalization has two failure modes. If it is too sensitive, the model
+explodes into one node per page load. If it is too coarse, a security-relevant
+change (for example, a destructive button that appears) folds into an existing
+state and is never audited. \Cref{sec:eval:fp} measures both.
+
+\subsection{The exploration graph is cyclic}
+
+\begin{definition}[Exploration graph]
+The \emph{exploration graph} is a directed multigraph $G=(V,E)$ with
+$V\subseteq\operatorname{img}\phi$ and $E\subseteq V\times A\times V$, where
+$(v,a,v')\in E$ records that executing $a$ in $v$ was observed to lead to $v'$.
+An edge is a \emph{back-edge} if $v'$ was already discovered when it was added.
+\end{definition}
+
+Model-inference crawlers often treat revisits as redundant and drop them,
+leaving a tree or DAG. We treat back-edges as \emph{evidence}. ``Log out
+returns to login'' and ``Admin returns to Dashboard'' are facts about the
+AUT's navigation structure, and a path-sensitive audit can only reason over
+them if they are kept. \sys{} therefore never prunes an edge. Loop prevention
+lives entirely in a \emph{claim set} $C\subseteq V\times A$.
+
+\begin{definition}[Claim-before-execute]
+Action $a$ is executed from $v$ only if $(v,a)\notin C$, and $(v,a)$ is inserted
+into $C$ \emph{before} $a$ is sent to the browser. The edge $(v,a,v')$ is
+persisted only \emph{after} $a$ succeeds.
+\end{definition}
+
+\begin{proposition}[Termination and at-most-once per pair]
+\label{prop:term}
+Suppose $|V|\le n$, which is enforced by a state cap, and each state enables
+at most $k$ actions. Then exploration performs at most $nk$ \emph{frontier}
+executions and terminates. No claimed pair $(v,a)$ is executed as a frontier
+action twice, including across crash and resume.
+\end{proposition}
+\begin{proof}[Proof sketch]
+Every frontier execution inserts a distinct pair into $C$ first, and
+$|C|\le nk$. On resume, a pair that is in $C$ but has no edge is treated as
+done and never re-fired. Execution strictly follows insertion, so a crash
+cannot cause a second execution of the same pair.
+\end{proof}
+
+Most AUTs are not idempotent: re-submitting a form changes the application
+being audited. Reaching a queued action with a single browser, however, means
+\emph{replaying} its path from the seed, and replay re-fires the actions on
+that path. \Cref{prop:term} is therefore a guarantee about \emph{pairs}, not
+about \emph{effects}. \sys{} narrows the gap by kind: only
+$\textsf{ReplaySafe}=\{\texttt{navigate},\texttt{click},\texttt{back}\}$ may be
+re-fired. A candidate whose path passes through a \texttt{fill},
+\texttt{select}, or \texttt{submit} is recorded as skipped, with a reason, and
+its subtree is reported as unexplored instead of being reached by quietly
+re-submitting a form. The residual assumption is that \emph{clicks are
+navigational}. A click that mutates state on a replayed path (for example, a
+one-click ``Delete'') \emph{is} re-fired. We treat this as an open limitation
+(\cref{sec:discussion}), not a solved problem. Action identity is
+\emph{content-addressed}:
+$\mathit{id}(a)=H(\mathit{role}\,\|\,\mathit{name}\,\|\,\mathit{selector})$, not
+a DOM index. Replay therefore survives DOM reordering, and the same ``Log out''
+control keeps one identity everywhere, while deduplication stays scoped to
+$(v,a)$.
+
+\subsection{Policies as two set operations}
+
+A policy is written in English by a QA engineer and compiled into
+machine-checkable clauses $c=(\sigma_c,\rho_c,\pi_c)$: a \emph{subject}
+$\sigma_c$ (a UI element kind or capability), a role scope $\rho_c$ (empty
+means all roles), and a polarity $\pi_c\in\{\textsf{must\_exist},
+\textsf{must\_not\_exist}\}$. This splits the policy into forbidden clauses
+$\Forb$ and required clauses $\Req$. Perception maps each state to a set of
+grounded subjects $\Sig(v)$ (element tags, accessible names, and capabilities).
+For a role $r$, let $\Forb_r$ and $\Req_r$ be the clauses whose scope admits
+$r$.
+
+\begin{definition}[Negation-aware audit]
+\begin{align}
+\mathit{Viol}_\Forb(v) &= \{\,c\in\Forb_r : \sigma_c\in\Sig(v)\,\}
+  && \text{(forbidden present)}\label{eq:forb}\\
+\mathit{Viol}_\Req(v)  &= \{\,c\in\Req_r : \sigma_c\notin\Sig(v)\,\}
+  && \text{(required absent)}\label{eq:req}
+\end{align}
+The audit of $v$ is $\mathit{Viol}_\Forb(v)\cup\mathit{Viol}_\Req(v)$, and each
+violation is tagged with the operation that produced it.
+\end{definition}
+
+\Cref{eq:forb} is an intersection ($S\cap\Forb$) and \cref{eq:req} is a
+difference ($\Req\setminus S$). No single intersection can express both, so an
+intersection-only oracle is structurally unable to report a missing element
+(\cref{sec:eval:rq3}).
+
+\subsection{Error-direction asymmetry under imperfect perception}
+\label{sec:model:asym}
+
+In a real system, $\Sig(v)$ is replaced by a perception estimate $\hat\Sig(v)$
+from a DOM/AX correlator or a vision-language model. The two clause types react
+to perception errors in \emph{opposite} directions.
+
+\begin{proposition}[Error-direction asymmetry]
+\label{prop:asym}
+Let $\widehat{\mathit{Viol}}$ denote the audit computed on $\hat\Sig$.
+\begin{enumerate}
+  \item If perception \emph{under-reports} ($\hat\Sig(v)\subseteq\Sig(v)$), then
+    $\widehat{\mathit{Viol}}_\Forb(v)\subseteq\mathit{Viol}_\Forb(v)$ and
+    $\widehat{\mathit{Viol}}_\Req(v)\supseteq\mathit{Viol}_\Req(v)$. Forbidden
+    clauses can only be missed, and required clauses can only raise false
+    alarms.
+  \item If perception \emph{over-reports} ($\hat\Sig(v)\supseteq\Sig(v)$, for
+    example by hallucinating a subject), both inclusions reverse.
+\end{enumerate}
+\end{proposition}
+\begin{proof}
+\Cref{eq:forb} is monotone in $\Sig$ and \cref{eq:req} is antitone in $\Sig$.
+\end{proof}
+
+\begin{corollary}
+No uniform perception bias is safe for both clause types. A detector tuned to
+avoid false alarms on forbidden clauses (conservative, under-reporting) creates
+false alarms on required clauses, and the reverse also holds.
+\end{corollary}
+
+This matters for multimodal perception. Vision-language models answer negated
+queries close to chance~\cite{alhamoud2025negation}, and their compositional
+understanding is known to be shallow~\cite{yuksekgonul2023aro,ma2023crepe}.
+Those studies use natural images, not UI screenshots, so we cite them as
+motivation rather than as a measurement of UI perception. Whatever a
+perceiver's error rate, \cref{prop:asym} shows that a single yes/no ``is
+$\sigma$ on the screen?'' query has a polarity-dependent risk profile. This motivates the design
+choices in \cref{sec:system:negation}: evidence-carrying verdicts, a
+deterministic DOM/AX channel that cross-checks the VLM, and (proposed) a
+three-valued verdict that abstains instead of guessing when the two channels
+disagree. \Cref{sec:eval:rq2} observes exactly the asymmetry predicted by
+\cref{prop:asym}.

@@ -1,0 +1,34 @@
+{
+  "forbidden": [
+    {
+      "expectation_id": "exp-hr-0",
+      "polarity": "must_not_exist",
+      "subject": "other employee salaries",
+      "roles": ["employee"],
+      "source_text": "Non-manager employees must never be able to access salary information for other employees."
+    },
+    {
+      "expectation_id": "exp-hr-2",
+      "polarity": "must_not_exist",
+      "subject": "payroll calculation trigger",
+      "roles": ["employee"],
+      "source_text": "The system should never allow non-authorized users to trigger payroll calculations."
+    }
+  ],
+  "required": [
+    {
+      "expectation_id": "exp-hr-1",
+      "polarity": "must_exist",
+      "subject": "pay stub download",
+      "roles": ["employee"],
+      "source_text": "All employees must be able to download their pay stubs."
+    },
+    {
+      "expectation_id": "exp-hr-3",
+      "polarity": "must_exist",
+      "subject": "benefit enrollment status",
+      "roles": ["employee"],
+      "source_text": "Employees must always have visibility into their benefit enrollment status."
+    }
+  ]
+}

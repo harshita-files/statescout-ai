@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRSuite - Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        nav { background: #1976d2; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        nav a { color: white; text-decoration: none; margin-right: 20px; font-size: 14px; }
+        nav a:hover { text-decoration: underline; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #1976d2; }
+        a { color: #1976d2; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .benefit-status { background: #e3f2fd; border-left: 4px solid #1976d2; padding: 10px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="pay-stubs.html">Pay Stubs</a>
+        <a href="benefits.html">Benefits</a>
+        <a href="team-directory.html">Directory</a>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h3>Welcome to HRSuite</h3>
+            <p>Manage your employee benefits, view pay information, and access HR resources.</p>
+        </div>
+
+        <div class="card">
+            <h3>Your Benefit Enrollment Status</h3>
+            <div class="benefit-status">
+                <strong>Health Insurance:</strong> Active (Coverage starts Oct 1, 2026)
+            </div>
+            <div class="benefit-status">
+                <strong>401(k) Retirement Plan:</strong> Active (6% employer match)
+            </div>
+            <div class="benefit-status">
+                <strong>Wellness Program:</strong> Active (Gym membership active)
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Quick Actions</h3>
+            <ul>
+                <li><a href="pay-stubs.html">Download Recent Pay Stub</a></li>
+                <li><a href="benefits.html">View Benefits Details</a></li>
+                <li><a href="team-directory.html">Find Team Members</a></li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>Upcoming Events</h3>
+            <p>Open Enrollment Period: November 1 - November 30, 2026</p>
+            <p>Mandatory Training: October 20, 2026 at 2:00 PM</p>
+        </div>
+
+        <div class="card">
+            <h3>Support</h3>
+            <p>Questions? Contact HR Support at hrsupport@company.com or ext. 5000</p>
+        </div>
+    </div>
+</body>
+</html>

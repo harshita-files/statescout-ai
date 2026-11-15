@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedClinic - Staff Portal</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        nav { background: #c41e3a; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        nav a { color: white; text-decoration: none; margin-right: 20px; }
+        nav a:hover { text-decoration: underline; }
+        .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #c41e3a; }
+        .warning { background: #fff3cd; border-left: 4px solid #ff9800; padding: 10px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="dashboard.html">Back to Patient Portal</a>
+        <a href="#">Clinical Dashboard</a>
+        <a href="#">Patient Management</a>
+        <a href="#">Staff Directory</a>
+    </nav>
+
+    <div class="warning">
+        Staff Portal - Authorized Personnel Only
+    </div>
+
+    <div class="card">
+        <h3>Clinical Dashboard</h3>
+        <p>Real-time patient statistics and ongoing treatments:</p>
+        <ul>
+            <li>Active patients in clinic: 12</li>
+            <li>Pending referrals: 5</li>
+            <li>Lab results awaiting review: 8</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h3>Patient Lookup</h3>
+        <p>Search and manage patient records, orders, and communications.</p>
+        <input type="text" placeholder="Enter patient ID or name">
+    </div>
+
+    <div class="card">
+        <h3>Prescription Management</h3>
+        <p>Issue, refill, and modify patient prescriptions.</p>
+    </div>
+
+    <div class="card">
+        <h3>Lab Order System</h3>
+        <p>Place lab orders and track specimen processing.</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,125 @@
+/* GitHub dark theme: black and green, using GitHub's own Primer colours.
+   Applied to both palette schemes, so the site is always dark. The body[...]
+   selector outranks the theme's [data-md-color-*] rules on the same element. */
+body[data-md-color-scheme] {
+  color-scheme: dark;
+
+  --md-default-bg-color: #0d1117;
+  --md-default-bg-color--light: rgba(13, 17, 23, 0.54);
+  --md-default-bg-color--lighter: rgba(13, 17, 23, 0.26);
+  --md-default-bg-color--lightest: rgba(13, 17, 23, 0.07);
+  --md-default-fg-color: #e6edf3;
+  --md-default-fg-color--light: #8b949e;
+  --md-default-fg-color--lighter: #6e7681;
+  --md-default-fg-color--lightest: #30363d;
+
+  /* Header and navigation tabs */
+  --md-primary-fg-color: #010409;
+  --md-primary-fg-color--light: #161b22;
+  --md-primary-fg-color--dark: #010409;
+  --md-primary-bg-color: #e6edf3;
+  --md-primary-bg-color--light: #8b949e;
+
+  /* Hover, focus and active states */
+  --md-accent-fg-color: #3fb950;
+  --md-accent-fg-color--transparent: rgba(63, 185, 80, 0.12);
+  --md-accent-bg-color: #0d1117;
+  --md-accent-bg-color--light: rgba(13, 17, 23, 0.7);
+
+  --md-typeset-color: #e6edf3;
+  --md-typeset-a-color: #3fb950;
+  --md-typeset-mark-color: rgba(63, 185, 80, 0.3);
+  --md-typeset-table-color: #30363d;
+  --md-typeset-table-color--light: rgba(110, 118, 129, 0.08);
+
+  /* Code, with GitHub's dark syntax colours */
+  --md-code-fg-color: #e6edf3;
+  --md-code-bg-color: #161b22;
+  --md-code-bg-color--light: rgba(22, 27, 34, 0.9);
+  --md-code-bg-color--lighter: rgba(22, 27, 34, 0.54);
+  --md-code-hl-color: #3fb950;
+  --md-code-hl-color--light: rgba(63, 185, 80, 0.1);
+  --md-code-hl-number-color: #79c0ff;
+  --md-code-hl-special-color: #7ee787;
+  --md-code-hl-function-color: #d2a8ff;
+  --md-code-hl-constant-color: #79c0ff;
+  --md-code-hl-keyword-color: #ff7b72;
+  --md-code-hl-string-color: #a5d6ff;
+  --md-code-hl-name-color: #e6edf3;
+  --md-code-hl-operator-color: #ff7b72;
+  --md-code-hl-punctuation-color: #e6edf3;
+  --md-code-hl-comment-color: #8b949e;
+  --md-code-hl-generic-color: #8b949e;
+  --md-code-hl-variable-color: #ffa657;
+
+  --md-admonition-fg-color: #e6edf3;
+  --md-admonition-bg-color: #0d1117;
+
+  --md-footer-fg-color: #e6edf3;
+  --md-footer-fg-color--light: #8b949e;
+  --md-footer-fg-color--lighter: #6e7681;
+  --md-footer-bg-color: #010409;
+  --md-footer-bg-color--dark: #010409;
+}
+
+/* A thin border under the black header and tabs, as on GitHub. */
+.md-header,
+.md-tabs {
+  border-bottom: 1px solid #30363d;
+  box-shadow: none;
+}
+
+/* The site is always dark, so the light/dark toggle has nothing to switch. */
+.md-header__option[data-md-component="palette"] {
+  display: none;
+}
+
+/* Buttons: GitHub's green. */
+.md-typeset .md-button {
+  color: #3fb950;
+  border-color: #3fb950;
+}
+
+.md-typeset .md-button--primary {
+  background-color: #238636;
+  border-color: #238636;
+  color: #ffffff;
+}
+
+.md-typeset .md-button:hover,
+.md-typeset .md-button:focus {
+  background-color: #2ea043;
+  border-color: #2ea043;
+  color: #ffffff;
+}
+
+/* No logo: the theme shows its default one when none is configured, in the
+   header and at the top of the mobile navigation drawer. */
+.md-header__button.md-logo,
+.md-nav__title .md-nav__button.md-logo {
+  display: none;
+}
+
+/* The embedded exploration-graph demo page. */
+.demo-frame iframe {
+  width: 100%;
+  height: 80vh;
+  min-height: 560px;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 6px;
+}
+
+/* Responsive 16:9 wrapper for embedded demo videos. */
+.video {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+}
+
+.video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}

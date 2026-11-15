@@ -84,3 +84,42 @@ Below is the exact JSON schema of the output payload:
   "error": "string (exception message details)"
 }
 ```
+### Optional probabilistic capture support
+
+`PlaywrightCrawler(..., probabilistic_states=False)` preserves existing behavior
+by default. Set `probabilistic_states=True` to enable fetch/XHR request telemetry
+and best-effort readiness before captures from both `open()` and `act()`.
+Readiness samples DOM markup every 50 ms and requires 200 ms of unchanged DOM,
+no pending fetch/XHR requests, and 200 ms without fetch/XHR starts/completions.
+A shared two-second readiness budget permits capture even when the page never
+settles. Existing navigation/action timeouts remain separate from this budget.
+
+`drain() -> tuple[str, ...]` consumes request-start labels in observed order.
+Duplicates are retained, so `len(labels)` counts requests, including failed ones.
+Only fetch/XHR requests from this page are observed. Labels contain the uppercase
+method and URL path, for example `GET /users/:id/items/:uuid`; origin, userinfo,
+query, and fragment are omitted. Whole numeric and hyphenated UUID segments
+(including percent-encoded forms) become `:id` and `:uuid`. Other path segments
+are preserved; this is route normalization, not arbitrary secret redaction.
+Headers and bodies are never read. Disabled instances always drain to `()`.
+Listeners attach once when the session starts and detach on `close()`.
+
+The orchestrator can use the concrete optional API without changing contracts:
+
+```python
+crawler = PlaywrightCrawler(probabilistic_states=True)
+try:
+    initial = crawler.open(url)
+    initial_requests = crawler.drain()
+    crawler.drain()  # Discard any intervening observed traffic before the action.
+    try:
+        bundle = crawler.act(action)
+    finally:
+        action_requests = crawler.drain()  # Also available when the action fails.
+finally:
+    crawler.close()
+```
+
+Windows reflect when requests start, not guaranteed causal attribution. A late
+request belongs to whichever window observes its start. Draining never resets
+pending-request tracking. No orchestrator imports or contract changes are needed.

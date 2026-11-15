@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConfigHub - Subscription</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f8f9fa; }
+        .header { background: #667eea; color: white; padding: 20px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+        nav { background: white; border-bottom: 1px solid #eee; margin-bottom: 20px; }
+        nav a { display: inline-block; padding: 15px 20px; text-decoration: none; color: #667eea; border-bottom: 3px solid transparent; }
+        nav a:hover { border-bottom-color: #667eea; }
+        .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #333; }
+        .plan-badge { display: inline-block; background: #667eea; color: white; padding: 5px 10px; border-radius: 3px; font-weight: 600; }
+        .price { font-size: 24px; font-weight: bold; color: #667eea; }
+        button { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #5568d3; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Subscription Management</h1>
+        </div>
+    </div>
+
+    <nav>
+        <a href="home.html">Dashboard</a>
+        <a href="subscription.html">Subscription</a>
+        <a href="settings.html">Settings</a>
+        <a href="team.html">Team</a>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h3>Current Plan</h3>
+            <p><span class="plan-badge">Professional</span></p>
+            <p>You are currently on the Professional plan.</p>
+            <div class="price">$49/month</div>
+            <p>Billed annually - Next renewal: January 15, 2027</p>
+        </div>
+
+        <div class="card">
+            <h3>Plan Features</h3>
+            <ul>
+                <li>Up to 50 team members</li>
+                <li>Advanced security controls</li>
+                <li>Priority email support</li>
+                <li>API access</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>Manage Subscription</h3>
+            <button>Upgrade Plan</button>
+            <button>Downgrade Plan</button>
+            <button>Cancel Subscription</button>
+        </div>
+
+        <div class="card">
+            <h3>Billing History</h3>
+            <p>January 15, 2026 - $588.00 (Annual billing)</p>
+            <p><a href="#">View detailed invoice</a></p>
+        </div>
+    </div>
+</body>
+</html>

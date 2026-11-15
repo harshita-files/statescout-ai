@@ -1,0 +1,60 @@
+\section{Discussion and Research Agenda}
+\label{sec:discussion}
+
+\paragraph{Subject grounding is the crux.}
+RQ2 shows that once exploration and the audit algebra are correct, accuracy
+depends on one mapping: from a policy \emph{subject} (``admin link'') to the
+elements and capabilities of a rendered state. Lexical normalization closes
+the easy half. The semantic half, deciding what an element \emph{is} and what
+it \emph{lets the user do}, is where a VLM earns its cost, and also where
+negation weakness and hallucination come in. \Cref{prop:asym} suggests
+evaluating grounding \emph{separately per polarity}. A single accuracy number
+hides whether a model fails in the direction that misses forbidden exposures
+or in the direction that raises false alarms on required ones.
+
+\paragraph{Proposed: three-valued, cross-checked verdicts.}
+Given the asymmetry, we propose extending the audit from $\{\textsf{clean},
+\textsf{violated}\}$ to a Kleene-style $\{\textsf{clean}, \textsf{violated},
+\textsf{indeterminate}\}$. The verdict is \textsf{indeterminate} when the
+deterministic DOM/AX channel and the VLM channel disagree on $\sigma\in\Sig(v)$.
+An indeterminate forbidden clause is escalated to a human with evidence from
+both channels and is never silently cleared. This turns the corollary of
+\cref{prop:asym} into a routing rule instead of a tuning problem.
+
+\paragraph{Scope predicates beyond roles.}
+Clauses are currently scoped by role only. The test application shows why this
+is not enough. ``Every \emph{signed-in} page must offer a logout control'' would
+fire on the login page, where a logout control is correctly absent. The fix is
+a page-scope predicate on clauses (for example, over URL patterns or state
+properties). In the limit, that means path-sensitive properties over the
+cyclic graph (``no state reachable from \emph{login} without authenticating
+exposes \texttt{delete-user}''). Such properties are exactly why back-edges
+must be kept.
+
+\paragraph{Replay safety beyond action kinds.}
+\Cref{prop:term} guarantees at-most-once per claimed pair, not per effect.
+Restricting replay to $\{\texttt{navigate},\texttt{click},\texttt{back}\}$
+excludes form fills and submissions, but it assumes that clicks are
+navigational. A one-click destructive control on a replay path violates that
+assumption. Candidate refinements are (i) classifying controls as mutating
+from their accessible name and capability tags before they are made
+replayable, (ii) snapshot-and-restore of the AUT between replays where the
+deployment allows it, and (iii) multi-browser exploration that parks one
+browser per frontier state, which reduces replay at the cost of memory.
+
+\paragraph{Cross-role differential auditing.}
+Because a role-gated element changes the DOM, and therefore the fingerprint,
+running \sys{} once per role yields one graph per role. Aligning these graphs
+by URL and action identity gives a \emph{differential} view (``what does a
+guest see at this URL that only an admin should?''). That view needs no
+hand-written forbidden list, and we plan to add it as a reporting-layer
+analysis.
+
+\paragraph{Towards a benchmark.}
+To move beyond one application, we propose \textsc{NegUI}, a benchmark of
+seeded applications. Each ships \texttt{app.json}, \texttt{policy.json}, and
+\texttt{violations.json}, and violations are stratified by clause type
+(forbidden-present vs.\ required-absent), by grounding difficulty (lexical,
+semantic, visual-only), and by depth. Planned seeds include the existing
+RBAC, feature-flag, and consent-banner demos in the repository. Scoring is
+exact-set agreement, reported per polarity.

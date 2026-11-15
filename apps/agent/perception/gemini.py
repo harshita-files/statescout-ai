@@ -1,9 +1,9 @@
 """Gemini-backed implementation of `PerceptionPort` (M1-P1 / M1-P4).
 
 Where `semantic_map.py` builds `S_current` from rules alone, this module asks
-Gemini 2.5 Flash to *interpret* the same capture — screenshot + AX tree — and
-merges its judgement onto the deterministic element list rather than
-replacing it.
+a VLM (Gemini by default; any `LLMProvider`) to *interpret* the
+same capture (screenshot + AX tree) and merges its judgement onto the
+deterministic element list rather than replacing it.
 
 Why merge instead of trust the VLM outright
 --------------------------------------------
@@ -37,10 +37,7 @@ import json
 import logging
 import os
 import re
-from collections.abc import Sequence
-
-from google import genai
-from google.genai import types
+from typing import Any
 
 from apps.agent.contracts import (
     CaptureBundle,
@@ -51,6 +48,7 @@ from apps.agent.contracts import (
     UIElement,
     Violation,
 )
+from apps.agent.llm.base import LLMProvider, ProviderConfig, ProviderError
 from apps.agent.negation.audit import audit as _deterministic_audit
 from apps.agent.perception.semantic_map import build_semantic_map
 
@@ -63,7 +61,8 @@ log = logging.getLogger(__name__)
 #: fails loudly instead of quietly joining to the wrong graph node.
 _PENDING_STATE_ID = "PENDING-STATE-ID-SEE-ADR-001-C3"
 
-_MODEL = "gemini-3.6-flash"
+#: Used only when no provider/model is injected and no env override is set.
+_DEFAULT_MODEL = "gemini-3.6-flash"
 
 _PROMPT_TEMPLATE = """You are assisting a UI auditing tool. Below is a screenshot of a web \
 application state, plus a list of interactive elements already extracted \
@@ -86,7 +85,7 @@ Elements:
 """
 
 # Same capability vocabulary semantic_map.py's deterministic path already
-# uses, so Gemini's tags and the rule-based tags stay comparable.
+# uses, so the VLM's tags and the rule-based tags stay comparable.
 _CAPABILITY_HINTS = (
     "delete-user (destructive action removing a user/account)",
     "admin-access (visible only to administrators)",
@@ -94,30 +93,69 @@ _CAPABILITY_HINTS = (
 )
 
 
-class VLMPerception:
-    """`PerceptionPort` backed by Gemini 2.5 Flash, degrading gracefully.
+#: Consecutive VLM failures after which the model is skipped for the rest of the run.
+_BREAKER_THRESHOLD = 3
 
-    `client` is injectable for tests; production code leaves it `None` and
-    lets the client read `GEMINI_API_KEY` from the environment on first use,
-    so importing this module never requires a key to be present (`--fake`
-    runs must not need one).
+#: Elements listed in the capability prompt. A page can have hundreds (every table row's
+#: link); listing them all overflows small context windows and adds no signal.
+_MAX_PROMPT_ELEMENTS = 80
+
+
+def _prompt_elements(elements: tuple[UIElement, ...]) -> list[tuple[int, UIElement]]:
+    """Distinct (role, name) elements, tagged ones first, original index kept, capped."""
+    seen: set[tuple[str, str]] = set()
+    picked: list[tuple[int, UIElement]] = []
+    for i, e in sorted(enumerate(elements), key=lambda ie: (not ie[1].tags, ie[0])):
+        key = (e.role, e.name)
+        if key in seen:
+            continue
+        seen.add(key)
+        picked.append((i, e))
+        if len(picked) >= _MAX_PROMPT_ELEMENTS:
+            break
+    return sorted(picked, key=lambda ie: ie[0])
+
+
+class VLMPerception:
+    """`PerceptionPort` backed by an injected `LLMProvider`, degrading gracefully.
+
+    With no arguments, a Gemini provider is built lazily from the environment
+    (`GEMINI_API_KEY`, optional `STATESCOUT_VLM_MODEL`), so importing this
+    module never requires a key (`--fake` runs must not need one). Pass
+    `provider=` to use any backend, or `model=` to pick a Gemini model.
+    `client` (a google-genai client) is kept for test injection.
     """
 
-    def __init__(self, *, client: genai.Client | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        provider: LLMProvider | None = None,
+        model: str | None = None,
+        client: Any = None,
+        dom_only: bool = False,
+    ) -> None:
+        self._dom_only = dom_only
+        self.degraded_calls = 0
+        self._failures = 0  # consecutive failed VLM calls
+        self._provider = provider
+        self._model = model
         self._client = client
-        self._client_error: str | None = None
 
-    def _get_client(self) -> genai.Client:
-        if self._client is not None:
-            return self._client
+    def _get_provider(self) -> LLMProvider:
+        if self._provider is not None:
+            return self._provider
+        from apps.agent.llm.gemini import GeminiProvider
+
         api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
+        if not api_key and self._client is None:
             raise PerceptionError(
                 "GEMINI_API_KEY is not set. Export it or add it to .env "
                 "before running in --live mode."
             )
-        self._client = genai.Client(api_key=api_key)
-        return self._client
+        model = self._model or os.environ.get("STATESCOUT_VLM_MODEL") or _DEFAULT_MODEL
+        cfg = ProviderConfig(provider="gemini", model=model, api_key=api_key)
+        self._provider = GeminiProvider(cfg, client=self._client)
+        return self._provider
 
     def analyze(self, bundle: CaptureBundle, role: Role) -> SemanticUIMap:
         """Deterministic elements + Gemini's capability judgement, merged.
@@ -130,18 +168,30 @@ class VLMPerception:
         """
         semantic_map = build_semantic_map(bundle, role, _PENDING_STATE_ID)
 
-        if bundle.screenshot_path is None:
+        if self._dom_only or bundle.screenshot_path is None:
             log.info("analyze(): no screenshot_path, skipping Gemini (DOM-only smoke test)")
+            return semantic_map
+
+        if self._failures >= _BREAKER_THRESHOLD:
+            # Circuit open: a model that keeps failing (out of memory, down) would otherwise
+            # cost one full timeout per remaining state. Stay DOM-only; the report says so.
+            self.degraded_calls += 1
             return semantic_map
 
         try:
             extra_capabilities = self._gemini_capabilities(
                 bundle.screenshot_path, semantic_map.elements
             )
-        except PerceptionError:
-            raise
-        except Exception as exc:  # pragma: no cover - defensive: never crash a crawl
-            raise PerceptionError(f"Gemini analyze() call failed: {exc}") from exc
+        except Exception as exc:
+            # A model outage or bad key must not abort a crawl: keep the deterministic
+            # map (still audited), count the miss so the report can say perception degraded.
+            self.degraded_calls += 1
+            self._failures += 1
+            log.warning("analyze(): VLM call failed, using DOM-only map (%s)", type(exc).__name__)
+            if self._failures == _BREAKER_THRESHOLD:
+                log.warning("analyze(): %d consecutive VLM failures, disabling it", self._failures)
+            return semantic_map
+        self._failures = 0
 
         if not extra_capabilities:
             return semantic_map
@@ -162,10 +212,10 @@ class VLMPerception:
         if not elements:
             return frozenset()
 
-        client = self._get_client()
+        provider = self._get_provider()
         element_list = "\n".join(
             f"{i}. role={e.role!r} name={e.name!r} tags={list(e.tags)}"
-            for i, e in enumerate(elements)
+            for i, e in _prompt_elements(elements)
         )
         prompt = _PROMPT_TEMPLATE.format(
             capability_hints="\n".join(f"- {hint}" for hint in _CAPABILITY_HINTS),
@@ -175,13 +225,12 @@ class VLMPerception:
         with open(screenshot_path, "rb") as fh:
             image_bytes = fh.read()
 
-        contents: Sequence[types.Part | str] = [
-            types.Part.from_bytes(data=image_bytes, mime_type="image/png"),
-            prompt,
-        ]
-        response = client.models.generate_content(model=_MODEL, contents=contents)
+        try:
+            text = provider.complete(prompt, images=(image_bytes,))
+        except ProviderError as exc:
+            raise PerceptionError(f"VLM call failed: {exc}") from exc
 
-        return self._parse_capabilities(response.text or "")
+        return self._parse_capabilities(text)
 
     @staticmethod
     def _parse_capabilities(text: str) -> frozenset[str]:
@@ -217,12 +266,11 @@ class VLMPerception:
 
     def complete_text(self, prompt: str) -> str:
         """Generic text completion, e.g. for Month 3 policy-parsing calls."""
-        client = self._get_client()
+        provider = self._get_provider()
         try:
-            response = client.models.generate_content(model=_MODEL, contents=prompt)
-        except Exception as exc:  # pragma: no cover - network/SDK failure
-            raise PerceptionError(f"Gemini complete_text() call failed: {exc}") from exc
-        return response.text or ""
+            return provider.complete(prompt)
+        except ProviderError as exc:
+            raise PerceptionError(f"complete_text() call failed: {exc}") from exc
 
 
 #: `deps.py` imports `VLMPerception` by exactly this name (see
