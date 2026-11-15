@@ -145,6 +145,10 @@ const vsixManifest = `<?xml version="1.0" encoding="utf-8"?>
     <DisplayName>${pkg.displayName}</DisplayName>
     <Description xml:space="preserve">${pkg.description}</Description>
     <Categories>Testing</Categories>
+    <GalleryFlags>Public</GalleryFlags>
+    <Properties>
+      <Property Id="Microsoft.VisualStudio.Code.Engine" Value="${pkg.engines.vscode}"/>
+    </Properties>
   </Metadata>
   <Installation>
     <InstallationTarget Id="Microsoft.VisualStudio.Code"/>

@@ -3,7 +3,7 @@
   "displayName": "StateScout AI",
   "publisher": "statescout-ai",
   "description": "Run policy-aware UI audits and review forbidden interface states without leaving the editor.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "engines": {
     "vscode": "^1.90.0"
