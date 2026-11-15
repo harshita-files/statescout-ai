@@ -1,0 +1,141 @@
+# StateScout AI documentation portal - built with MkDocs + Material.
+#   Preview:  uv run --group docs mkdocs serve
+#   Build:    uv run --group docs mkdocs build --strict
+# Published to GitHub Pages by .github/workflows/docs.yml.
+
+site_name: StateScout AI
+site_description: >-
+  An autonomous vision-language agent for logical UI auditing -
+  Team 46, Dept. of CSE, Amrita Vishwa Vidyapeetham.
+site_url: https://harshita-files.github.io/statescout-ai/
+repo_url: https://github.com/harshita-files/statescout-ai
+repo_name: harshita-files/statescout-ai
+edit_uri: ""
+copyright: "&copy; 2026 StateScout AI - Team 46, Amrita Vishwa Vidyapeetham · MIT License"
+
+# Only the curated portal is published. The rest of docs/ (LaTeX sources, drafts,
+# speaker notes) stays in the repository; portal pages pull in the design records,
+# schemas and module READMEs by reference - see docs/mkdocs_hooks.py.
+docs_dir: docs/portal
+
+extra:
+  # Branch that links to repository files (from included READMEs) point at.
+  source_branch: main
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+hooks:
+  - docs/mkdocs_hooks.py
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: true
+            heading_level: 2
+            members_order: source
+            filters: ["!^_"]
+            merge_init_into_class: true
+            separate_signature: true
+            show_signature_annotations: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Project:
+      - Problem statement: project/problem.md
+      - Objectives: project/objectives.md
+      - Methodology: project/methodology.md
+      - Robustness on dynamic apps: project/robustness.md
+      - Team: project/team.md
+      - Progress: project/progress.md
+  - Demonstrations: demos.md
+  - Documentation:
+      - Getting started: documentation/getting-started.md
+      - Modules:
+          - Agent overview: documentation/modules/agent.md
+          - Crawler: documentation/modules/crawler.md
+          - Orchestrator: documentation/modules/orchestrator.md
+          - Perception: documentation/modules/perception.md
+          - Negation engine: documentation/modules/negation.md
+          - Graph and persistence: documentation/modules/graph.md
+          - Reporting API: documentation/modules/api.md
+          - VS Code extension: documentation/modules/vscode-extension.md
+          - Shared types: documentation/modules/shared-types.md
+          - Research: documentation/modules/research.md
+      - Design decisions:
+          - "ADR-001: Cross-track contracts": documentation/decisions/adr-001.md
+          - "ADR-002: Probabilistic state model": documentation/decisions/adr-002.md
+      - Data model:
+          - Overview: documentation/data/overview.md
+          - Neo4j: documentation/data/neo4j.md
+          - Redis: documentation/data/redis.md
+          - SQLite: documentation/data/sqlite.md
+      - Test apps: documentation/test-apps.md
+      - Testing: documentation/testing.md
+  - Reference:
+      - REST API: reference/rest-api.md
+      - Python:
+          - Contracts: reference/python/contracts.md
+          - Orchestrator: reference/python/orchestrator.md
+          - Crawler: reference/python/crawler.md
+          - Perception: reference/python/perception.md
+          - Negation engine: reference/python/negation.md
+          - Graph and persistence: reference/python/graph.md
+          - Reporting API internals: reference/python/api.md
+  - GitHub: https://github.com/harshita-files/statescout-ai

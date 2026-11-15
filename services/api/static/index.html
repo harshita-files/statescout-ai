@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StateScout AI</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <h1>StateScout <span>AI</span></h1>
+  <p class="sub">Autonomous UI auditor: crawl, perceive, and flag states that violate your rules.</p>
+  <button id="theme" type="button" aria-label="Toggle light/dark theme">Theme</button>
+</header>
+
+<main id="main" class="layout">
+  <form id="form" class="panel" autocomplete="off">
+    <h2>Audit setup</h2>
+    <label for="url">Site URL</label>
+    <input id="url" type="url" required placeholder="https://example.com" inputmode="url">
+    <label class="check"><input id="allow_private" type="checkbox"> Allow private/internal IP range (my own network only)</label>
+
+    <h3>Rules</h3>
+    <label for="rules">One rule per line, in plain language</label>
+    <textarea id="rules" rows="5" placeholder="Guests must never see an admin link&#10;Cart total must match the sum of items"></textarea>
+    <div class="row">
+      <button id="gen" type="button" class="secondary">Generate rules from site</button>
+      <label class="check"><input id="auto_rules" type="checkbox" checked> Auto-generate if none</label>
+    </div>
+    <div id="chips" class="chips" aria-live="polite"></div>
+
+    <h3>Models</h3>
+    <div class="grid2">
+      <fieldset class="prov" data-kind="llm"><legend>LLM (reasoning)</legend>
+        <label>Provider <select class="p-provider"></select></label>
+        <label>Model <input class="p-model" list="models-llm" placeholder="model name"></label>
+        <datalist id="models-llm"></datalist>
+        <label>Base URL <input class="p-base" type="url" placeholder="default"></label>
+        <label>API key <input class="p-key" type="password" autocomplete="new-password" placeholder="kept in memory only"></label>
+        <button type="button" class="secondary p-test">Test connection</button>
+        <span class="p-status" role="status"></span>
+      </fieldset>
+      <fieldset class="prov" data-kind="vlm"><legend>VLM (vision)</legend>
+        <label>Provider <select class="p-provider"></select></label>
+        <label>Model <input class="p-model" list="models-vlm" placeholder="model name"></label>
+        <datalist id="models-vlm"></datalist>
+        <label>Base URL <input class="p-base" type="url" placeholder="default"></label>
+        <label>API key <input class="p-key" type="password" autocomplete="new-password" placeholder="kept in memory only"></label>
+        <button type="button" class="secondary p-test">Test connection</button>
+        <span class="p-status" role="status"></span>
+      </fieldset>
+    </div>
+    <p class="note">API keys are sent only with your request, held in memory, never logged, stored or included in reports.</p>
+
+    <h3>Crawl limits</h3>
+    <div class="grid4">
+      <label>Max states <input id="max_states" type="number" min="1" max="500" value="40"></label>
+      <label>Depth <input id="depth_limit" type="number" min="0" max="10" value="3"></label>
+      <label>Max seconds <input id="max_seconds" type="number" min="5" max="3600" value="300"></label>
+      <label>Req/sec <input id="rps" type="number" min="0.1" max="20" step="0.1" value="1"></label>
+    </div>
+    <label class="check"><input id="robots" type="checkbox" checked> Respect robots.txt</label>
+    <p class="note warn">Only audit sites you own or are authorized to test. Disabling robots.txt is for those sites only.</p>
+    <label class="check"><input id="prob" type="checkbox" checked> Probabilistic mode (transition probabilities and confidence)</label>
+    <label class="check"><input id="probe_forms" type="checkbox"> Submit invalid values to forms</label>
+    <p class="note warn">Sends a negative and a huge number to numeric forms to check they are rejected. It submits data, so it only runs against localhost or your own network, never public sites.</p>
+
+    <div class="row">
+      <button id="start" type="submit">Start audit</button>
+      <button id="stop" type="button" class="danger" disabled>Stop</button>
+    </div>
+    <p id="err" class="error" role="alert" hidden></p>
+  </form>
+
+  <section class="results">
+    <div class="panel">
+      <div class="row between"><h2>Progress</h2><span id="status" class="badge">idle</span></div>
+      <div id="stats" class="stats"></div>
+      <pre id="log" class="log" tabindex="0" aria-live="polite" aria-label="Progress log"></pre>
+    </div>
+
+    <div class="panel">
+      <div class="row between"><h2>Exploration graph</h2><span class="note">Edge weight = transition probability</span></div>
+      <div class="graphwrap">
+        <svg id="graph" viewBox="0 0 800 460" role="img" aria-label="Interactive state graph"></svg>
+        <div id="tip" class="tip" hidden></div>
+      </div>
+      <div id="detail" class="note">Hover or click a node or edge for details. Drag nodes to move them.</div>
+    </div>
+
+    <div class="panel">
+      <div class="row between"><h2>Violations</h2>
+        <div class="row">
+          <button type="button" class="secondary exp" data-f="html">HTML</button>
+          <button type="button" class="secondary exp" data-f="json">JSON</button>
+          <button type="button" class="secondary exp" data-f="md">Markdown</button>
+        </div></div>
+      <div class="tablewrap"><table id="vtable">
+        <thead><tr><th>Severity</th><th>Confidence</th><th>Finding</th><th>Evidence</th><th>Screenshot</th></tr></thead>
+        <tbody></tbody></table></div>
+      <div id="blocked"></div>
+    </div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

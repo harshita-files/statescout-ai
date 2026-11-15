@@ -30,6 +30,7 @@ from apps.agent.contracts import (
     Verdict,
     Violation,
 )
+from apps.agent.orchestrator.dynamic import DynamicStats
 
 __all__ = [
     "REPLAY_SAFE_KINDS",
@@ -116,6 +117,7 @@ class ExplorationResult:
     violations: tuple[Violation, ...] = ()
     skipped: tuple[SkippedAction, ...] = ()
     duration_ms: float = 0.0
+    dynamic: DynamicStats | None = None
 
 
 class ExplorationState(TypedDict):
@@ -126,6 +128,7 @@ class ExplorationState(TypedDict):
     exists.
     """
 
+    dynamic: DynamicStats | None
     run_id: str
     role: Role
     seed_url: str
@@ -181,6 +184,7 @@ def initial_state(
     closes over, because a limit that can drift mid-run is a limit that will.
     """
     return ExplorationState(
+        dynamic=None,
         run_id=run_id,
         role=role,
         seed_url=seed_url,

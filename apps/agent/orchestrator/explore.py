@@ -140,6 +140,12 @@ def explore(
     error termination is a seed that cannot be opened, because there is nothing
     to explore.
     """
+    if config.probabilistic_states:
+        # The reference remains an independent oracle for legacy BFS only.
+        # Experimental checkpointed behavior has one implementation.
+        from apps.agent.orchestrator.graph_runner import explore as dynamic_explore
+
+        return dynamic_explore(ports, seed_url, policy, config, run_id=run_id, log=log)
     run_id = run_id or config.new_run_id()
     log = log or Logger.discard(run_id)
     started = time.perf_counter()

@@ -1,0 +1,350 @@
+\section{Methodology and Proposed System}
+\label{sec:method}
+
+\subsection{System Overview and Problem Formulation}
+\label{sec:model}
+
+\Cref{fig:arch} shows the architecture: a checkpointed LangGraph state machine drives a Scan$\to$Reason$\to$Act$\to$Observe loop behind three typed ports. The remainder of this subsection formalises what the loop explores and what it checks.
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\footnotesize,
+  box/.style={draw=acc,thick,rounded corners=2pt,fill=acc!6,minimum height=9mm,
+              minimum width=24mm,align=center},
+  port/.style={draw=mute,dashed,rounded corners=2pt,inner sep=5pt},
+  data/.style={draw=mute,fill=white,rounded corners=1pt,align=center,font=\scriptsize},
+  arr/.style={-{Stealth[length=2mm]},thick,draw=black!70},
+  lbl/.style={font=\scriptsize,fill=white,inner sep=1pt}]
+
+  \node[box] (scan)    {\textbf{scan}\\fingerprint $\phi$ · persist $v$\\enumerate actions};
+  \node[box,right=17mm of scan] (reason) {\textbf{reason}\\$\hat\Sigma(v)$ · audit\\$\mathit{Viol}_\mathcal F\cup\mathit{Viol}_\mathcal R$};
+  \node[box,right=17mm of reason] (act) {\textbf{act}\\pop frontier · replay path\\claim $(v,a)$ · execute};
+  \node[box,right=12mm of act] (obs) {\textbf{observe}\\persist edge $(v,a,v')$\\back-edge kept};
+
+  \draw[arr] (scan) -- (reason);
+  \draw[arr] (reason) -- node[lbl,above=1mm,align=center]{clean /\\violated} (act);
+  \draw[arr] (act) -- (obs);
+  \draw[arr] (obs.south) -- ++(0,-5mm) -| node[lbl,pos=0.25,above]{progressed} (scan.south);
+  \draw[arr] (obs.north) -- ++(0,4mm) -| node[lbl,pos=0.25,above]{skipped (unreplayable / stale)} (act.north);
+  \node[right=4mm of obs,font=\scriptsize,align=left] (end) {\textsc{end}\\(frontier exhausted,\\ state cap, stop)};
+  \draw[arr,dashed] (obs) -- (end);
+
+  \node[data,below=17mm of scan]   (crawl) {\textbf{CrawlerPort}\\Playwright: \texttt{open}, \texttt{act},\\\texttt{enumerate\_actions}};
+  \node[data,below=17mm of reason] (perc)  {\textbf{PerceptionPort}\\DOM/AX correlator · VLM\\\texttt{analyze}, \texttt{audit}};
+  \node[data,below=17mm of act]    (graph) {\textbf{GraphPort}\\claim set $C$ (Redis)\\cyclic graph (Neo4j)};
+  \node[data,below=17mm of obs]    (pol)   {\textbf{Policy}\\English $\to$ clauses\\$(\sigma,\rho,\pi)$};
+
+  \begin{scope}[on background layer]
+    \node[port,fit=(crawl)(perc)(graph)(pol),label={[font=\scriptsize,text=mute]below:typed, frozen contracts (\texttt{contracts.py}) --- injected, never imported}] {};
+  \end{scope}
+  \foreach \a/\b in {scan/crawl,reason/perc,act/graph} \draw[-,thin,draw=mute,dotted] (\a) -- (\b);
+  \draw[-,thin,draw=mute,dotted] (obs) -- (pol);
+\end{tikzpicture}}
+\caption{\sys{} architecture. A checkpointed LangGraph state machine of four
+nodes and two conditional edges drives the Scan$\to$Reason$\to$Act$\to$Observe
+loop. All I/O goes through three typed ports, so every component can be
+replaced by a deterministic fake for testing and by the live implementation in
+production without changing the loop.}
+\label{fig:arch}
+\end{figure*}
+
+
+\subsubsection{Applications, roles, and observations}
+
+We model a web application under test (AUT), as seen by a fixed role $r$, as a
+labelled transition system $M_r=(Q,A,\delta,q_0)$ over concrete UI
+configurations $Q$, actions $A$, and a partial transition function
+$\delta:Q\times A\rightharpoonup Q$. The auditor never sees $Q$ directly. A
+\emph{capture} $\kappa(q)=(u,d,t,s)$ bundles the URL, serialized DOM,
+accessibility (AX) tree, and an optional screenshot. \sys{} pins one role per
+run; multi-role coverage is several runs, and comparing roles is a
+reporting-layer concern (\cref{sec:discussion}).
+
+\begin{definition}[State abstraction]
+A \emph{fingerprint} is $\phi = H\circ N$, where $N$ normalizes a capture by
+removing volatile content (session and CSRF tokens, nonces, long numeric
+timestamps, generated hex identifiers, per-session CDP node ids, transient
+focus), and $H$ is SHA-256. Two configurations are \emph{the same abstract
+state} iff $\phi(\kappa(q))=\phi(\kappa(q'))$.
+\end{definition}
+
+Normalization has two failure modes. If it is too sensitive, the model
+explodes into one node per page load. If it is too coarse, a security-relevant
+change (for example, a destructive button that appears) folds into an existing
+state and is never audited. \Cref{sec:eval:fp} measures both.
+
+\subsubsection{The exploration graph is cyclic}
+
+\begin{definition}[Exploration graph]
+The \emph{exploration graph} is a directed multigraph $G=(V,E)$ with
+$V\subseteq\operatorname{img}\phi$ and $E\subseteq V\times A\times V$, where
+$(v,a,v')\in E$ records that executing $a$ in $v$ was observed to lead to $v'$.
+An edge is a \emph{back-edge} if $v'$ was already discovered when it was added.
+\end{definition}
+
+Model-inference crawlers often treat revisits as redundant and drop them,
+leaving a tree or DAG. We treat back-edges as \emph{evidence}. ``Log out
+returns to login'' and ``Admin returns to Dashboard'' are facts about the
+AUT's navigation structure, and a path-sensitive audit can only reason over
+them if they are kept. \sys{} therefore never prunes an edge. Loop prevention
+lives entirely in a \emph{claim set} $C\subseteq V\times A$.
+
+\begin{definition}[Claim-before-execute]
+Action $a$ is executed from $v$ only if $(v,a)\notin C$, and $(v,a)$ is inserted
+into $C$ \emph{before} $a$ is sent to the browser. The edge $(v,a,v')$ is
+persisted only \emph{after} $a$ succeeds.
+\end{definition}
+
+\begin{proposition}[Termination and at-most-once per pair]
+\label{prop:term}
+Suppose $|V|\le n$, which is enforced by a state cap, and each state enables
+at most $k$ actions. Then exploration performs at most $nk$ \emph{frontier}
+executions and terminates. No claimed pair $(v,a)$ is executed as a frontier
+action twice, including across crash and resume.
+\end{proposition}
+\begin{proof}[Proof sketch]
+Every frontier execution inserts a distinct pair into $C$ first, and
+$|C|\le nk$. On resume, a pair that is in $C$ but has no edge is treated as
+done and never re-fired. Execution strictly follows insertion, so a crash
+cannot cause a second execution of the same pair.
+\end{proof}
+
+Most AUTs are not idempotent: re-submitting a form changes the application
+being audited. Reaching a queued action with a single browser, however, means
+\emph{replaying} its path from the seed, and replay re-fires the actions on
+that path. \Cref{prop:term} is therefore a guarantee about \emph{pairs}, not
+about \emph{effects}. \sys{} narrows the gap by kind: only
+$\textsf{ReplaySafe}=\{\texttt{navigate},\texttt{click},\texttt{back}\}$ may be
+re-fired. A candidate whose path passes through a \texttt{fill},
+\texttt{select}, or \texttt{submit} is recorded as skipped, with a reason, and
+its subtree is reported as unexplored instead of being reached by quietly
+re-submitting a form. The residual assumption is that \emph{clicks are
+navigational}. A click that mutates state on a replayed path (for example, a
+one-click ``Delete'') \emph{is} re-fired. We treat this as an open limitation
+(\cref{sec:discussion}), not a solved problem. Action identity is
+\emph{content-addressed}:
+$\mathit{id}(a)=H(\mathit{role}\,\|\,\mathit{name}\,\|\,\mathit{selector})$, not
+a DOM index. Replay therefore survives DOM reordering, and the same ``Log out''
+control keeps one identity everywhere, while deduplication stays scoped to
+$(v,a)$.
+
+\subsubsection{Policies as two set operations}
+
+A policy is written in English by a QA engineer and compiled into
+machine-checkable clauses $c=(\sigma_c,\rho_c,\pi_c)$: a \emph{subject}
+$\sigma_c$ (a UI element kind or capability), a role scope $\rho_c$ (empty
+means all roles), and a polarity $\pi_c\in\{\textsf{must\_exist},
+\textsf{must\_not\_exist}\}$. This splits the policy into forbidden clauses
+$\Forb$ and required clauses $\Req$. Perception maps each state to a set of
+grounded subjects $\Sig(v)$ (element tags, accessible names, and capabilities).
+For a role $r$, let $\Forb_r$ and $\Req_r$ be the clauses whose scope admits
+$r$.
+
+\begin{definition}[Negation-aware audit]
+\begin{align}
+\mathit{Viol}_\Forb(v) &= \{\,c\in\Forb_r : \sigma_c\in\Sig(v)\,\}
+  && \text{(forbidden present)}\label{eq:forb}\\
+\mathit{Viol}_\Req(v)  &= \{\,c\in\Req_r : \sigma_c\notin\Sig(v)\,\}
+  && \text{(required absent)}\label{eq:req}
+\end{align}
+The audit of $v$ is $\mathit{Viol}_\Forb(v)\cup\mathit{Viol}_\Req(v)$, and each
+violation is tagged with the operation that produced it.
+\end{definition}
+
+\Cref{eq:forb} is an intersection ($S\cap\Forb$) and \cref{eq:req} is a
+difference ($\Req\setminus S$). No single intersection can express both, so an
+intersection-only oracle is structurally unable to report a missing element
+(\cref{sec:eval:rq3}).
+
+\subsubsection{Error-direction asymmetry under imperfect perception}
+\label{sec:model:asym}
+
+In a real system, $\Sig(v)$ is replaced by a perception estimate $\hat\Sig(v)$
+from a DOM/AX correlator or a vision-language model. The two clause types react
+to perception errors in \emph{opposite} directions.
+
+\begin{proposition}[Error-direction asymmetry]
+\label{prop:asym}
+Let $\widehat{\mathit{Viol}}$ denote the audit computed on $\hat\Sig$.
+\begin{enumerate}
+  \item If perception \emph{under-reports} ($\hat\Sig(v)\subseteq\Sig(v)$), then
+    $\widehat{\mathit{Viol}}_\Forb(v)\subseteq\mathit{Viol}_\Forb(v)$ and
+    $\widehat{\mathit{Viol}}_\Req(v)\supseteq\mathit{Viol}_\Req(v)$. Forbidden
+    clauses can only be missed, and required clauses can only raise false
+    alarms.
+  \item If perception \emph{over-reports} ($\hat\Sig(v)\supseteq\Sig(v)$, for
+    example by hallucinating a subject), both inclusions reverse.
+\end{enumerate}
+\end{proposition}
+\begin{proof}
+\Cref{eq:forb} is monotone in $\Sig$ and \cref{eq:req} is antitone in $\Sig$.
+\end{proof}
+
+\begin{corollary}
+No uniform perception bias is safe for both clause types. A detector tuned to
+avoid false alarms on forbidden clauses (conservative, under-reporting) creates
+false alarms on required clauses, and the reverse also holds.
+\end{corollary}
+
+This matters for multimodal perception. Vision-language models answer negated
+queries close to chance~\cite{alhamoud2025negation}, and their compositional
+understanding is known to be shallow~\cite{yuksekgonul2023aro,ma2023crepe}.
+Those studies use natural images, not UI screenshots, so we cite them as
+motivation rather than as a measurement of UI perception. Whatever a
+perceiver's error rate, \cref{prop:asym} shows that a single yes/no ``is
+$\sigma$ on the screen?'' query has a polarity-dependent risk profile. This motivates the design
+choices in \cref{sec:system:negation}: evidence-carrying verdicts, a
+deterministic DOM/AX channel that cross-checks the VLM, and (proposed) a
+three-valued verdict that abstains instead of guessing when the two channels
+disagree. \Cref{sec:eval:rq2} observes exactly the asymmetry predicted by
+\cref{prop:asym}.
+
+\subsection{Materials, Dataset and Tools}
+\label{sec:materials}
+
+\paragraph{Tools.}
+The system is written in Python (about 5.8k lines across five modules) with a Playwright crawler, a LangGraph orchestrator, Redis for the claim set, Neo4j for the cyclic graph, a FastAPI reporting service, and a VS~Code extension front-end. The vision-language channel uses Gemini~2.5 Flash behind a rate-limited provider interface; it is implemented but not evaluated here.
+
+\paragraph{Dataset: subject application.}
+\texttt{broken-admin} is a static six-page application (index, login,
+register, dashboard, reports, admin) with four cycles and four planted
+violations, browsed as \texttt{guest} (\cref{fig:app}). The policy has three
+forbidden clauses (admin link, delete-user, debug panel) and one required
+clause (skip-to-content link). V-01 is an Admin link rendered for every role;
+the backend rejects the request, but the link itself is the exposure. V-02 is
+a debug panel left in the production build. V-03 is a Delete-user control two
+clicks from the seed. V-04 is a missing skip-to-content link, which is an
+\emph{absence}.
+
+\paragraph{Ground-truth format.}
+Each test application ships three machine-readable files next to its HTML:
+\texttt{app.json} (pages and controls), \texttt{policy.json} (the English
+policy and its structured form), and \texttt{violations.json} (every planted
+defect with its page and clause). Evaluation asserts \emph{exact} set equality
+between found and planted violations. A miss is a regression, and an
+undocumented finding is a false positive. A consistency test fails if the HTML
+and \texttt{app.json} drift apart.
+
+\paragraph{Reproducibility.}
+All numbers are produced by
+\nolinkurl{docs/demo_crawl.py} (RQ1) and
+\nolinkurl{docs/report/experiments/run_experiments.py} (RQ2--RQ4). The raw
+output is in \nolinkurl{docs/report/data/experiments.json}. Every run is
+deterministic.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[font=\scriptsize,
+  st/.style={draw=acc,thick,rounded corners=2pt,fill=acc!6,minimum width=15mm,minimum height=6mm},
+  vio/.style={st,draw=bad,fill=bad!8},
+  fe/.style={-{Stealth[length=1.8mm]},thick},
+  be/.style={-{Stealth[length=1.8mm]},thick,dashed,draw=bad!80}]
+  \node[st]  (idx) at (0,0)      {index};
+  \node[st]  (log) at (2.7,0)    {login};
+  \node[st]  (reg) at (5.6,0)    {register};
+  \node[vio] (das) at (2.7,-1.7) {dashboard$^{\text{V1}}$};
+  \node[vio] (rep) at (0.4,-3.3) {reports$^{\text{V2}}$};
+  \node[vio] (adm) at (5.0,-3.3) {admin$^{\text{V3,V4}}$};
+  \draw[fe] (idx) -- (log);
+  \draw[fe] (log) to[bend left=18] (reg);
+  \draw[be] (reg) to[bend left=18] (log);
+  \draw[fe] ([xshift=-2mm]log.south) -- ([xshift=-2mm]das.north);
+  \draw[be] ([xshift=2mm]das.north) -- node[right,font=\tiny]{log out} ([xshift=2mm]log.south);
+  \draw[fe] (das) to[bend right=14] (rep);
+  \draw[be] (rep) to[bend right=14] (das);
+  \draw[fe] (das) to[bend left=14] (adm);
+  \draw[be] (adm) to[bend left=14] (das);
+  \draw[be] (rep.north) to[out=100,in=200] (log.west);
+  \draw[be] (adm.north east) to[out=60,in=-30] (log.south east);
+\end{tikzpicture}
+\caption{Exploration graph recovered for \texttt{broken-admin} (role
+\texttt{guest}): 6 states, 11 edges, of which 6 are back-edges (dashed). A
+tree- or DAG-based crawler would drop every dashed edge. Superscripts mark
+planted violations.}
+\label{fig:app}
+\end{figure}
+
+\subsection{Algorithm and Implementation Details}
+\label{sec:system}
+
+
+
+
+\Cref{fig:arch} shows the architecture. The implementation consists of about
+5.8k lines of Python across five modules owned by four sub-teams, plus a
+FastAPI reporting service and a VS~Code extension front-end.
+
+\subsubsection{Orchestration}
+The explorer performs breadth-first search over $(v,a)$ pairs. A plain-Python
+reference loop, kept as a \emph{parity oracle}, is ported to a LangGraph
+\texttt{StateGraph} with four nodes (\texttt{scan}, \texttt{reason},
+\texttt{act}, \texttt{observe}) and two conditional edges. The whole
+exploration state (frontier, claimed pairs, discovery order, skips) is a
+single checkpointed \texttt{TypedDict}, so a crashed run can resume instead of
+restarting. Limits such as depth, state cap, and perception rate are
+configuration rather than state, so a resumed run cannot silently run under
+different rules. A separate conditional edge routes a skipped action back to
+\texttt{act} and not through \texttt{scan}. Otherwise an unchanged state would
+be re-audited and a phantom entry added to the discovery order, and the
+discovery order is the evidence for cycles. The same test suite runs against
+both implementations.
+
+\subsubsection{Capture and actions}
+A Playwright crawler captures DOM, the CDP full AX tree, and a screenshot. It
+derives candidate actions from actionable AX roles (link, button, tab,
+menuitem, \dots) and gives each one a content-addressed identifier. Navigation
+failures and action failures raise distinct exception types, so the
+orchestrator can retry the former with backoff and mark-and-skip the latter
+without type-sniffing.
+
+\subsubsection{State abstraction and persistence}
+$\phi$ removes known volatile attributes (\texttt{nonce},
+\texttt{data-session}, \texttt{data-csrf}, \dots), hex-like generated ids,
+prefixed tokens (\texttt{sess\_}, \texttt{csrf\_}, \texttt{tok\_}), 10+-digit
+timestamps, whitespace, and volatile CDP keys (\texttt{nodeId},
+\texttt{backendDOMNodeId}, \texttt{parentId}, \texttt{childIds}, focus). It
+then hashes URL, DOM, and canonical AX JSON together. The claim set lives in
+Redis. States, edges (including back-edges), and violations are stored in
+Neo4j, where the cyclic structure can be queried directly (for example, ``all
+paths from the seed to a violating state'').
+
+\subsubsection{Perception: grounding subjects in the UI}
+\label{sec:system:perception}
+Perception turns a capture into a \emph{Semantic UI Map}: elements with role,
+accessible name, tags, selector, visibility and enabled state, plus the
+capabilities the state exposes (\texttt{delete-user}, \texttt{export-data},
+\dots). The baseline channel is deterministic and fully reproducible. It
+correlates DOM elements and AX nodes by (i)~browser-provided identifiers,
+(ii)~role plus accessible name, and (iii)~name alone when unique. Ambiguous
+matches are never guessed. DOM-only elements are kept on purpose, because an
+element hidden from the AX tree can still be an exposure. A vision-language
+model channel (Gemini~2.5 Flash, behind a rate-limited provider interface)
+reads the screenshot and AX tree. It supplies judgements the DOM cannot make,
+such as a styled \texttt{<div>} with no ARIA role that \emph{looks like} a
+delete button. By design it may only \emph{annotate} elements the
+deterministic channel already found, adding tags and capabilities. It may never
+add or remove an element, so existence and absence (the polarity that VLMs are
+known to handle poorly~\cite{alhamoud2025negation}) are decided by evidence
+that cannot be hallucinated. In the current codebase this channel is
+implemented but not yet wired into the orchestrator, and it is not evaluated
+in this paper. A run without screenshots is labelled a smoke test, not an
+audit.
+
+\subsubsection{Negation engine}
+\label{sec:system:negation}
+The audit implements \cref{eq:forb,eq:req} deterministically. Clause
+applicability is checked against the run's role. Subjects are matched first
+against capabilities, which are stronger evidence, and then against element
+tags and accessible names. There is no substring matching, because an
+over-eager matcher is exactly the over-reporting bias of \cref{prop:asym}.
+Every violation carries its clause type, a severity, a plain-language
+rationale, and \emph{evidence} (selector, text, screenshot) that a human can
+check. The policy compiler that turns English sentences into clauses is
+\emph{in progress}. By design it reuses the perception port's text channel, so
+there is one model client and one rate limit, and it includes a confirmation
+gate on which the QA engineer approves the parse before the crawl. In this
+draft, policies are supplied in structured form next to their English source
+(\texttt{policy.json}).
+

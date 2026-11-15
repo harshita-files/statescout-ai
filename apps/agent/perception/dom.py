@@ -21,6 +21,11 @@ class DOMElement:
     text: str = ""
 
 
+#: Containers whose content is code or inert markup, never rendered UI. Their text (page
+#: JavaScript, CSS) must not become element text, a semantic-map summary, or audit evidence.
+_NON_UI = frozenset({"script", "style", "template", "noscript"})
+
+
 class _DOMParser(HTMLParser):
     """Small HTML parser that keeps only UI-relevant evidence."""
 
@@ -29,12 +34,18 @@ class _DOMParser(HTMLParser):
         self.elements: list[DOMElement] = []
         self._current: DOMElement | None = None
         self._text: list[str] = []
+        self._skip = 0
 
     def handle_starttag(
         self,
         tag: str,
         attrs: list[tuple[str, str | None]],
     ) -> None:
+        if tag in _NON_UI:
+            self._skip += 1
+            return
+        if self._skip:
+            return
         attributes = dict(attrs)
 
         classes = tuple(value for value in (attributes.get("class") or "").split() if value)
@@ -54,11 +65,14 @@ class _DOMParser(HTMLParser):
         self._text = []
 
     def handle_data(self, data: str) -> None:
-        if self._current is not None:
+        if self._current is not None and not self._skip:
             self._text.append(data)
 
     def handle_endtag(self, tag: str) -> None:
-        if self._current is None:
+        if tag in _NON_UI:
+            self._skip = max(0, self._skip - 1)
+            return
+        if self._skip or self._current is None:
             return
 
         element = DOMElement(

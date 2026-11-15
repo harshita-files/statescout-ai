@@ -11,7 +11,7 @@
     "test": "bun test tests/unit",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'ts lint not configured yet'",
-    "build": "echo 'extension build not configured yet'"
+    "build": "node apps/vscode-extension/scripts/package-vsix.mjs"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

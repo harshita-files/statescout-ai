@@ -1,0 +1,156 @@
+\section{Problem Formulation}
+\label{sec:model}
+
+\subsection{Applications, Captures and States}
+
+We view the application under test (AUT), as experienced by a fixed role $r$, as a
+labelled transition system $M_r=(Q,A,\delta,q_0)$ with concrete UI configurations
+$Q$, actions $A$ and a partial transition function $\delta:Q\times A\rightharpoonup
+Q$. The auditor never sees $Q$ itself. It sees a \emph{capture}
+$\kappa(q)=(u,d,t,s)$ made of the URL, the serialised DOM, the accessibility (AX)
+tree and optionally a screenshot. One role is fixed per run, so auditing several
+roles means several runs.
+
+\begin{definition}[State fingerprint]
+Let $N$ normalise a capture by removing volatile content (session and CSRF
+tokens, nonces, long numeric timestamps, generated hexadecimal identifiers,
+per-session CDP node identifiers, transient focus) and let $H$ be SHA-256. The
+fingerprint is $\phi=H\circ N$, and two configurations are the same abstract state
+iff $\phi(\kappa(q))=\phi(\kappa(q'))$.
+\end{definition}
+
+A normaliser can be too sensitive, so that every page load is a new node, or too
+coarse, so that a security-relevant change merges into an existing state and is
+never audited. Sect.~\ref{sec:fp} probes both with targeted edits; it is a probe,
+not a measurement of either failure rate.
+
+\subsection{The Exploration Graph Is Cyclic}
+
+\begin{definition}[Exploration graph]
+The exploration graph is a directed multigraph $G=(V,E)$ with $V\subseteq
+\operatorname{img}\phi$ and $E\subseteq V\times A\times V$. An edge $(v,a,v')$
+records that executing $a$ in $v$ was observed to lead to $v'$. We call it a
+\emph{revisit edge} if $v'$ had already been discovered when the edge was added.
+\end{definition}
+
+A revisit edge is any non-tree edge of the discovery order, including cross and
+forward edges; it is not the depth-first notion of a back edge, although the
+prototype's field is named \texttt{is\_back\_edge}. Crawlers often drop revisits as
+redundant. We keep every edge, because facts such as ``log out leads to login''
+describe the AUT's navigation structure and a path-sensitive policy can only be
+checked on a graph that retains them. The graph is therefore cyclic and revisit
+edges are never pruned. Loop prevention rests instead on a \emph{claim set}
+$C\subseteq V\times A$ of visited (state, action) pairs.
+
+\begin{definition}[Claim-before-execute]
+A frontier action $a$ is executed from $v$ only if $(v,a)\notin C$ when it is
+enqueued. The pair is inserted into $C$ before $a$ is sent to the browser, and the
+edge $(v,a,v')$ is persisted only after $a$ has succeeded.
+\end{definition}
+
+One browser can only act on the page it is on, so a frontier action from
+another state is reached by \emph{replaying} its path from the seed, which fires
+the path's actions again. \sys{} limits this by action kind: only
+$\textsf{ReplaySafe}=\{\texttt{navigate},\texttt{click},\texttt{back}\}$ may be
+re-fired. A candidate whose path contains a \texttt{fill}, \texttt{select} or
+\texttt{submit} is recorded as skipped with a reason, and its subtree is reported
+as unexplored. The residual assumption is that clicks are navigational: a click
+that mutates state on a replayed path, such as a one-click ``Delete'', \emph{is}
+re-fired, which we record as an open limitation. Actions are content-addressed,
+$\mathit{id}(a)=H(\mathit{role}\,\|\,\mathit{name}\,\|\,\mathit{selector})$, so one
+``Log out'' control has one identity on every page, while deduplication is scoped
+to the pair $(v,a)$.
+
+\begin{proposition}[Bounded frontier executions, uninterrupted runs]
+\label{prop:term}
+Assume $|V|\le n$ (enforced by a state cap), at most $k$ actions per state, a
+depth bound $D$ on explored states, and a run without crashes. Then the loop
+terminates; it executes at most $nk$ frontier actions; no pair $(v,a)$ is executed
+as a frontier action twice; and replay re-fires at most $nkD$ actions in total.
+\end{proposition}
+\begin{proof}
+Each frontier execution first adds a new pair to $C$, and $|C|\le nk$. A pair is
+enqueued only when its state is first visited and the pair is not yet claimed or
+queued, so it enters the frontier at most once. Every loop iteration removes one
+frontier entry, so the loop halts. A replay re-fires the path of one frontier
+entry, whose length equals the depth of its source state ($\le D$), and there are
+at most $nk$ entries.
+\end{proof}
+
+The proposition is deliberately narrower than ``at-most-once'': it bounds
+\emph{frontier} executions of a pair, not the times an action reaches the AUT, since
+replay re-fires path actions (Sect.~\ref{sec:rq1} measures this), and it excludes
+crashes. The intended behaviour is that a pair claimed but lacking an edge counts
+as done and is not fired again, at the price of leaving it unexplored;
+Sect.~\ref{sec:rq1} reports a simulated test in which two resume mechanisms
+disagree about this.
+
+\subsection{Policies as Two Set Operations}
+
+A QA engineer writes the policy in English, to be compiled into clauses
+$c=(\sigma_c,\rho_c,\pi_c)$: a subject $\sigma_c$, a role scope $\rho_c$ (empty
+meaning all roles) and a polarity $\pi_c\in\{\textsf{must\_exist},\textsf{must\_not\_exist}\}$.
+The clauses split into a forbidden set $\Forb$ and a required set $\Req$.
+Perception maps each state $v$ to a set $\Sig(v)$ of grounded subjects: element
+tags, accessible names and capabilities. For role $r$, $\Forb_r$ and $\Req_r$
+denote the clauses whose scope admits $r$.
+
+\begin{definition}[Negation-aware audit]
+\begin{align}
+\mathit{Viol}_\Forb(v) &= \{\,c\in\Forb_r : \sigma_c\in\Sig(v)\,\}
+  && \text{(forbidden present)}\label{eq:forb}\\
+\mathit{Viol}_\Req(v)  &= \{\,c\in\Req_r : \sigma_c\notin\Sig(v)\,\}
+  && \text{(required absent)}\label{eq:req}
+\end{align}
+The audit of $v$ is $\mathit{Viol}_\Forb(v)\cup\mathit{Viol}_\Req(v)$, with each
+violation tagged by the operation that produced it.
+\end{definition}
+
+Equation~(\ref{eq:forb}) is an intersection and Eq.~(\ref{eq:req}) a set
+difference. An oracle built from intersection alone cannot flag a missing element,
+since a missing element has nothing to intersect with.
+
+\subsection{Error Direction Under Imperfect Perception}
+\label{sec:asym}
+
+In practice $\Sig(v)$ is replaced by an estimate $\hat\Sig(v)$ produced by a
+DOM/AX correlator or a VLM. The two operations respond to its errors in opposite
+directions, and this follows from their definitions.
+
+\begin{proposition}[Monotonicity of the two operations]
+\label{prop:asym}
+Let $\widehat{\mathit{Viol}}$ be the audit computed from $\hat\Sig$.
+\begin{enumerate}
+\item If perception under-reports, $\hat\Sig(v)\subseteq\Sig(v)$, then
+$\widehat{\mathit{Viol}}_\Forb(v)\subseteq\mathit{Viol}_\Forb(v)$ and
+$\widehat{\mathit{Viol}}_\Req(v)\supseteq\mathit{Viol}_\Req(v)$: forbidden clauses
+can only be missed and required clauses can only raise false alarms.
+\item If perception over-reports, $\hat\Sig(v)\supseteq\Sig(v)$, both inclusions
+are reversed.
+\end{enumerate}
+\end{proposition}
+\begin{proof}
+Equation~(\ref{eq:forb}) is monotone in $\Sig$ and Eq.~(\ref{eq:req}) is antitone
+in $\Sig$.
+\end{proof}
+
+This is an immediate property of the definitions, not a research result. Its use
+is a testable prediction about an implementation: for a perceiver that only drops
+elements, the engine must produce no forbidden false positives and no required
+false negatives, and for one that only adds spurious elements, no forbidden false
+negatives and no required false positives. A violation would mean the engine
+deviates from Eqs.~(\ref{eq:forb}) and~(\ref{eq:req}), for example through
+substring matching; Sect.~\ref{sec:rq2} tests this on the production engine. A
+perceiver with a single global bias cannot be safe for both clause types, although
+one with polarity-specific bias could be.
+
+For real channels the direction is relative to the policy vocabulary: a channel
+that tags an element with a string outside the policy's subject vocabulary has,
+for that clause, under-reported. That reading makes the direction checkable on a
+rule-based channel but also means one application cannot refute the observation;
+the perturbation test is the falsifiable part. Which polarity a VLM errs towards on
+UI screenshots
+\cite{alhamoud2025negation,yuksekgonul2023aro,ma2023crepe} is an empirical
+question we leave to the probe set of Sect.~\ref{sec:discussion}.
+
+

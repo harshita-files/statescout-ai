@@ -1,0 +1,4 @@
+1. Guests must never see a link to the admin dashboard.
+2. The home page must always provide a link to browse products.
+3. Guests without payment information should never be presented with a complete purchase button.
+4. Users must not fail to find a way to contact customer support.

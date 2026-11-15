@@ -1,0 +1,70 @@
+\section{Introduction}
+\label{sec:intro}
+
+Broken access control heads the OWASP Top~10~\cite{owasp2021a01}. Most
+research tools for it ask whether the \emph{server} enforces authorization,
+by comparing or replaying requests under different identities
+\cite{sun2011static,li2014blackbox,noseevich2011detecting,monshizadeh2014mace,liu2025bacscan}.
+A related class of defect lives one layer up. Consider a dashboard that
+renders an \emph{Admin} link for every role. The backend correctly rejects a
+guest's request, so a request-level scanner reports nothing. The link itself
+still leaks the existence and location of privileged functionality, invites
+probing, and violates the organisation's least-privilege UI policy. The same
+applies to a debug panel left in a production build, a destructive control a
+guest can reach in two clicks, or the \emph{absence} of an element the policy
+requires, such as a skip-to-content link, a consent banner, or a logout
+affordance.
+
+Workflow-based UI testing does not catch these defects, because tests check
+what \emph{should} happen and nobody writes a test for a button that should
+not exist. Model-inference crawlers~\cite{mesbah2012crawljax,memon2003ripping,dallmeier2013webmate}
+explore autonomously but check generic or hand-coded invariants. DOM
+invariants~\cite{mesbah2012invariant} can express presence and absence, but as
+per-page XPath predicates written in code, with no notion of role. LLM and
+VLM GUI agents~\cite{liu2024gptdroid,yoon2024droidagent,liu2024visiondroid,zheng2024seeact}
+explore or judge screens in natural language, but they let a model issue the
+verdict, which is risky when the verdict is ``this element is \emph{not}
+there'': VLMs are known to handle negation poorly~\cite{alhamoud2025negation}.
+
+\paragraph{This paper.}
+We present \sys{}, which reframes UI testing as \emph{state-space auditing}.
+Given a seed URL, a role, and a policy of the form ``a guest must never see the
+admin link; every page must offer a skip-to-content link'', \sys{} explores the
+application autonomously, keeps the full cyclic state graph, and audits every
+reached state. Each finding carries the policy clause it breaks, the set
+operation that caught it, and human-checkable evidence.
+
+\paragraph{Contributions.}
+We do not claim to be the first to crawl web applications into state graphs,
+to check invariants on crawled states, or to use VLMs for GUI testing; each has
+substantial prior art (\cref{sec:related}). Our contributions are a
+formalisation and a design that \emph{combine} these threads for a question
+none of them targets: \emph{does the UI a given role can reach conform to a
+declared policy of what must and must not exist?}
+\begin{enumerate}
+  \item \textbf{A polarity-typed, role-scoped policy oracle}
+    (\cref{sec:model}). Forbidden-present ($S\cap\mathcal F$) and
+    required-absent ($\mathcal R\setminus S$) are distinct set operations over
+    a \emph{semantic} state abstraction (roles, accessible names, tags,
+    capabilities), not raw XPath. Polarity is part of the policy schema, and
+    every violation is tagged with its clause type.
+  \item \textbf{An error-direction asymmetry result}
+    (\cref{prop:asym}) together with its empirical confirmation
+    (\cref{sec:eval:rq2}). Perception errors propagate in opposite directions
+    for the two clause types. This argues for reporting accuracy \emph{per
+    polarity} and for a \emph{negation-safe division of labour}, in which
+    deterministic DOM/AX evidence decides existence and a VLM only annotates.
+  \item \textbf{A side-effect-aware cyclic exploration loop}
+    (\cref{sec:system}). It uses claim-before-execute per $(v,a)$ pair,
+    kind-restricted replay, content-addressed actions, and normalized
+    fingerprints, and runs as a checkpointable LangGraph state machine behind
+    typed ports.
+  \item \textbf{An honest, reproducible evaluation} on a polarity-complete
+    ground-truth application (\cref{sec:eval}). It separates what the loop
+    guarantees (exact recovery with an oracle perceiver) from what perception
+    currently delivers, and localizes the remaining gap to semantic subject
+    grounding.
+\end{enumerate}
+
+Unlike access-control scanners, \sys{} does not test server-side enforcement.
+It audits what each role \emph{sees}, so the two are complementary.

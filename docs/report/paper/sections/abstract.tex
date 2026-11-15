@@ -1,0 +1,31 @@
+\begin{abstract}
+Web applications enforce authorization on the server, yet their user
+interfaces routinely expose what a role should never see: an Admin link
+rendered for guests, a debug panel shipped to production, a destructive
+control two clicks from the landing page. Such defects evade workflow tests,
+because nobody writes a test for a button that is not supposed to exist. We
+present \sys{}, an autonomous auditor that explores a web application as a
+fixed role and checks every reached UI state against a role-scoped declarative
+policy. We make three contributions. (1)~A \emph{polarity-typed policy oracle}
+that treats \emph{forbidden-present} ($S\cap\mathcal F$) and
+\emph{required-absent} ($\mathcal R\setminus S$) as distinct set operations over
+a semantic abstraction of each state. (2)~An \emph{error-direction asymmetry}
+result: under-reporting perception can only miss forbidden elements and can
+only raise false alarms on required ones, and over-reporting does the reverse.
+No single perception bias is therefore safe for both clause types, which
+motivates a negation-safe design in which deterministic DOM and
+accessibility-tree evidence decides existence and a vision-language model only
+annotates. (3)~A \emph{side-effect-aware, cyclic exploration loop} with
+claim-before-execute semantics per $(\text{state},\text{action})$ pair,
+content-addressed actions, and normalized state fingerprints, implemented as a
+checkpointable LangGraph state machine. On a ground-truth application with six
+states, four cycles, and four planted violations, the loop recovers the full
+cyclic graph with zero duplicate work and reports exactly the planted
+violations when perception is an oracle. Replacing the oracle with the
+deterministic perception channel drops precision to 0.29 and recall to 0.50,
+with errors that follow the predicted asymmetry exactly. A lexical-grounding
+ablation restores precision to 1.00 but not recall, which isolates
+\emph{semantic subject grounding} as the open problem. State normalization
+collapses 300 noisy captures to the 6 true states while still separating a
+state that gains or loses a Delete button.
+\end{abstract}

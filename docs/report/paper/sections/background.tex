@@ -1,0 +1,29 @@
+\section{Motivating Example}
+\label{sec:background}
+
+\Cref{fig:app} (\cref{sec:eval}) shows \texttt{broken-admin}, a six-page
+application built as ground truth. A guest lands on \texttt{index}, signs in,
+and reaches \texttt{dashboard}. From there the guest can open
+\texttt{reports} and \texttt{admin}, and every page links back. The policy,
+written in English and stored with its structured form, reads:
+
+\begin{quote}\small
+(F1) A guest must never see the admin link.
+(F2) A guest must never be able to delete a user.
+(F3) No page may ship a debug panel.
+(R1) Every page must offer a skip-to-content link.
+\end{quote}
+
+Four violations are planted. The Admin link on \texttt{dashboard} breaks F1.
+The debug panel on \texttt{reports} breaks F3. The Delete-user button on
+\texttt{admin} breaks F2. \texttt{admin} is also the only page without a
+skip-to-content link, which breaks R1.
+
+Three observations follow from this example. \emph{First}, no workflow test
+catches F1--F3, because each defect is extra UI, not broken UI. \emph{Second},
+R1 is an \emph{absence}. An engine that only intersects what it sees with a
+forbidden list cannot express it (\cref{sec:eval:rq3}). \emph{Third}, the
+graph is dense with cycles (log out, back to dashboard). A crawler that drops
+back-edges still ``finds the violations'' but throws away the navigation
+evidence that a path-sensitive policy (``reachable without signing in'') would
+need.
