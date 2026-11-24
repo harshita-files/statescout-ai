@@ -101,11 +101,36 @@ _BREAKER_THRESHOLD = 3
 _MAX_PROMPT_ELEMENTS = 80
 
 
+_CONTROL_ROLES = frozenset({"link", "button", "menuitem", "tab", "checkbox", "switch"})
+
+
+def _icon_only(element: UIElement) -> bool:
+    """A control whose name is empty or only an icon-font glyph (private use area).
+
+    The DOM says nothing about what such a control does; the screenshot is the
+    only evidence, which is what the VLM is for.
+    """
+    if element.role.strip().lower() not in _CONTROL_ROLES:
+        return False
+    return all(ch.isspace() or 0xE000 <= ord(ch) <= 0xF8FF for ch in element.name)
+
+
 def _prompt_elements(elements: tuple[UIElement, ...]) -> list[tuple[int, UIElement]]:
-    """Distinct (role, name) elements, tagged ones first, original index kept, capped."""
+    """Distinct (role, name) elements, original index kept, capped.
+
+    Priority: elements that already carry tags, then icon-only controls, then the
+    rest in page order. Without the second tier a long navigation menu used the
+    whole budget and icon-only controls further down the page, the cases where
+    vision is the only evidence, were never offered to the model.
+    """
     seen: set[tuple[str, str]] = set()
     picked: list[tuple[int, UIElement]] = []
-    for i, e in sorted(enumerate(elements), key=lambda ie: (not ie[1].tags, ie[0])):
+
+    def priority(ie: tuple[int, UIElement]) -> tuple[int, int]:
+        i, e = ie
+        return (0 if e.tags else 1 if _icon_only(e) else 2, i)
+
+    for i, e in sorted(enumerate(elements), key=priority):
         key = (e.role, e.name)
         if key in seen:
             continue

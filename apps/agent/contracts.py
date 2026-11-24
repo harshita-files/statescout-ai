@@ -230,6 +230,13 @@ class UIElement:
     selector: str | None = None
     visible: bool = True
     enabled: bool = True
+    #: The author marked this element decorative: `alt=""` on an image,
+    #: `role="presentation"` or `role="none"`, or `aria-hidden="true"`. It is
+    #: meant to be skipped by assistive technology, so an empty accessible name
+    #: is correct rather than a fault. It can still be an exposure, so perception
+    #: keeps it. Defaults to False, so callers that know nothing of the markup
+    #: are unaffected.
+    decorative: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -18,7 +18,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from apps.agent.perception.dom import DOMElement
+from apps.agent.perception.dom import DOMElement, is_form_field
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,11 +65,40 @@ def _normalize(value: str) -> str:
 
 
 def _dom_name(element: DOMElement) -> str:
-    return element.aria_label or element.text or element.element_id or ""
+    if is_form_field(element):
+        # A field's name comes from its label. Its `id` is not announced, and a
+        # text field's value is what the user typed.
+        return element.aria_label or element.label or ""
+    # For an image, `alt` is the accessible name after aria-label. Without it a
+    # labelled image could not be paired with its accessibility node by name.
+    alt = element.alt if element.tag == "img" else None
+    if element.tag == "input":
+        # A button-like input is named by its value (an image button by its alt);
+        # a text field's value is what the user typed, so it is never the name.
+        if element.input_type in {"submit", "button", "reset"}:
+            alt = element.value
+        elif element.input_type == "image":
+            alt = element.alt
+    return element.aria_label or alt or element.text or element.element_id or ""
 
 
 def _same_name(left: str, right: str) -> bool:
     return bool(left and right and _normalize(left) == _normalize(right))
+
+
+#: The role the browser gives each `<input type>`; anything else is a textbox.
+_INPUT_ROLES: dict[str, set[str]] = {
+    "checkbox": {"checkbox"},
+    "radio": {"radio"},
+    "submit": {"button"},
+    "button": {"button"},
+    "reset": {"button"},
+    "image": {"button"},
+    "file": {"button"},
+    "search": {"searchbox", "textbox"},
+    "number": {"spinbutton"},
+    "range": {"slider"},
+}
 
 
 def _same_role(ax: str, dom: DOMElement) -> bool:
@@ -80,6 +109,9 @@ def _same_role(ax: str, dom: DOMElement) -> bool:
 
     if dom_role:
         return dom_role == ax
+
+    if dom.tag.lower() == "input":
+        return ax in _INPUT_ROLES.get(dom.input_type or "", {"textbox"})
 
     # Native HTML semantics.
     native_roles = {
