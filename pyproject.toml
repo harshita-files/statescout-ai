@@ -49,7 +49,7 @@ packages = ["apps"]
 [tool.pytest.ini_options]
 # Repo root on sys.path so tests import the real tree: `from apps.agent.contracts import ...`
 pythonpath = ["."]
-testpaths = ["tests/unit", "tests/integration"]
+testpaths = ["tests/unit", "tests/integration", "apps"]
 python_files = ["test_*.py"]
 addopts = "-q --strict-markers"
 markers = [

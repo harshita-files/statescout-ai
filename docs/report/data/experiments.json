@@ -14,38 +14,12 @@
     },
     "E1_deterministic_dom_perception": {
       "tp": 2,
-      "fp": 5,
+      "fp": 0,
       "fn": 2,
-      "precision": 0.286,
+      "precision": 1.0,
       "recall": 0.5,
-      "f1": 0.364,
-      "false_positives": [
-        [
-          "/index.html",
-          "e-skip-link",
-          "required_absent"
-        ],
-        [
-          "/pages/dashboard.html",
-          "e-skip-link",
-          "required_absent"
-        ],
-        [
-          "/pages/login.html",
-          "e-skip-link",
-          "required_absent"
-        ],
-        [
-          "/pages/register.html",
-          "e-skip-link",
-          "required_absent"
-        ],
-        [
-          "/pages/reports.html",
-          "e-skip-link",
-          "required_absent"
-        ]
-      ],
+      "f1": 0.667,
+      "false_positives": [],
       "missed": [
         [
           "/pages/dashboard.html",
@@ -227,171 +201,171 @@
     "resume": {
       "crash_in_action_after_claim__same_crawler": {
         "positions": 11,
-        "positions_with_a_pair_attempted_twice": 11,
-        "positions_with_skips": 0,
-        "positions_graph_equals_uninterrupted": 11,
+        "positions_with_a_pair_attempted_twice": 0,
+        "positions_with_skips": 11,
+        "positions_graph_equals_uninterrupted": 0,
         "rows": [
           {
             "crash_at": 1,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 2,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 3,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 4,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 5,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 6,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 7,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 8,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 9,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 10,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          },
-          {
-            "crash_at": 11,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
-          }
-        ]
-      },
-      "crash_in_action_after_claim__fresh_crawler": {
-        "positions": 11,
-        "positions_with_a_pair_attempted_twice": 11,
-        "positions_with_skips": 2,
-        "positions_graph_equals_uninterrupted": 9,
-        "rows": [
-          {
-            "crash_at": 1,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
             "skipped_after_resume": 1,
             "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 2,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 3,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 2,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 4,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 4,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 5,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 6,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 7,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 8,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 9,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 10,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 11,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          }
+        ]
+      },
+      "crash_in_action_after_claim__fresh_crawler": {
+        "positions": 11,
+        "positions_with_a_pair_attempted_twice": 0,
+        "positions_with_skips": 11,
+        "positions_graph_equals_uninterrupted": 0,
+        "rows": [
+          {
+            "crash_at": 1,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
+          },
+          {
+            "crash_at": 2,
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
             "skipped_after_resume": 2,
             "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 3,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 2,
+            "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 4,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 4,
+            "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 5,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 6,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 7,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 8,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 9,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 10,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
           },
           {
             "crash_at": 11,
-            "max_attempts_of_a_claimed_pair": 2,
-            "pairs_attempted_twice": 1,
-            "skipped_after_resume": 0,
-            "graph_equals_uninterrupted": true
+            "max_attempts_of_a_claimed_pair": 1,
+            "pairs_attempted_twice": 0,
+            "skipped_after_resume": 1,
+            "graph_equals_uninterrupted": false
           }
         ]
       },
@@ -881,7 +855,7 @@
         "fn_F": 169,
         "fn_R": 0,
         "fp_F": 0,
-        "fp_R": 309,
+        "fp_R": 0,
         "tp_F": 77,
         "tp_R": 75
       },
@@ -902,17 +876,17 @@
     "vocabulary_rename_scores": {
       "admin-link->admin_link": {
         "oracle_maps_real_audit": {
-          "tp": 3,
+          "tp": 4,
           "fp": 0,
-          "fn": 1,
+          "fn": 0,
           "precision": 1.0,
-          "recall": 0.75
+          "recall": 1.0
         },
         "dom_channel_real_audit": {
           "tp": 2,
-          "fp": 5,
+          "fp": 0,
           "fn": 2,
-          "precision": 0.286,
+          "precision": 1.0,
           "recall": 0.5
         },
         "own_dom_invariant_baseline": {
@@ -925,17 +899,17 @@
       },
       "debug-panel->debug_panel": {
         "oracle_maps_real_audit": {
-          "tp": 3,
+          "tp": 4,
           "fp": 0,
-          "fn": 1,
+          "fn": 0,
           "precision": 1.0,
-          "recall": 0.75
+          "recall": 1.0
         },
         "dom_channel_real_audit": {
           "tp": 2,
-          "fp": 5,
+          "fp": 0,
           "fn": 2,
-          "precision": 0.286,
+          "precision": 1.0,
           "recall": 0.5
         },
         "own_dom_invariant_baseline": {
@@ -949,16 +923,16 @@
       "skip-to-content->skip_to_content": {
         "oracle_maps_real_audit": {
           "tp": 4,
-          "fp": 5,
+          "fp": 0,
           "fn": 0,
-          "precision": 0.444,
+          "precision": 1.0,
           "recall": 1.0
         },
         "dom_channel_real_audit": {
           "tp": 2,
-          "fp": 5,
+          "fp": 0,
           "fn": 2,
-          "precision": 0.286,
+          "precision": 1.0,
           "recall": 0.5
         },
         "own_dom_invariant_baseline": {
@@ -1005,10 +979,10 @@
     }
   },
   "meta": {
-    "python": "3.13.13",
-    "platform": "Linux x86_64",
+    "python": "3.13.15",
+    "platform": "Darwin arm64",
     "langgraph": "1.2.10",
-    "git_head": "44875744dd9388a05b0c3fa6cbb5858b53f34d3c",
+    "git_head": "1e3123c456eafeda2fecd104a29579d34bef9c3f",
     "code_tree_clean_vs_head": false,
     "seed": 7,
     "note": "E1-E4 read page HTML from test-apps/broken-admin; E5 uses the in-memory fakes; no browser, no network, no Neo4j/Redis"
@@ -1027,38 +1001,12 @@
       },
       "A3_dom_channel": {
         "tp": 2,
-        "fp": 5,
+        "fp": 0,
         "fn": 2,
-        "precision": 0.286,
+        "precision": 1.0,
         "recall": 0.5,
-        "f1": 0.364,
-        "false_positives": [
-          [
-            "/index.html",
-            "e-skip-link",
-            "required_absent"
-          ],
-          [
-            "/pages/dashboard.html",
-            "e-skip-link",
-            "required_absent"
-          ],
-          [
-            "/pages/login.html",
-            "e-skip-link",
-            "required_absent"
-          ],
-          [
-            "/pages/register.html",
-            "e-skip-link",
-            "required_absent"
-          ],
-          [
-            "/pages/reports.html",
-            "e-skip-link",
-            "required_absent"
-          ]
-        ],
+        "f1": 0.667,
+        "false_positives": [],
         "missed": [
           [
             "/pages/dashboard.html",
@@ -1146,38 +1094,12 @@
       },
       "A3_on_stripped_copy": {
         "tp": 2,
-        "fp": 5,
+        "fp": 0,
         "fn": 2,
-        "precision": 0.286,
+        "precision": 1.0,
         "recall": 0.5,
-        "f1": 0.364,
-        "false_positives": [
-          [
-            "/index.html",
-            "e-skip-link",
-            "required_absent"
-          ],
-          [
-            "/pages/dashboard.html",
-            "e-skip-link",
-            "required_absent"
-          ],
-          [
-            "/pages/login.html",
-            "e-skip-link",
-            "required_absent"
-          ],
-          [
-            "/pages/register.html",
-            "e-skip-link",
-            "required_absent"
-          ],
-          [
-            "/pages/reports.html",
-            "e-skip-link",
-            "required_absent"
-          ]
-        ],
+        "f1": 0.667,
+        "false_positives": [],
         "missed": [
           [
             "/pages/dashboard.html",
@@ -1241,7 +1163,7 @@
             "fn_F": 4,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 15,
+            "fp_R": 0,
             "tp_F": 2,
             "tp_R": 3
           },
@@ -1273,7 +1195,7 @@
             "fn_F": 4,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 15,
+            "fp_R": 0,
             "tp_F": 2,
             "tp_R": 3
           },
@@ -1311,7 +1233,7 @@
             "fn_F": 15,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 25,
+            "fp_R": 0,
             "tp_F": 5,
             "tp_R": 5
           },
@@ -1343,7 +1265,7 @@
             "fn_F": 15,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 25,
+            "fp_R": 0,
             "tp_F": 5,
             "tp_R": 5
           },
@@ -1381,7 +1303,7 @@
             "fn_F": 10,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 25,
+            "fp_R": 0,
             "tp_F": 10,
             "tp_R": 5
           },
@@ -1413,7 +1335,7 @@
             "fn_F": 10,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 25,
+            "fp_R": 0,
             "tp_F": 10,
             "tp_R": 5
           },
@@ -1451,7 +1373,7 @@
             "fn_F": 15,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 25,
+            "fp_R": 0,
             "tp_F": 5,
             "tp_R": 5
           },
@@ -1483,7 +1405,7 @@
             "fn_F": 15,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 25,
+            "fp_R": 0,
             "tp_F": 5,
             "tp_R": 5
           },
@@ -1521,7 +1443,7 @@
             "fn_F": 10,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 20,
+            "fp_R": 0,
             "tp_F": 5,
             "tp_R": 10
           },
@@ -1553,7 +1475,7 @@
             "fn_F": 10,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 20,
+            "fp_R": 0,
             "tp_F": 5,
             "tp_R": 10
           },
@@ -1591,7 +1513,7 @@
             "fn_F": 2,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 6,
+            "fp_R": 0,
             "tp_F": 1,
             "tp_R": 0
           },
@@ -1623,7 +1545,7 @@
             "fn_F": 2,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 6,
+            "fp_R": 0,
             "tp_F": 1,
             "tp_R": 0
           },
@@ -1661,7 +1583,7 @@
             "fn_F": 113,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 193,
+            "fp_R": 0,
             "tp_F": 49,
             "tp_R": 47
           },
@@ -1693,7 +1615,7 @@
             "fn_F": 113,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 193,
+            "fp_R": 0,
             "tp_F": 49,
             "tp_R": 47
           },
@@ -1731,7 +1653,7 @@
             "fn_F": 8,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 20,
+            "fp_R": 10,
             "tp_F": 4,
             "tp_R": 4
           },
@@ -1763,7 +1685,7 @@
             "fn_F": 8,
             "fn_R": 0,
             "fp_F": 0,
-            "fp_R": 20,
+            "fp_R": 10,
             "tp_F": 4,
             "tp_R": 4
           },
@@ -1814,9 +1736,9 @@
     "resume_summary": {
       "crash_in_action_after_claim__same_crawler": {
         "positions": 13,
-        "positions_with_a_pair_attempted_twice": 13,
-        "positions_with_skips": 0,
-        "positions_graph_equals_uninterrupted": 13
+        "positions_with_a_pair_attempted_twice": 0,
+        "positions_with_skips": 13,
+        "positions_graph_equals_uninterrupted": 0
       },
       "crash_in_edge_write__same_crawler": {
         "positions": 13,
@@ -2271,7 +2193,7 @@
         "fp_F": 0,
         "fn_F": 2,
         "tp_R": 1,
-        "fp_R": 5,
+        "fp_R": 0,
         "fn_R": 0
       },
       "A6_tag_script": {
@@ -2305,7 +2227,7 @@
         "fp_F": 0,
         "fn_F": 2,
         "tp_R": 1,
-        "fp_R": 5,
+        "fp_R": 0,
         "fn_R": 0
       },
       "A6_tag_script": {

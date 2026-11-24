@@ -110,7 +110,12 @@ CHECKS: dict[str, Callable[[list[Finding]], bool]] = {
     ),
     "SW-04": lambda fs: any("add up" in f.rationale for f in fs),
     "SW-05": lambda fs: any("last updated" in _ev(f).lower() for f in fs),
-    "SW-06": lambda fs: any("accessible name" in f.rationale for f in fs),
+    # The planted fault is an icon-only *button*. Matching any "accessible name"
+    # finding let a phantom stylesheet <link>, or a decorative image, stand in for
+    # it, so SW-06 counted as detected while the star buttons were never seen.
+    "SW-06": lambda fs: any(
+        "accessible name" in f.rationale and "button" in f.rationale for f in fs
+    ),
     "SW-07": lambda fs: any(re.search(r"404|not found", _ev(f), re.I) for f in fs),
     "SW-08": lambda fs: any("never appears" in f.rationale for f in fs),
     "SW-09": lambda fs: any(re.search(r"TSLA|AMD", _ev(f)) for f in fs),
