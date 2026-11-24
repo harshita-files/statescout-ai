@@ -7,7 +7,7 @@ import hashlib
 import re
 import time
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Literal
 
@@ -243,6 +243,39 @@ def _rule_key(rule: Rule) -> tuple[Any, ...]:
     )
 
 
+def unmatchable_clauses(
+    expectations: ExpectationSet,
+    maps: Mapping[str, SemanticUIMap],
+) -> tuple[str, ...]:
+    """Clauses whose subject appears nowhere in what the run observed.
+
+    A forbidden clause that never fires is indistinguishable in the report from
+    one that was satisfied, so a subject the application's vocabulary cannot
+    produce yields a clean-looking result for a page that was never checked.
+    Reporting these does not claim the clause is wrong: the element may simply
+    be absent everywhere. It says the clause could not have fired either way.
+    """
+    if not maps:
+        return ()
+    seen: set[str] = set()
+    for smap in maps.values():
+        seen.update(_norm_subject(c) for c in smap.capabilities)
+        for el in smap.elements:
+            seen.update(_norm_subject(t) for t in el.tags)
+            if el.name:
+                seen.add(_norm_subject(el.name))
+    out = [
+        node.expectation_id
+        for node in (*expectations.forbidden, *expectations.required)
+        if _norm_subject(node.subject) not in seen
+    ]
+    return tuple(out)
+
+
+def _norm_subject(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
 def _drop_duplicate_rules(rules: Sequence[Rule]) -> tuple[list[Rule], list[str]]:
     """Drop generated rules that repeat a user rule's clause (or an earlier generated one)."""
     seen = {_rule_key(r) for r in rules if r.source == "user"}
@@ -334,13 +367,26 @@ def _merge_findings(
         violations, key=lambda v: source.get(v.expectation_id, "user") != "user"
     )  # stable: user rules first
     out: list[Finding] = []
+    # (state, evidence) a *user* rule has claimed: a generated rule hitting the
+    # same element in the same state is the duplicate we mean to suppress.
     claimed: set[tuple[str, str]] = set()
+    # (state, rule, element, evidence): the same clause on the same element,
+    # twice. The element is part of the key because an accessibility violation
+    # comes from an AX node with no DOM selector, so its evidence signature is
+    # only the role and every unlabelled image on a page would share it.
+    seen: set[tuple[str, str, str, str]] = set()
     for v in ordered:
         sig = _evidence_signature(v)
         if sig:
-            if (v.state_id, sig) in claimed:
+            is_user = source.get(v.expectation_id, "user") == "user"
+            exact = (v.state_id, v.expectation_id or "", v.violation_id or "", sig)
+            if exact in seen:
                 continue
-            claimed.add((v.state_id, sig))
+            seen.add(exact)
+            if not is_user and (v.state_id, sig) in claimed:
+                continue
+            if is_user:
+                claimed.add((v.state_id, sig))
         out.append(_finding(v, stats, rule_text, smap_url))
     return tuple(out)
 
@@ -478,6 +524,7 @@ def run_audit(
         "duration_ms": result.duration_ms,
         "finding_groups": _groups(findings),
         "deduplicated_rules": dropped,
+        "unmatchable_clauses": list(unmatchable_clauses(expectations, observer.maps)),
     }
     degraded = getattr(ports.perception, "degraded_calls", 0)
     if isinstance(degraded, int) and degraded > 0:
