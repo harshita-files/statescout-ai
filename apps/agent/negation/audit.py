@@ -26,9 +26,40 @@ from apps.agent.contracts import (
     Violation,
 )
 
+#: Roles that can carry a capability. A capability describes what a control
+#: does, so prose is never the evidence for one.
+_CONTROL_ROLES = frozenset(
+    {
+        "button",
+        "link",
+        "menuitem",
+        "menuitemcheckbox",
+        "menuitemradio",
+        "tab",
+        "checkbox",
+        "radio",
+        "textbox",
+        "searchbox",
+        "combobox",
+        "listbox",
+        "switch",
+        "option",
+        "slider",
+        "spinbutton",
+        "treeitem",
+        "input",
+    }
+)
+
 
 def _normalize(value: str) -> str:
-    return re.sub(r"\s+", " ", value).strip().lower()
+    """Fold case and collapse every run of separators to one space.
+
+    The rule parser hyphenates a multi-word subject ("Add Owner" -> "add-owner")
+    while an accessible name keeps its spaces, so comparing on whitespace alone
+    made every multi-word subject unmatchable. This is the A4 normalisation.
+    """
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 
 
 def _applies(expectation: ExpectationNode, role: str) -> bool:
@@ -47,8 +78,13 @@ def _matches_subject(
     # Capabilities are stronger evidence than fuzzy text.
     for capability in semantic_map.capabilities:
         if _normalize(capability) == wanted:
+            # Prefer a control: the tag-to-capability map below reads element
+            # text, so prose mentioning an administrator would otherwise be
+            # offered as the evidence for an exposed admin capability.
             for element in semantic_map.elements:
-                if capability in _element_capabilities(element):
+                if (element.role or "").strip().lower() in _CONTROL_ROLES and (
+                    capability in _element_capabilities(element)
+                ):
                     return True, Evidence(
                         selector=element.selector,
                         text=element.name,

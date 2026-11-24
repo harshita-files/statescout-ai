@@ -435,7 +435,12 @@ def check_a11y(
     out: list[Violation] = []
     for smap in maps:
         for i, el in enumerate(smap.elements):
-            if el.visible and el.role.lower() in _INTERACTIVE and not el.name.strip():
+            if (
+                el.visible
+                and not el.decorative
+                and el.role.lower() in _INTERACTIVE
+                and not el.name.strip()
+            ):
                 out.append(
                     _v(
                         rule,
