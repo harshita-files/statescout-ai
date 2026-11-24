@@ -137,7 +137,10 @@ def test_extract_cdp_uses_reload_stable_role_name_selector() -> None:
     collected: list[Action] = []
     _extract_actions(CDP_AX, collected)
     admin = next(a for a in collected if "Admin panel" in a.label)
-    assert admin.target == "role=link[name=/^Admin panel$/] >> nth=0"
+    # Tolerant of an icon glyph and of CDP's applied text-transform, because
+    # Playwright resolves this selector with its own name computation
+    # (see test_action_name_pattern.py).
+    assert admin.target == ("role=link[name=/^[^A-Za-z0-9]*Admin panel[^A-Za-z0-9]*$/i] >> nth=0")
     assert "42" not in admin.target  # CDP node ids do not survive a reload
 
 

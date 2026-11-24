@@ -135,6 +135,27 @@ def _js_escape(text: str) -> str:
     return re.sub(r"[\\^$.*+?()\[\]{}|/]", lambda m: "\\" + m.group(0), text)
 
 
+#: Private-use codepoints: where icon fonts put their glyphs. CDP keeps the glyph
+#: a ::before pseudo-element injects; Playwright's own name computation does not
+#: treat it the same way, and CDP additionally applies CSS `text-transform`.
+_ICON_GLYPH = re.compile("[\ue000-\uf8ff\U000f0000-\U000ffffd\U00100000-\U0010fffd]")
+
+
+def _name_pattern(name: str) -> str:
+    """A JS regex body matching *name* the way Playwright will have computed it.
+
+    Match the alphanumeric core and allow non-alphanumeric padding at either end,
+    so an icon glyph does not defeat the selector. The caller adds the `i` flag,
+    because CDP uppercases a `text-transform: uppercase` label and Playwright
+    keeps the source case. A name that is only glyphs has no core, so it falls
+    back to matching itself.
+    """
+    core = re.sub(r"\s+", " ", _ICON_GLYPH.sub("", name)).strip()
+    if not core:
+        return f"^{_js_escape(name)}$"
+    return f"^[^A-Za-z0-9]*{_js_escape(core)}[^A-Za-z0-9]*$"
+
+
 def _extract_actions(node: Any, collected: list[Action]) -> None:
     """Walk one AX-tree node (recursive).  Handles both CDP flat and nested shapes."""
     if not isinstance(node, dict):
@@ -160,7 +181,7 @@ def _extract_actions(node: Any, collected: list[Action]) -> None:
     if role in _ACTIONABLE_ROLES and name:
         # Role+name survives reloads (CDP node ids and injected attributes do not), which
         # replays rely on. Exact match; nth=0 tolerates duplicates (they share an action_id).
-        selector = f"role={role}[name=/^{_js_escape(name)}$/] >> nth=0"
+        selector = f"role={role}[name=/{_name_pattern(name)}/i] >> nth=0"
         kind = _KIND_MAP.get(role, "click")
         collected.append(
             Action(
@@ -178,6 +199,27 @@ def _extract_actions(node: Any, collected: list[Action]) -> None:
 # ---------------------------------------------------------------------------
 # PlaywrightCrawler
 # ---------------------------------------------------------------------------
+
+
+#: Extensions served alongside an application that are not application UI.
+#: An audit of a served README is an audit of documentation, not of the product.
+_NON_DOCUMENT_SUFFIX = re.compile(
+    r"\.(?:md|markdown|rst|txt|log|csv|tsv|json|ya?ml|xml|toml|ini|pdf|docx?|xlsx?|pptx?"
+    r"|zip|t?gz|tar|bz2|xz|rar|7z|png|jpe?g|gif|svg|webp|avif|ico|bmp|tiff?"
+    r"|mp4|webm|mkv|mov|mp3|wav|ogg|flac|woff2?|ttf|otf|eot|css|js|mjs|cjs|map"
+    r"|exe|dmg|pkg|deb|rpm|apk|iso|wasm)$",
+    re.IGNORECASE,
+)
+
+
+def is_document_url(url: str) -> bool:
+    """True when *url* looks like a page to audit rather than a served file.
+
+    Only the path decides; an extension appearing in a query string or fragment
+    is not part of the resource name.
+    """
+    path = urlsplit(url).path
+    return not _NON_DOCUMENT_SUFFIX.search(path)
 
 
 class PlaywrightCrawler:
@@ -198,6 +240,7 @@ class PlaywrightCrawler:
 
     _safety: SafetyPolicy | None = None
     _walled: frozenset[str] = frozenset()
+    _usable: frozenset[str] = frozenset()
 
     def __init__(
         self,
@@ -210,6 +253,8 @@ class PlaywrightCrawler:
     ) -> None:
         self._safety = safety
         self._walled: frozenset[str] = frozenset()
+        #: URLs a capture has shown to be usable; see `_screen`.
+        self._usable: frozenset[str] = frozenset()
         # None means readiness was disabled or no outcome was reached.
         self.last_capture_ready: bool | None = None
         self._navigation_pending: tuple[int, set[int]] | None = None
@@ -560,7 +605,7 @@ class PlaywrightCrawler:
                 if dest is not None:
                     if dest.split("#")[0] == here and "#" in dest:
                         continue  # in-page anchor: not a new state
-                    if self._off_scope(dest):
+                    if self._off_scope(dest) or not is_document_url(dest):
                         continue
                     a = Action(
                         action_id=a.action_id,
@@ -604,7 +649,20 @@ class PlaywrightCrawler:
             self._safety.block(bundle.url, "offsite")
             raise NavigationError(f"blocked (offsite): {bundle.url}")
         self._safety.record_page(bundle.url)
-        if self._safety.check_bundle(bundle):
+        reason = self._safety.check_bundle(bundle)
+        if reason is None:
+            self._usable = self._usable | {bundle.url}
+            if bundle.url in self._walled:
+                # An earlier capture looked walled: a consent element on a page
+                # that had not yet rendered its own controls. This one disagrees.
+                self._walled = self._walled - {bundle.url}
+                self._safety.clear_wall(bundle.url)
+        elif reason == "consent_wall" and bundle.url in self._usable:
+            # A capture already showed this page usable. A sparser capture of a
+            # client-rendered page is absence of evidence, not evidence of a
+            # gate, so it must not withdraw what an earlier capture established.
+            self._safety.clear_wall(bundle.url)
+        else:
             self._walled = self._walled | {bundle.url}
         return bundle
 

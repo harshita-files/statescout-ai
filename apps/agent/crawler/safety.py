@@ -17,6 +17,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
 
@@ -44,11 +45,81 @@ _CONSENT = re.compile(
     r"cookie[- ]?(consent|banner|wall)|we use cookies|this (web)?site uses cookies",
     re.IGNORECASE,
 )
+#: Reasons that are a judgement about page content, so a later capture can revise
+#: them. Robots, caps and rate limits are facts about the request, and are not.
+_WALL_REASONS = frozenset({"captcha", "login_wall", "consent_wall"})
 _PASSWORD_INPUT = re.compile(r"""<input[^>]+type\s*=\s*["']?password""", re.IGNORECASE)
+# A consent *banner* is a wall; a bundled consent library is not. Strip asset
+# elements and URL-bearing attributes before looking for consent wording, or a
+# stylesheet named `cookieconsent.min.css` aborts the whole crawl.
+_ASSET_ELEMENT = re.compile(
+    r"<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>|<link\b[^>]*>",
+    re.IGNORECASE | re.DOTALL,
+)
+_URL_ATTRIBUTE = re.compile(
+    r"""\b(?:href|src|srcset|action|poster|formaction)\s*=\s*(?P<q>["']).*?(?P=q)""",
+    re.IGNORECASE | re.DOTALL,
+)
 _LOGIN_HINT = re.compile(r"\b(log\s?in|sign\s?in)\b", re.IGNORECASE)
 _TAG = re.compile(r"<[^>]+>")
 
 Fetcher = Callable[[str], tuple[int, str]]
+
+
+#: Roles a user can act on. Kept local so safety does not import the crawler.
+_ACTIONABLE = frozenset(
+    {
+        "button",
+        "link",
+        "menuitem",
+        "menuitemcheckbox",
+        "menuitemradio",
+        "tab",
+        "checkbox",
+        "radio",
+        "textbox",
+        "searchbox",
+        "combobox",
+        "listbox",
+        "switch",
+        "option",
+        "slider",
+        "spinbutton",
+        "treeitem",
+    }
+)
+#: A consent dialog offers a few controls: accept, reject, settings, a policy
+#: link. A page exposing more than this has functionality of its own, so the
+#: consent element is a notice over a usable page rather than a gate in front of
+#: one. Observed on OWASP Juice Shop, whose floating banner sits above seven
+#: enumerable actions.
+_CONSENT_CONTROL_BUDGET = 4
+
+
+def _actionable_count(node: Any, depth: int = 0) -> int:
+    """Actionable, named nodes in an AX tree, flat (CDP) or nested."""
+    if depth > 40 or not isinstance(node, dict):
+        return 0
+    total = 0
+    role = node.get("role")
+    role = role.get("value") if isinstance(role, dict) else role
+    name = node.get("name")
+    name = name.get("value") if isinstance(name, dict) else name
+    if isinstance(role, str) and role.lower() in _ACTIONABLE and str(name or "").strip():
+        total += 1
+    for key in ("children", "nodes"):
+        for child in node.get(key) or []:
+            total += _actionable_count(child, depth + 1)
+    return total
+
+
+def _consent_surface(dom: str) -> str:
+    """`dom` with scripts, styles, link elements and URL attributes removed.
+
+    Consent wording inside a bundled library's filename says nothing about
+    whether the user is being asked to consent.
+    """
+    return _URL_ATTRIBUTE.sub(" ", _ASSET_ELEMENT.sub(" ", dom))
 
 
 def _fetch_robots(url: str) -> tuple[int, str]:
@@ -98,6 +169,19 @@ class SafetyPolicy:
         if note not in self._notes:
             self._notes.append(note)
         return reason
+
+    def clear_wall(self, url: str) -> None:
+        """Withdraw a wall recorded for *url*.
+
+        Walls are judged from one capture. When a later capture of the same page
+        shows it is usable, the earlier note is not evidence of anything and must
+        not be reported as a page that was skipped. Only wall reasons are
+        withdrawn; robots, caps and rate limits are not re-judged.
+        """
+        with self._lock:
+            self._notes = [
+                n for n in self._notes if not (n.url == url and n.reason in _WALL_REASONS)
+            ]
 
     def blocked_notes(self) -> tuple[BlockedNote, ...]:
         return tuple(self._notes)
@@ -210,7 +294,9 @@ class SafetyPolicy:
             text = _TAG.sub(" ", dom)
             if _LOGIN_HINT.search(bundle.title) or _LOGIN_HINT.search(text[:4000]):
                 return "login_wall"
-        if _CONSENT.search(dom):
+        if _CONSENT.search(_consent_surface(dom)):
+            if _actionable_count(bundle.ax_tree) > _CONSENT_CONTROL_BUDGET:
+                return None  # a notice over a usable page, not a gate in front of one
             return "consent_wall"
         return None
 
